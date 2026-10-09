@@ -1,0 +1,25 @@
+name: Build Unreal Engine Project
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: self-hosted # Requires a machine with UE5 installed and configured as a runner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Build and Package Project
+        uses: OrchidIsle/UE5-Build-Project@v1
+        with:
+          RUNUAT_PATH: 'C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat'
+          UPROJECT_PATH: '${{ github.workspace }}\Metalization.uproject'
+          BUILD_CONFIG: 'Development'
+          PLATFORM: 'Win64'
+          COOK: true
+          PACKAGE: true
