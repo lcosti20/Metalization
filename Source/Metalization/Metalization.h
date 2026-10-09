@@ -5,4 +5,4 @@
 #include "CoreMinimal.h"
 
 /** Main log category used across the project */
-DECLARE_LOG_CATEGORY_EXTERN(LogBurnPhase, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMetalization, Log, All);

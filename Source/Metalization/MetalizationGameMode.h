@@ -4,20 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "BurnPhaseGameMode.generated.h"
+#include "MetalizationGameMode.generated.h"
 
 /**
  *  Simple GameMode for a third person game
  */
 UCLASS(abstract)
-class ABurnPhaseGameMode : public AGameModeBase
+class AMetalizationGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
 	
 	/** Constructor */
-	ABurnPhaseGameMode();
+	AMetalizationGameMode();
 };
 
 

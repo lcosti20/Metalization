@@ -1,24 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Variant_Combat/CombatPlayerController.h"
+#include "SideScrollingPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerStart.h"
-#include "CombatCharacter.h"
+#include "SideScrollingCharacter.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Blueprint/UserWidget.h"
-#include "BurnPhase.h"
+#include "Metalization.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
-void ACombatPlayerController::BeginPlay()
+void ASideScrollingPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-void ACombatPlayerController::SetupInputComponent()
+void ASideScrollingPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
@@ -57,38 +57,41 @@ void ACombatPlayerController::SetupInputComponent()
 
 		} else {
 
-			UE_LOG(LogBurnPhase, Error, TEXT("Could not spawn mobile controls widget."));
+			UE_LOG(LogMetalization, Error, TEXT("Could not spawn mobile controls widget."));
 
 		}
 
 	}
 }
 
-void ACombatPlayerController::OnPossess(APawn* InPawn)
+void ASideScrollingPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
 	// subscribe to the pawn's OnDestroyed delegate
-	InPawn->OnDestroyed.AddDynamic(this, &ACombatPlayerController::OnPawnDestroyed);
+	InPawn->OnDestroyed.AddDynamic(this, &ASideScrollingPlayerController::OnPawnDestroyed);
 }
 
-void ACombatPlayerController::SetRespawnTransform(const FTransform& NewRespawn)
+void ASideScrollingPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 {
-	// save the new respawn transform
-	RespawnTransform = NewRespawn;
-}
+	// find the player start
+	TArray<AActor*> ActorList;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), ActorList);
 
-void ACombatPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
-{
-	// spawn a new character at the respawn transform
-	if (ACombatCharacter* RespawnedCharacter = GetWorld()->SpawnActor<ACombatCharacter>(CharacterClass, RespawnTransform))
+	if (ActorList.Num() > 0)
 	{
-		// possess the character
-		Possess(RespawnedCharacter);
+		// spawn a character at the player start
+		const FTransform SpawnTransform = ActorList[0]->GetActorTransform();
+
+		if (ASideScrollingCharacter* RespawnedCharacter = GetWorld()->SpawnActor<ASideScrollingCharacter>(CharacterClass, SpawnTransform))
+		{
+			// possess the character
+			Possess(RespawnedCharacter);
+		}
 	}
 }
 
-bool ACombatPlayerController::ShouldUseTouchControls() const
+bool ASideScrollingPlayerController::ShouldUseTouchControls() const
 {
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;

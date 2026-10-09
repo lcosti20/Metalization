@@ -1,24 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "SideScrollingPlayerController.h"
+#include "Variant_Platforming/PlatformingPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerStart.h"
-#include "SideScrollingCharacter.h"
+#include "PlatformingCharacter.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Blueprint/UserWidget.h"
-#include "BurnPhase.h"
+#include "Metalization.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
-void ASideScrollingPlayerController::BeginPlay()
+void APlatformingPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-void ASideScrollingPlayerController::SetupInputComponent()
+void APlatformingPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
@@ -57,22 +57,22 @@ void ASideScrollingPlayerController::SetupInputComponent()
 
 		} else {
 
-			UE_LOG(LogBurnPhase, Error, TEXT("Could not spawn mobile controls widget."));
+			UE_LOG(LogMetalization, Error, TEXT("Could not spawn mobile controls widget."));
 
 		}
 
 	}
 }
 
-void ASideScrollingPlayerController::OnPossess(APawn* InPawn)
+void APlatformingPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
 	// subscribe to the pawn's OnDestroyed delegate
-	InPawn->OnDestroyed.AddDynamic(this, &ASideScrollingPlayerController::OnPawnDestroyed);
+	InPawn->OnDestroyed.AddDynamic(this, &APlatformingPlayerController::OnPawnDestroyed);
 }
 
-void ASideScrollingPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
+void APlatformingPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 {
 	// find the player start
 	TArray<AActor*> ActorList;
@@ -83,7 +83,7 @@ void ASideScrollingPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 		// spawn a character at the player start
 		const FTransform SpawnTransform = ActorList[0]->GetActorTransform();
 
-		if (ASideScrollingCharacter* RespawnedCharacter = GetWorld()->SpawnActor<ASideScrollingCharacter>(CharacterClass, SpawnTransform))
+		if (APlatformingCharacter* RespawnedCharacter = GetWorld()->SpawnActor<APlatformingCharacter>(CharacterClass, SpawnTransform))
 		{
 			// possess the character
 			Possess(RespawnedCharacter);
@@ -91,7 +91,7 @@ void ASideScrollingPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 	}
 }
 
-bool ASideScrollingPlayerController::ShouldUseTouchControls() const
+bool APlatformingPlayerController::ShouldUseTouchControls() const
 {
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;

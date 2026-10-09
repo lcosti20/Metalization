@@ -13,7 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSurfaceFrameUpdated, FVector, Ne
  * frame, and optionally driving gravity on the owner's movement component.
  */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class BURNPHASE_API UPlanetaryGravityComponent : public UActorComponent
+class METALIZATION_API UPlanetaryGravityComponent : public UActorComponent
 {
 	GENERATED_BODY()
 

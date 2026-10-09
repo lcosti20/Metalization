@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "BurnPhasePlayerController.h"
+#include "MetalizationPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
-#include "BurnPhase.h"
+#include "Metalization.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
-void ABurnPhasePlayerController::BeginPlay()
+void AMetalizationPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -26,14 +26,14 @@ void ABurnPhasePlayerController::BeginPlay()
 
 		} else {
 
-			UE_LOG(LogBurnPhase, Error, TEXT("Could not spawn mobile controls widget."));
+			UE_LOG(LogMetalization, Error, TEXT("Could not spawn mobile controls widget."));
 
 		}
 
 	}
 }
 
-void ABurnPhasePlayerController::SetupInputComponent()
+void AMetalizationPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
@@ -60,7 +60,7 @@ void ABurnPhasePlayerController::SetupInputComponent()
 	}
 }
 
-bool ABurnPhasePlayerController::ShouldUseTouchControls() const
+bool AMetalizationPlayerController::ShouldUseTouchControls() const
 {
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;

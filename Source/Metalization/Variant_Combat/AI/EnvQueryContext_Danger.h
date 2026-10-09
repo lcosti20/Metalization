@@ -11,7 +11,7 @@
  *  Returns the enemy character's last known danger location
  */
 UCLASS()
-class BURNPHASE_API UEnvQueryContext_Danger : public UEnvQueryContext
+class METALIZATION_API UEnvQueryContext_Danger : public UEnvQueryContext
 {
 	GENERATED_BODY()
 	

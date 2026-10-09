@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
-#include "BurnPhaseCharacter.generated.h"
+#include "MetalizationCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
@@ -11,7 +11,7 @@ class UInputAction;
 class UPlanetaryGravityComponent;
 
 UCLASS(config = Game)
-class ABurnPhaseCharacter : public ACharacter
+class AMetalizationCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ class ABurnPhaseCharacter : public ACharacter
 	void InitFollowCamera();
 
 public:
-	ABurnPhaseCharacter();
+	AMetalizationCharacter();
 
 	virtual void Tick(float DeltaTime) override;
 

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class BurnPhase : ModuleRules
+public class Metalization : ModuleRules
 {
-	public BurnPhase(ReadOnlyTargetRules Target) : base(Target)
+	public Metalization(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -24,20 +24,20 @@ public class BurnPhase : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		PublicIncludePaths.AddRange(new string[] {
-			"BurnPhase",
-			"BurnPhase/Variant_Platforming",
-			"BurnPhase/Variant_Platforming/Animation",
-			"BurnPhase/Variant_Combat",
-			"BurnPhase/Variant_Combat/AI",
-			"BurnPhase/Variant_Combat/Animation",
-			"BurnPhase/Variant_Combat/Gameplay",
-			"BurnPhase/Variant_Combat/Interfaces",
-			"BurnPhase/Variant_Combat/UI",
-			"BurnPhase/Variant_SideScrolling",
-			"BurnPhase/Variant_SideScrolling/AI",
-			"BurnPhase/Variant_SideScrolling/Gameplay",
-			"BurnPhase/Variant_SideScrolling/Interfaces",
-			"BurnPhase/Variant_SideScrolling/UI"
+			"Metalization",
+			"Metalization/Variant_Platforming",
+			"Metalization/Variant_Platforming/Animation",
+			"Metalization/Variant_Combat",
+			"Metalization/Variant_Combat/AI",
+			"Metalization/Variant_Combat/Animation",
+			"Metalization/Variant_Combat/Gameplay",
+			"Metalization/Variant_Combat/Interfaces",
+			"Metalization/Variant_Combat/UI",
+			"Metalization/Variant_SideScrolling",
+			"Metalization/Variant_SideScrolling/AI",
+			"Metalization/Variant_SideScrolling/Gameplay",
+			"Metalization/Variant_SideScrolling/Interfaces",
+			"Metalization/Variant_SideScrolling/UI"
 		});
 
 		// Uncomment if you are using Slate UI

@@ -1,4 +1,4 @@
-#include "BurnPhaseCharacter.h"
+#include "MetalizationCharacter.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -9,14 +9,14 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "BurnPhase.h"
+#include "Metalization.h"
 #include "Engine/World.h"
 #include "Engine/EngineTypes.h"
 #include "CollisionQueryParams.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlanetaryGravityComponent.h"
 
-ABurnPhaseCharacter::ABurnPhaseCharacter()
+AMetalizationCharacter::AMetalizationCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -34,7 +34,7 @@ ABurnPhaseCharacter::ABurnPhaseCharacter()
 	InitFollowCamera();
 }
 
-void ABurnPhaseCharacter::InitMovement()
+void AMetalizationCharacter::InitMovement()
 {
 	// Movement settings
 	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
@@ -50,7 +50,7 @@ void ABurnPhaseCharacter::InitMovement()
 	MovementComp->bOrientRotationToMovement = false;
 }
 
-void ABurnPhaseCharacter::InitCameraBoom()
+void AMetalizationCharacter::InitCameraBoom()
 {
 	// Camera Boom (Spring Arm)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -64,7 +64,7 @@ void ABurnPhaseCharacter::InitCameraBoom()
 	CameraBoom->bInheritRoll = true;
 }
 
-void ABurnPhaseCharacter::InitFollowCamera()
+void AMetalizationCharacter::InitFollowCamera()
 {
 	// Follow Camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -72,27 +72,27 @@ void ABurnPhaseCharacter::InitFollowCamera()
 	FollowCamera->bUsePawnControlRotation = false;
 }
 
-void ABurnPhaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void AMetalizationCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABurnPhaseCharacter::Move);
-		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ABurnPhaseCharacter::Look);
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABurnPhaseCharacter::Look);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Move);
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
 	}
 }
 
-void ABurnPhaseCharacter::Move(const FInputActionValue& Value)
+void AMetalizationCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
 // Used in blueprints
-void ABurnPhaseCharacter::DoMove(float Right, float Forward)
+void AMetalizationCharacter::DoMove(float Right, float Forward)
 {
 	AController* LocalController = GetController();
 	if (!LocalController || !PlanetaryGravity)
@@ -116,34 +116,34 @@ void ABurnPhaseCharacter::DoMove(float Right, float Forward)
 	AddMovementInput(RightDir, Right);
 }
 
-void ABurnPhaseCharacter::Look(const FInputActionValue& Value)
+void AMetalizationCharacter::Look(const FInputActionValue& Value)
 {
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }
 
 // Used in blueprints
-void ABurnPhaseCharacter::DoLook(float Yaw, float Pitch)
+void AMetalizationCharacter::DoLook(float Yaw, float Pitch)
 {
 	LookYaw += Yaw * LookYawRate;
 	LookPitch = FMath::Clamp(LookPitch + Pitch * LookPitchRate, -MaxLookPitch, MaxLookPitch);
 }
 
 // Used in blueprints
-void ABurnPhaseCharacter::DoJumpStart()
+void AMetalizationCharacter::DoJumpStart()
 {
 	// signal the character to jump
 	Jump();
 }
 
 // Used in blueprints
-void ABurnPhaseCharacter::DoJumpEnd()
+void AMetalizationCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
 }
 
-void ABurnPhaseCharacter::Tick(float DeltaTime)
+void AMetalizationCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 

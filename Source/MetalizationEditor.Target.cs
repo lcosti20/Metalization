@@ -3,13 +3,13 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class BurnPhaseEditorTarget : TargetRules
+public class MetalizationEditorTarget : TargetRules
 {
-	public BurnPhaseEditorTarget(TargetInfo Target) : base(Target)
+	public MetalizationEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
-		ExtraModuleNames.Add("BurnPhase");
+		ExtraModuleNames.Add("Metalization");
 	}
 }
