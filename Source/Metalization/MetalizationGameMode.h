@@ -6,19 +6,14 @@
 #include "GameFramework/GameModeBase.h"
 #include "MetalizationGameMode.generated.h"
 
-/**
- *  Simple GameMode for a third person game
- */
-UCLASS(abstract)
+UCLASS()
 class AMetalizationGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
 	
-	/** Constructor */
 	AMetalizationGameMode();
 };
-
 
 

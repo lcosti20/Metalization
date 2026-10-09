@@ -62,6 +62,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planetary Gravity")
 	float BodyRotationInterpSpeed = 10.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
+	float CameraPanSpeed = 1200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
+	float CameraZoomSpeed = 150.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
+	float MinimumCameraDistance = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
+	float MaximumCameraDistance = 30000.0f;
+
 	// Persistent, incrementally-updated surface-aligned frame (no yaw/pitch baked in)
 	FQuat SurfaceOrientation = FQuat::Identity;
 
@@ -73,14 +85,12 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void Move(const FInputActionValue& Value);
-	void Look(const FInputActionValue& Value);
 
+public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void DoMove(float Right, float Forward);
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void DoLook(float Yaw, float Pitch);
-	UFUNCTION(BlueprintCallable, Category = "Movement")
-	void DoJumpStart();
-	UFUNCTION(BlueprintCallable, Category = "Movement")
-	void DoJumpEnd();
+	UFUNCTION(BlueprintCallable, Category = "RTS Camera")
+	void DoZoom(float Amount);
 };

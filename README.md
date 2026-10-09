@@ -75,13 +75,14 @@ git clone https://github.com/lcosti20/Metalization.git
 
 ## Controls
 
-The game is designed for strategic play with intuitive controls:
+- Pan across the planet: move the cursor to a viewport edge or use W/A/S/D
+- Zoom: mouse wheel
+- Rotate the view: hold the middle mouse button and drag
+- Select: left-click an actor tagged `Selectable`
+- Select multiple actors: left-drag a selection box; hold Shift to add to the current selection
+- Issue a ground-targeted move order: right-click while actors are selected
 
-- Camera movement: mouse and keyboard controls
-- Select units: left click
-- Issue movement/attack commands: right click
-- Toggle between terrestrial and space view: scroll or camera control
-- Unit production: interface-driven actions for creating units
+The player is a collisionless camera pawn. Camera panning follows the planet's spherical surface when a nearby actor tagged `Planet` is present. The player controller exposes the current selection and broadcasts ground-targeted move orders for unit Blueprints to handle. Unit navigation, combat, production, and their interfaces still need game-specific unit/UI implementations.
 
 ## Development Roadmap
 

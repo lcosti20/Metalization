@@ -9,44 +9,72 @@
 class UInputMappingContext;
 class UUserWidget;
 
-/**
- *  Basic PlayerController class for a third person game
- *  Manages input mappings
- */
-UCLASS(abstract)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRTSSelectionChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRTSMoveOrderIssued, FVector, Destination);
+
+UCLASS()
 class AMetalizationPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-	
-protected:
 
-	/** Input Mapping Contexts */
-	UPROPERTY(EditAnywhere, Category ="Input|Input Mappings")
+protected:
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<UInputMappingContext*> DefaultMappingContexts;
 
-	/** Input Mapping Contexts */
-	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
+	UPROPERTY(EditAnywhere, Category = "Input|Input Mappings")
 	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
 
-	/** Mobile controls widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
+	UPROPERTY(EditAnywhere, Category = "Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
 
-	/** Pointer to the mobile controls widget */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
 
-	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
 	bool bForceTouchControls = false;
 
-	/** Gameplay initialization */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
+	float EdgePanMargin = 18.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Selection")
+	FName SelectableActorTag = TEXT("Selectable");
+
+	UPROPERTY(BlueprintReadOnly, Category = "RTS Selection")
+	TArray<AActor*> SelectedActors;
+
+	UPROPERTY(BlueprintAssignable, Category = "RTS Selection")
+	FRTSSelectionChanged OnSelectionChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "RTS Orders")
+	FRTSMoveOrderIssued OnMoveOrderIssued;
+
+	FVector2D SelectionStart = FVector2D::ZeroVector;
+	FVector2D SelectionCurrent = FVector2D::ZeroVector;
+	bool bSelectionBoxActive = false;
+
 	virtual void BeginPlay() override;
-
-	/** Input mapping context setup */
 	virtual void SetupInputComponent() override;
+	virtual void Tick(float DeltaSeconds) override;
 
-	/** Returns true if the player should use UMG touch controls */
+	void BeginSelection();
+	void EndSelection();
+	void IssueMoveOrder();
+	void ZoomCamera(float Amount);
+	void SelectActor(AActor* Actor, bool bAddToSelection);
+	void SelectActorsInBox();
+	void ClearSelection();
 	bool ShouldUseTouchControls() const;
 
+public:
+	UFUNCTION(BlueprintPure, Category = "RTS Selection")
+	const TArray<AActor*>& GetSelectedActors() const { return SelectedActors; }
+
+	UFUNCTION(BlueprintPure, Category = "RTS Selection")
+	bool IsSelectionBoxActive() const { return bSelectionBoxActive; }
+
+	UFUNCTION(BlueprintPure, Category = "RTS Selection")
+	FVector2D GetSelectionStart() const { return SelectionStart; }
+
+	UFUNCTION(BlueprintPure, Category = "RTS Selection")
+	FVector2D GetSelectionCurrent() const { return SelectionCurrent; }
 };

@@ -1,5 +1,4 @@
 #include "MetalizationCharacter.h"
-#include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -7,22 +6,20 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "Metalization.h"
 #include "Engine/World.h"
-#include "Engine/EngineTypes.h"
-#include "CollisionQueryParams.h"
-#include "Kismet/GameplayStatics.h"
 #include "PlanetaryGravityComponent.h"
 
 AMetalizationCharacter::AMetalizationCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetSimulatePhysics(false);
+	GetMesh()->SetHiddenInGame(true);
+	SetActorEnableCollision(false);
 
-	// Disable controller-driven character rotation (Orient to movement will handle actor rotation)
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -38,16 +35,11 @@ void AMetalizationCharacter::InitMovement()
 {
 	// Movement settings
 	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
-	MovementComp->bOrientRotationToMovement = true;
-	MovementComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-
-	MovementComp->JumpZVelocity = 500.f;
-	MovementComp->AirControl = 0.35f;
-	MovementComp->MaxWalkSpeed = 500.f;
-	MovementComp->MinAnalogWalkSpeed = 20.f;
-	MovementComp->BrakingDecelerationWalking = 2000.f;
-	MovementComp->BrakingDecelerationFalling = 1500.0f;
-	MovementComp->bOrientRotationToMovement = false;
+	if (MovementComp)
+	{
+		MovementComp->DisableMovement();
+		MovementComp->SetComponentTickEnabled(false);
+	}
 }
 
 void AMetalizationCharacter::InitCameraBoom()
@@ -62,6 +54,7 @@ void AMetalizationCharacter::InitCameraBoom()
 	CameraBoom->bInheritPitch = true;
 	CameraBoom->bInheritYaw = true;
 	CameraBoom->bInheritRoll = true;
+	CameraBoom->bDoCollisionTest = false;
 }
 
 void AMetalizationCharacter::InitFollowCamera()
@@ -76,12 +69,7 @@ void AMetalizationCharacter::SetupPlayerInputComponent(UInputComponent* PlayerIn
 {
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Move);
-		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
 	}
 }
 
@@ -100,7 +88,7 @@ void AMetalizationCharacter::DoMove(float Right, float Forward)
 		return;
 	}
 
-	const FRotator ControlRot = GetController()->GetControlRotation();
+	const FRotator ControlRot = LocalController->GetControlRotation();
 	CurrentSurfaceUp = PlanetaryGravity->GetCurrentSurfaceUp();
 
 	FVector ForwardDir = FVector::VectorPlaneProject(ControlRot.Vector(), CurrentSurfaceUp);
@@ -111,15 +99,32 @@ void AMetalizationCharacter::DoMove(float Right, float Forward)
 	ForwardDir = ForwardDir.GetSafeNormal();
 
 	FVector RightDir = FVector::CrossProduct(CurrentSurfaceUp, ForwardDir).GetSafeNormal();
+	const FVector MoveDirection = (ForwardDir * Forward + RightDir * Right).GetClampedToMaxSize(1.0f);
+	if (MoveDirection.IsNearlyZero())
+	{
+		return;
+	}
 
-	AddMovementInput(ForwardDir, Forward);
-	AddMovementInput(RightDir, Right);
-}
-
-void AMetalizationCharacter::Look(const FInputActionValue& Value)
-{
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
-	DoLook(LookAxisVector.X, LookAxisVector.Y);
+	const float Distance = CameraPanSpeed * GetWorld()->GetDeltaSeconds();
+	const FVector MoveTangent = MoveDirection.GetSafeNormal() * Distance;
+	AActor* Planet = PlanetaryGravity->GetCurrentPlanet();
+	if (Planet)
+	{
+		const FVector PlanetCenter = PlanetaryGravity->GetPlanetCenter();
+		const FVector RelativePosition = GetActorLocation() - PlanetCenter;
+		const float Radius = RelativePosition.Size();
+		if (Radius > KINDA_SMALL_NUMBER)
+		{
+			const FVector RotationAxis = FVector::CrossProduct(CurrentSurfaceUp, MoveDirection).GetSafeNormal();
+			const float AngleRadians = Distance / Radius;
+			const FQuat SurfaceStep(RotationAxis, AngleRadians);
+			SetActorLocation(PlanetCenter + SurfaceStep.RotateVector(RelativePosition), false);
+		}
+	}
+	else
+	{
+		SetActorLocation(GetActorLocation() + MoveTangent, false);
+	}
 }
 
 // Used in blueprints
@@ -129,18 +134,15 @@ void AMetalizationCharacter::DoLook(float Yaw, float Pitch)
 	LookPitch = FMath::Clamp(LookPitch + Pitch * LookPitchRate, -MaxLookPitch, MaxLookPitch);
 }
 
-// Used in blueprints
-void AMetalizationCharacter::DoJumpStart()
+void AMetalizationCharacter::DoZoom(float Amount)
 {
-	// signal the character to jump
-	Jump();
-}
-
-// Used in blueprints
-void AMetalizationCharacter::DoJumpEnd()
-{
-	// signal the character to stop jumping
-	StopJumping();
+	if (CameraBoom)
+	{
+		CameraBoom->TargetArmLength = FMath::Clamp(
+			CameraBoom->TargetArmLength - Amount * CameraZoomSpeed,
+			MinimumCameraDistance,
+			MaximumCameraDistance);
+	}
 }
 
 void AMetalizationCharacter::Tick(float DeltaTime)
@@ -165,36 +167,4 @@ void AMetalizationCharacter::Tick(float DeltaTime)
 
 	LocalController->SetControlRotation(FinalRot.Rotator());
 
-	// Update actor orientation to surface
-	// ------------------------------------------------
-	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
-	if (!MovementComp)
-	{
-		return;
-	}
-
-	// Face direction of travel when moving with meaningful speed; otherwise keep
-	// current facing, just re-projected onto the (possibly changed) tangent plane
-	// so standing still doesn't cause the body to lean into the ground.
-	FVector DesiredForward;
-	const FVector PlanarVelocity = FVector::VectorPlaneProject(MovementComp->Velocity, CurrentSurfaceUp);
-	if (PlanarVelocity.SizeSquared() > FMath::Square(10.0f))
-	{
-		DesiredForward = PlanarVelocity.GetSafeNormal();
-	}
-	else
-	{
-		DesiredForward = FVector::VectorPlaneProject(GetActorForwardVector(), CurrentSurfaceUp).GetSafeNormal();
-		if (DesiredForward.IsNearlyZero())
-		{
-			DesiredForward = FVector::VectorPlaneProject(FVector::ForwardVector, CurrentSurfaceUp).GetSafeNormal();
-		}
-	}
-
-	const FQuat TargetQuat = FRotationMatrix::MakeFromXZ(DesiredForward, CurrentSurfaceUp).ToQuat();
-	const FQuat NewQuat = FMath::QInterpTo(GetActorQuat(), TargetQuat, DeltaTime, BodyRotationInterpSpeed);
-
-	// Non-sweeping: we trust our own surface-normal math and don't want collision
-	// deflection from this — that sweep was the source of the drift.
-	SetActorRotation(NewQuat);
 }
