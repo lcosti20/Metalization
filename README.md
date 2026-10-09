@@ -1,57 +1,56 @@
-# Burn Phase 🚀
+# Metalization 🤖
 
-Burn Phase is a third-person action-adventure prototype that blends arcade platforming, vehicle traversal, and orbital combat across twin dying worlds. Built in Unreal Engine 5, the project explores spherical gravity, anti-gravity travel, and large-scale traversal in a compact vertical-slice experience.
+Metalization is an RTS/war-sim game set in the distant future when all the stars have died out and only robots remain. Two robot civilizations live on orbiting shell worlds—mini-planets with a black hole in each core—that have been at war with each other for millions of years.
 
 ## Overview
 
-Eons after the extinction of biological life, two shell-worlds orbit twin miniature black holes and are separated by a narrow but deadly void. You play as Bob-3267, a newly rebooted maintenance unit, as he awakens amid escalating conflict between the Red and Blue factions.
+In a distant future where the stars have long since died out, humanity is gone and only robots remain. Two rival robot civilizations inhabit orbiting shell worlds, immense mini-planets with black holes at their cores, and they have been locked in a brutal war for millions of years.
 
-The prototype focuses on a short story-driven experience with fast movement, environmental traversal, and dynamic combat across multiple gameplay layers:
+You command one of these civilizations and must gather energy, build armies, conquer planets, and destroy your enemies across both land and space. The game blends resource management, unit production, planetary conquest, and large-scale fleet combat into a single continuous strategic experience.
 
-- walking and platforming across spherical shell-worlds
-- vehicle-based movement across land, atmosphere, and space
-- weapon switching between melee and ranged combat
-- faction-driven narrative choices and dialogue
-- a compact 10-week studio prototype aimed at testing core systems
+The gameplay focuses on:
+
+- gathering energy from vents scattered across each planet
+- producing new units such as soldiers, vehicles, jets, and rockets
+- conquering enemy colonies to gain control of entire planets
+- building a space fleet to fight in orbit and invade other worlds
+- smoothly transitioning between terrestrial and space view by scrolling
 
 ## Core Features
 
-- Spherical gravity traversal: explore a 360-degree world with gravity-driven movement and platforming
-- Dual combat modes: melee-focused movement and aim-assisted ranged attacks
-- Anti-gravity lifts: launch across the gap between worlds and use momentum to traverse large distances
-- Multi-vehicle traversal:
-  - land vehicles such as hovercrafts and mechs
-  - atmospheric vehicles such as jets and helicopters
-  - spacecraft using orbital velocity and spaceflight physics
-- Space frigate boarding: close-quarters combat and traversal inside orbital structures
-- Branching narrative: faction-based choices and lighthearted dialogue with replayable paths
+- Energy resource management: collect power from energy vents across each planet
+- Unit production: build soldiers, vehicles, jets, and rockets
+- Planetary conquest: capture colonies to control key regions of the world
+- Space warfare: command fleets that battle in orbit and support invasions
+- Seamless perspective shifts: move fluidly between ground-level and space-level views
+- Strategic empire-building: expand your influence across multiple planetary fronts
 
 ## Technical Stack
 
-- Engine: Unreal Engine 5
-- Primary tooling: C++ and Blueprints
-- Focus areas: custom gravity systems, orbital movement, vehicle logic, combat flow, and level traversal
-- Platform: PC with gamepad and keyboard/mouse support
+- Engine: Unreal Engine
+- Primary language: C++
+- Focus areas: RTS systems, unit production, planetary control, space combat, and camera/world transitions
+- Platform: PC
 
 ## Repository Structure
 
 ```text
-BurnPhase/
+Metalization/
 ├── Config/                     # Unreal project configuration files
 ├── Content/                    # Game assets, blueprints, maps, materials, and audio
 │   ├── Audio/                  # Sound effects and dialogue audio
 │   ├── Blueprints/             # Core gameplay logic and systems
-│   ├── Maps/                   # Level files and greybox test environments
+│   ├── Maps/                   # Level files and planet environments
 │   ├── Materials/              # Materials, shaders, and VFX setup
-│   └── Meshes/                 # 3D assets for characters, props, and vehicles
+│   └── Meshes/                 # 3D assets for units, props, and planets
 ├── Source/                     # C++ source code for the project module
-│   └── BurnPhase/              # Main gameplay implementation
-├── BurnPhase.uproject          # Unreal Engine project file
+│   └── Metalization/           # Main gameplay implementation
+├── Metalization.uproject       # Unreal Engine project file
 ├── .gitignore                 # Git ignore rules for Unreal projects
 ├── .gitattributes             # Git attributes configuration
 ├── .vsconfig                  # Visual Studio configuration for UE projects
 ├── README.md                  # Project documentation
-└── LICENSE                    # If present, repository licensing details
+└── LICENSE                    # Repository licensing details
 ```
 
 ## Getting Started
@@ -66,22 +65,23 @@ BurnPhase/
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/lcosti20/burnphase.git
+git clone https://github.com/lcosti20/Metalization.git
 ```
 
-2. Open `BurnPhase.uproject` in Unreal Engine.
+2. Open `Metalization.uproject` in Unreal Engine.
 3. If prompted, generate project files and allow Unreal Engine to configure the project.
 4. Open the generated solution in Visual Studio and build the project in Development Editor mode.
 5. Launch the project from Unreal Editor and open the main map to begin testing.
 
 ## Controls
 
-The prototype is designed for controller-first play, with a support-focused control scheme:
+The game is designed for strategic play with intuitive controls:
 
-- Movement: analog stick / WASD
-- Melee mode: close-range combat and traversal-focused action
-- Aim mode: precision targeting for ranged weapons
-- Right trigger: toggle to aim / use ranged combat tools
+- Camera movement: mouse and keyboard controls
+- Select units: left click
+- Issue movement/attack commands: right click
+- Toggle between terrestrial and space view: scroll or camera control
+- Unit production: interface-driven actions for creating units
 
 ## Development Roadmap
 
@@ -107,4 +107,4 @@ For development logs, sprint notes, and course deliverables, see the project out
 
 ## Notes
 
-This repository is a prototype and may evolve as gameplay systems and content are expanded during development. The focus is on proving the core concept: a gravity-driven, multi-vehicle action game set across two linked worlds.
+This repository is a prototype and may evolve as gameplay systems and content are expanded during development. The focus is on proving the core concept: a gravity-driven, multi-vehicle action game set across distant shell worlds and orbital conflict.
