@@ -39,6 +39,8 @@ void AMetalizationGroundUnit::BeginPlay()
 		GameState->RegisterTeam(TeamId, 0.f);
 		GameState->IncrementUnitCount(TeamId, 1);
 	}
+	CurrentHealth = MaxHealth;
+	AttackCooldownRemaining = 0.f;
 	SetActorTickEnabled(true);
 }
 
@@ -82,11 +84,15 @@ void AMetalizationGroundUnit::SetPath(const TArray<FVector>& InPath)
 
 void AMetalizationGroundUnit::IssueMoveToDirection(const FVector& Direction)
 {
-	CurrentTask = EMetalizationUnitTask::Move;
-	CurrentTargetStructure.Reset();
-	HarvestSource.Reset();
-	DeliveryTarget.Reset();
-	CarriedEnergy = 0.f;
+	if (CurrentTask == EMetalizationUnitTask::Idle || CurrentTask == EMetalizationUnitTask::Move)
+	{
+		CurrentTask = EMetalizationUnitTask::Move;
+		CurrentTargetStructure.Reset();
+		HarvestSource.Reset();
+		DeliveryTarget.Reset();
+		AttackTarget.Reset();
+		CarriedEnergy = 0.f;
+	}
 
 	if (!SurfaceSubsystem.IsValid())
 	{
@@ -141,10 +147,45 @@ void AMetalizationGroundUnit::IssueHarvestOrder(AActor* SourceVent, AActor* Dest
 	HarvestSource = Cast<AMetalizationStructure>(SourceVent);
 	DeliveryTarget = Cast<AMetalizationStructure>(DestinationColony);
 	CurrentTargetStructure.Reset();
+	AttackTarget.Reset();
 	CarriedEnergy = 0.f;
 	if (HarvestSource.IsValid())
 	{
 		IssueMoveToWorldLocation(HarvestSource->GetActorLocation());
+	}
+}
+
+void AMetalizationGroundUnit::IssueAttackOrder(AActor* TargetUnit)
+{
+	AMetalizationGroundUnit* EnemyUnit = Cast<AMetalizationGroundUnit>(TargetUnit);
+	if (!EnemyUnit || EnemyUnit == this || EnemyUnit->GetTeamId() == TeamId)
+	{
+		return;
+	}
+
+	CurrentTask = EMetalizationUnitTask::Attack;
+	AttackTarget = EnemyUnit;
+	CurrentTargetStructure.Reset();
+	HarvestSource.Reset();
+	DeliveryTarget.Reset();
+	CarriedEnergy = 0.f;
+	if (SurfaceSubsystem.IsValid())
+	{
+		IssueMoveToWorldLocation(EnemyUnit->GetActorLocation());
+	}
+}
+
+void AMetalizationGroundUnit::ApplyDamage(float DamageAmount, int32 DamageSourceTeamId)
+{
+	if (CurrentHealth <= 0.f)
+	{
+		return;
+	}
+
+	CurrentHealth = FMath::Max(0.f, CurrentHealth - DamageAmount);
+	if (CurrentHealth <= 0.f)
+	{
+		Destroy();
 	}
 }
 
@@ -207,6 +248,16 @@ void AMetalizationGroundUnit::UpdateMovement(float DeltaSeconds)
 
 void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 {
+	if (CurrentHealth <= 0.f)
+	{
+		return;
+	}
+
+	if (AttackCooldownRemaining > 0.f)
+	{
+		AttackCooldownRemaining = FMath::Max(0.f, AttackCooldownRemaining - DeltaSeconds);
+	}
+
 	if (CurrentTask == EMetalizationUnitTask::Capture && CurrentTargetStructure.IsValid())
 	{
 		AMetalizationStructure* Target = CurrentTargetStructure.Get();
@@ -272,12 +323,46 @@ void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 		{
 			IssueMoveToWorldLocation(Colony->GetActorLocation());
 		}
+		return;
+	}
+
+	if (CurrentTask == EMetalizationUnitTask::Attack)
+	{
+		AMetalizationGroundUnit* Target = AttackTarget.Get();
+		if (!Target || !Target->IsAlive() || Target->GetTeamId() == TeamId)
+		{
+			AttackTarget.Reset();
+			CurrentTask = EMetalizationUnitTask::Idle;
+			return;
+		}
+
+		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Target->GetActorLocation());
+		if (DistanceSq <= AttackRange * AttackRange)
+		{
+			if (AttackCooldownRemaining <= 0.f)
+			{
+				Target->ApplyDamage(AttackDamage, TeamId);
+				AttackCooldownRemaining = AttackCooldown;
+			}
+			StopMovement();
+			return;
+		}
+
+		if (PathDirections.Num() == 0)
+		{
+			IssueMoveToWorldLocation(Target->GetActorLocation());
+		}
 	}
 }
 
 void AMetalizationGroundUnit::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (CurrentHealth <= 0.f)
+	{
+		return;
+	}
+
 	UpdateMovement(DeltaSeconds);
 	UpdateTaskState(DeltaSeconds);
 }

@@ -14,7 +14,8 @@ enum class EMetalizationUnitTask : uint8
 	Idle,
 	Move,
 	Capture,
-	Harvest
+	Harvest,
+	Attack
 };
 
 UCLASS()
@@ -40,7 +41,16 @@ public:
 	void IssueHarvestOrder(AActor* SourceVent, AActor* DestinationColony);
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
+	void IssueAttackOrder(AActor* TargetUnit);
+
+	UFUNCTION(BlueprintCallable, Category = "Unit")
 	bool HasMovementPath() const { return CurrentWaypointIndex != INDEX_NONE; }
+
+	UFUNCTION(BlueprintCallable, Category = "Unit")
+	void ApplyDamage(float DamageAmount, int32 DamageSourceTeamId = -1);
+
+	UFUNCTION(BlueprintPure, Category = "Unit")
+	bool IsAlive() const { return CurrentHealth > 0.f; }
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void SetMoveSpeed(float NewSpeed) { MoveSpeed = NewSpeed; }
@@ -50,6 +60,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Unit")
 	bool IsSelected() const { return bIsSelected; }
+
+	UFUNCTION(BlueprintPure, Category = "Unit")
+	float GetAttackRange() const { return AttackRange; }
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void SetTeamId(int32 NewTeamId) { TeamId = NewTeamId; }
@@ -98,6 +111,21 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	float CarryCapacity = 100.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	float MaxHealth = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	float CurrentHealth = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	float AttackDamage = 18.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	float AttackRange = 80.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	float AttackCooldown = 0.75f;
+
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> SurfaceSubsystem;
 	TArray<FVector> PathDirections;
 	FVector PendingMoveTargetDirection = FVector::UpVector;
@@ -106,5 +134,7 @@ private:
 	TWeakObjectPtr<AMetalizationStructure> CurrentTargetStructure;
 	TWeakObjectPtr<AMetalizationStructure> HarvestSource;
 	TWeakObjectPtr<AMetalizationStructure> DeliveryTarget;
+	TWeakObjectPtr<AMetalizationGroundUnit> AttackTarget;
 	float CarriedEnergy = 0.f;
+	float AttackCooldownRemaining = 0.f;
 };

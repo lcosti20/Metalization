@@ -166,6 +166,39 @@ AMetalizationColony* AMetalizationAIManager::FindNearestEnemyColony(const AMetal
 	return BestColony;
 }
 
+AMetalizationGroundUnit* AMetalizationAIManager::FindNearestEnemyUnit(const AMetalizationGroundUnit* Unit) const
+{
+	if (!Unit)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMetalizationGroundUnit::StaticClass(), FoundActors);
+
+	AMetalizationGroundUnit* BestEnemy = nullptr;
+	float BestDistanceSq = TNumericLimits<float>::Max();
+
+	for (AActor* Actor : FoundActors)
+	{
+		if (AMetalizationGroundUnit* Enemy = Cast<AMetalizationGroundUnit>(Actor))
+		{
+			if (Enemy == Unit || Enemy->GetTeamId() == TeamId || !Enemy->IsAlive())
+			{
+				continue;
+			}
+
+			const float DistSq = FVector::DistSquared(Unit->GetActorLocation(), Enemy->GetActorLocation());
+			if (DistSq < BestDistanceSq)
+			{
+				BestDistanceSq = DistSq;
+				BestEnemy = Enemy;
+			}
+		}
+	}
+	return BestEnemy;
+}
+
 AMetalizationStructure* AMetalizationAIManager::FindNearestEnemyStructure(const AMetalizationGroundUnit* Unit) const
 {
 	if (!Unit)
@@ -208,16 +241,27 @@ void AMetalizationAIManager::UpdateAIOrders()
 	{
 		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
 		{
-			if (Unit->GetTeamId() != TeamId || Unit->HasMovementPath())
+			if (Unit->GetTeamId() != TeamId || Unit->HasMovementPath() || !Unit->IsAlive())
 			{
 				continue;
 			}
 
+			AMetalizationGroundUnit* EnemyUnit = FindNearestEnemyUnit(Unit);
 			AMetalizationEnergyVent* OwnedVent = FindNearestOwnedVent(Unit);
 			AMetalizationColony* OwnedColony = FindNearestOwnedColony(Unit);
 			AMetalizationEnergyVent* CapturableVent = FindNearestCapturableVent(Unit);
 			AMetalizationColony* EnemyColony = FindNearestEnemyColony(Unit);
 			AMetalizationStructure* EnemyTarget = FindNearestEnemyStructure(Unit);
+
+			if (EnemyUnit)
+			{
+				const float DistanceSq = FVector::DistSquared(Unit->GetActorLocation(), EnemyUnit->GetActorLocation());
+				if (DistanceSq <= (Unit->GetAttackRange() * Unit->GetAttackRange()) || DistanceSq <= 1200.f * 1200.f)
+				{
+					Unit->IssueAttackOrder(EnemyUnit);
+					continue;
+				}
+			}
 
 			if (OwnedColony && OwnedVent)
 			{
