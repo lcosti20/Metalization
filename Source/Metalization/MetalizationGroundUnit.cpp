@@ -95,11 +95,21 @@ void AMetalizationGroundUnit::IssueMoveToDirection(const FVector& Direction)
 
 	const FVector CurrentDirection = SurfaceSubsystem->DirectionFromWorld(GetActorLocation());
 	const FVector TargetDirection = Direction.IsNearlyZero() ? CurrentDirection : Direction.GetSafeNormal();
+	PendingMoveTargetDirection = TargetDirection;
 	SurfaceSubsystem->RequestPath(CurrentDirection, TargetDirection, [this](TArray<FVector> InPath)
 	{
 		if (InPath.Num() == 0)
 		{
-			StopMovement();
+			const FVector CurrentDirection = SurfaceSubsystem.IsValid() ? SurfaceSubsystem->DirectionFromWorld(GetActorLocation()) : FVector::UpVector;
+			const FVector FallbackDirection = (PendingMoveTargetDirection.IsNearlyZero() ? CurrentDirection : PendingMoveTargetDirection).GetSafeNormal();
+			if (!FallbackDirection.IsNearlyZero())
+			{
+				SetPath(TArray<FVector>{FallbackDirection});
+			}
+			else
+			{
+				StopMovement();
+			}
 			return;
 		}
 

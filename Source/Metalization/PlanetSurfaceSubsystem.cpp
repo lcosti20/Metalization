@@ -80,8 +80,22 @@ void UPlanetSurfaceSubsystem::RequestPath(const FVector& FromDir, const FVector&
 		return;
 	}
 
-	const int32 StartCell = CellFromDirection(FromDir);
-	int32 GoalCell = CellFromDirection(ToDir);
+	const FVector SafeFromDir = FromDir.GetSafeNormal();
+	const FVector SafeToDir = ToDir.GetSafeNormal();
+	if (SafeFromDir.IsNearlyZero() || SafeToDir.IsNearlyZero())
+	{
+		OnComplete(TArray<FVector>());
+		return;
+	}
+
+	if (FVector::DotProduct(SafeFromDir, SafeToDir) > 0.999f)
+	{
+		OnComplete(TArray<FVector>{SafeToDir});
+		return;
+	}
+
+	const int32 StartCell = CellFromDirection(SafeFromDir);
+	int32 GoalCell = CellFromDirection(SafeToDir);
 
 	bool bGoalAdjusted = false;
 	if (!NavGraph->IsValidIndex(GoalCell) || NavGraph->GetCell(GoalCell).bBlocked)
@@ -103,7 +117,7 @@ void UPlanetSurfaceSubsystem::RequestPath(const FVector& FromDir, const FVector&
 	TSharedPtr<FPlanetNavGraph, ESPMode::ThreadSafe> Graph = NavGraph;
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> WeakThis(this);
 
-	Async(EAsyncExecution::ThreadPool, [Graph, WeakThis, StartCell, GoalCell, ToDir, bGoalAdjusted, OnComplete]()
+	Async(EAsyncExecution::ThreadPool, [Graph, WeakThis, StartCell, GoalCell, SafeToDir, bGoalAdjusted, OnComplete]()
 	{
 		TArray<int32> CellPath;
 		TArray<FVector> Waypoints;
@@ -119,11 +133,11 @@ void UPlanetSurfaceSubsystem::RequestPath(const FVector& FromDir, const FVector&
 			{
 				if (Waypoints.Num() > 0)
 				{
-					Waypoints.Last() = ToDir;
+					Waypoints.Last() = SafeToDir;
 				}
 				else
 				{
-					Waypoints.Add(ToDir);
+					Waypoints.Add(SafeToDir);
 				}
 			}
 		}

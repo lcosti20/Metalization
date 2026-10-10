@@ -100,6 +100,7 @@ private:
 
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> SurfaceSubsystem;
 	TArray<FVector> PathDirections;
+	FVector PendingMoveTargetDirection = FVector::UpVector;
 	int32 CurrentWaypointIndex = INDEX_NONE;
 	EMetalizationUnitTask CurrentTask = EMetalizationUnitTask::Idle;
 	TWeakObjectPtr<AMetalizationStructure> CurrentTargetStructure;
