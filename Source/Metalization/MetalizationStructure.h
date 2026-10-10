@@ -19,6 +19,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Structure")
 	void SetSurfaceDetails(AActor* InPlanet, const FVector& InDirection, float InRadius);
 
+	UFUNCTION(BlueprintPure, Category = "Structure")
+	float GetCaptureRadius() const { return CaptureRadius; }
+
 	UFUNCTION(BlueprintCallable, Category = "Structure")
 	void SetTeamId(int32 NewTeamId) { TeamId = NewTeamId; }
 
@@ -29,7 +32,7 @@ public:
 	bool IsOwnedByTeam(int32 InTeamId) const { return TeamId == InTeamId; }
 
 	UFUNCTION(BlueprintCallable, Category = "Structure")
-	float TakeDamage(float Amount, int32 DamageSourceTeamId = -1);
+	float ApplyDamage(float Amount, int32 DamageSourceTeamId = -1);
 
 	UFUNCTION(BlueprintPure, Category = "Structure")
 	bool IsAlive() const { return CurrentHealth > 0.f; }
@@ -68,37 +71,37 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* VisualMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float CaptureRadius = 80.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float CaptureProgressRequired = 100.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float CaptureRate = 30.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth = 180.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth = 180.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float DefenseDamage = 16.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float DefenseRange = 150.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float DefenseCooldown = 1.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	int32 TeamId = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float CaptureProgress = 0.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	float StoredEnergy = 0.f;
 
 	float DefenseCooldownRemaining = 0.f;
@@ -126,10 +129,10 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent", meta = (AllowPrivateAccess = "true"))
 	float MaxEnergy = 2200.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent", meta = (AllowPrivateAccess = "true"))
 	float HarvestRate = 35.f;
 };
 
@@ -153,9 +156,9 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony", meta = (AllowPrivateAccess = "true"))
 	float ProductionPerSecond = 10.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony", meta = (AllowPrivateAccess = "true"))
 	float MaxStoredEnergy = 6000.f;
 };

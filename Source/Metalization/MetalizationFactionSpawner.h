@@ -41,19 +41,19 @@ protected:
 private:
 	FVector SurfaceDirectionForWorld(const FVector& WorldLocation) const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction", meta = (AllowPrivateAccess = "true"))
 	int32 TeamId = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AMetalizationGroundUnit> UnitClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AMetalizationEnergyVent> VentClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AMetalizationColony> ColonyClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Faction", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AMetalizationAIManager> AIManagerClass;
 
 	TWeakObjectPtr<AActor> PlanetActor;

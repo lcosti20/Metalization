@@ -38,13 +38,13 @@ private:
 	AMetalizationGroundUnit* FindNearestEnemyUnit(const AMetalizationGroundUnit* Unit) const;
 	AMetalizationStructure* FindNearestEnemyStructure(const AMetalizationGroundUnit* Unit) const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	int32 TeamId = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	float OrderCheckInterval = 1.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	float StructureRange = 5000.f;
 
 	float TimeSinceLastOrderCheck = 0.f;

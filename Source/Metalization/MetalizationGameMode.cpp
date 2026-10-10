@@ -15,7 +15,7 @@ AMetalizationGameMode::AMetalizationGameMode()
 	DefaultPawnClass = AMetalizationCharacter::StaticClass();
 	PlayerControllerClass = AMetalizationPlayerController::StaticClass();
 	HUDClass = AMetalizationHUD::StaticClass();
-	DefaultGameStateClass = AMetalizationGameState::StaticClass();
+	GameStateClass = AMetalizationGameState::StaticClass();
 }
 
 void AMetalizationGameMode::BeginPlay()

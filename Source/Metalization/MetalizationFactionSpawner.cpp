@@ -17,7 +17,7 @@ void AMetalizationFactionSpawner::BeginPlay()
 
 FVector AMetalizationFactionSpawner::SurfaceDirectionForWorld(const FVector& WorldLocation) const
 {
-	if (!PlanetActor)
+	if (!PlanetActor.IsValid())
 	{
 		return FVector::UpVector;
 	}
@@ -31,7 +31,7 @@ FVector AMetalizationFactionSpawner::SurfaceDirectionForWorld(const FVector& Wor
 	UPlanetSurfaceSubsystem* SurfaceSubsystem = World->GetSubsystem<UPlanetSurfaceSubsystem>();
 	if (!SurfaceSubsystem)
 	{
-		return (WorldLocation - PlanetActor->GetActorLocation()).GetSafeNormal();
+		return PlanetActor.IsValid() ? (WorldLocation - PlanetActor.Get()->GetActorLocation()).GetSafeNormal() : FVector::UpVector;
 	}
 
 	return SurfaceSubsystem->DirectionFromWorld(WorldLocation);
@@ -50,7 +50,7 @@ AMetalizationGroundUnit* AMetalizationFactionSpawner::SpawnUnitAtLocation(const 
 	if (!World) return nullptr;
 
 	const FVector Direction = SurfaceDirectionForWorld(WorldLocation);
-	const FVector SpawnLocation = PlanetActor ? PlanetActor->GetActorLocation() + Direction * (PlanetRadius + 60.f) : WorldLocation;
+	const FVector SpawnLocation = PlanetActor.IsValid() ? PlanetActor.Get()->GetActorLocation() + Direction * (PlanetRadius + 60.f) : WorldLocation;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -72,7 +72,7 @@ AMetalizationEnergyVent* AMetalizationFactionSpawner::SpawnVentAtLocation(const 
 	if (!World) return nullptr;
 
 	const FVector Direction = SurfaceDirectionForWorld(WorldLocation);
-	const FVector SpawnLocation = PlanetActor ? PlanetActor->GetActorLocation() + Direction * (PlanetRadius + 40.f) : WorldLocation;
+	const FVector SpawnLocation = PlanetActor.IsValid() ? PlanetActor.Get()->GetActorLocation() + Direction * (PlanetRadius + 40.f) : WorldLocation;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -94,7 +94,7 @@ AMetalizationColony* AMetalizationFactionSpawner::SpawnColonyAtLocation(const FV
 	if (!World) return nullptr;
 
 	const FVector Direction = SurfaceDirectionForWorld(WorldLocation);
-	const FVector SpawnLocation = PlanetActor ? PlanetActor->GetActorLocation() + Direction * (PlanetRadius + 50.f) : WorldLocation;
+	const FVector SpawnLocation = PlanetActor.IsValid() ? PlanetActor.Get()->GetActorLocation() + Direction * (PlanetRadius + 50.f) : WorldLocation;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -111,7 +111,7 @@ AMetalizationColony* AMetalizationFactionSpawner::SpawnColonyAtLocation(const FV
 
 void AMetalizationFactionSpawner::SpawnStartSetup()
 {
-	if (!PlanetActor)
+	if (!PlanetActor.IsValid())
 	{
 		return;
 	}

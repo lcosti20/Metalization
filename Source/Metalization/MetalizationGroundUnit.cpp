@@ -294,7 +294,7 @@ void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 			return;
 		}
 
-		if (FVector::DistSquared(GetActorLocation(), Target->GetActorLocation()) <= Target->CaptureRadius * Target->CaptureRadius)
+		if (FVector::DistSquared(GetActorLocation(), Target->GetActorLocation()) <= Target->GetCaptureRadius() * Target->GetCaptureRadius())
 		{
 			Target->ApplyCaptureProgress(CaptureRate * DeltaSeconds, TeamId);
 		}
@@ -403,7 +403,7 @@ void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 			{
 				if (AttackCooldownRemaining <= 0.f)
 				{
-					TargetStructure->TakeDamage(AttackDamage, TeamId);
+					TargetStructure->ApplyDamage(AttackDamage, TeamId);
 					AttackCooldownRemaining = AttackCooldown;
 				}
 				StopMovement();

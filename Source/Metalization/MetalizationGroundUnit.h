@@ -90,43 +90,43 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* VisualMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float MoveSpeed = 180.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float SurfaceOffset = 18.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float ReachDistance = 8.f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	bool bIsSelected = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	int32 TeamId = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float CaptureRate = 30.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float GatherRate = 20.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float CarryCapacity = 100.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth = 120.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth = 120.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float AttackDamage = 22.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float AttackRange = 95.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit", meta = (AllowPrivateAccess = "true"))
 	float AttackCooldown = 0.65f;
 
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> SurfaceSubsystem;

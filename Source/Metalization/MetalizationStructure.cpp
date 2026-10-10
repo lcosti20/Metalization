@@ -47,7 +47,7 @@ void AMetalizationStructure::SetSurfaceDetails(AActor* InPlanet, const FVector& 
 
 void AMetalizationStructure::UpdateSurfaceTransform()
 {
-	if (!PlanetActor)
+	if (!PlanetActor.IsValid())
 	{
 		return;
 	}
@@ -73,7 +73,7 @@ void AMetalizationStructure::UpdateSurfaceTransform()
 	SetActorRotation(FRotationMatrix::MakeFromXZ(Forward, Up).Rotator());
 }
 
-float AMetalizationStructure::TakeDamage(float Amount, int32 DamageSourceTeamId)
+float AMetalizationStructure::ApplyDamage(float Amount, int32 DamageSourceTeamId)
 {
 	if (CurrentHealth <= 0.f)
 	{
