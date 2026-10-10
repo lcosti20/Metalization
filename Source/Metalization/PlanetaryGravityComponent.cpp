@@ -1,4 +1,5 @@
 #include "PlanetaryGravityComponent.h"
+#include "PlanetSurfaceSubsystem.h"
 #include "GameFramework/MovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -138,11 +139,33 @@ void UPlanetaryGravityComponent::OrientOwnerToSurface(float DeltaTime, const FVe
 
 void UPlanetaryGravityComponent::SetPlanet(AActor* Planet)
 {
-	if (Planet)
+	if (!Planet)
 	{
-		CurrentPlanet = Planet;
-		PlanetCenter = CurrentPlanet->GetActorLocation();
+		return;
 	}
+
+	CurrentPlanet = Planet;
+	PlanetCenter = CurrentPlanet->GetActorLocation();
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	UPlanetSurfaceSubsystem* SurfaceSubsystem = World->GetSubsystem<UPlanetSurfaceSubsystem>();
+	if (!SurfaceSubsystem)
+	{
+		return;
+	}
+
+	float Radius = 1000.f;
+	if (USceneComponent* RootComponent = Planet->GetRootComponent())
+	{
+		Radius = RootComponent->Bounds.SphereRadius * FMath::Max(1.f, RootComponent->GetComponentScale().GetMax());
+	}
+
+	SurfaceSubsystem->RegisterPlanet(Planet, Radius, 6);
 }
 
 AActor* UPlanetaryGravityComponent::FindNearestPlanet() const
