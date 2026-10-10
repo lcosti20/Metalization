@@ -67,6 +67,39 @@ AMetalizationEnergyVent* AMetalizationAIManager::FindNearestOwnedVent(const AMet
 	return BestVent;
 }
 
+AMetalizationEnergyVent* AMetalizationAIManager::FindNearestCapturableVent(const AMetalizationGroundUnit* Unit) const
+{
+	if (!Unit)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundStructures;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMetalizationEnergyVent::StaticClass(), FoundStructures);
+
+	AMetalizationEnergyVent* BestVent = nullptr;
+	float BestDistanceSq = TNumericLimits<float>::Max();
+
+	for (AActor* Actor : FoundStructures)
+	{
+		if (AMetalizationEnergyVent* Vent = Cast<AMetalizationEnergyVent>(Actor))
+		{
+			if (Vent->GetTeamId() == TeamId)
+			{
+				continue;
+			}
+
+			const float DistSq = FVector::DistSquared(Unit->GetActorLocation(), Vent->GetActorLocation());
+			if (DistSq < BestDistanceSq)
+			{
+				BestDistanceSq = DistSq;
+				BestVent = Vent;
+			}
+		}
+	}
+	return BestVent;
+}
+
 AMetalizationColony* AMetalizationAIManager::FindNearestOwnedColony(const AMetalizationGroundUnit* Unit) const
 {
 	if (!Unit)
@@ -85,6 +118,39 @@ AMetalizationColony* AMetalizationAIManager::FindNearestOwnedColony(const AMetal
 		if (AMetalizationColony* Colony = Cast<AMetalizationColony>(Actor))
 		{
 			if (Colony->GetTeamId() != TeamId)
+			{
+				continue;
+			}
+
+			const float DistSq = FVector::DistSquared(Unit->GetActorLocation(), Colony->GetActorLocation());
+			if (DistSq < BestDistanceSq)
+			{
+				BestDistanceSq = DistSq;
+				BestColony = Colony;
+			}
+		}
+	}
+	return BestColony;
+}
+
+AMetalizationColony* AMetalizationAIManager::FindNearestEnemyColony(const AMetalizationGroundUnit* Unit) const
+{
+	if (!Unit)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundStructures;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMetalizationColony::StaticClass(), FoundStructures);
+
+	AMetalizationColony* BestColony = nullptr;
+	float BestDistanceSq = TNumericLimits<float>::Max();
+
+	for (AActor* Actor : FoundStructures)
+	{
+		if (AMetalizationColony* Colony = Cast<AMetalizationColony>(Actor))
+		{
+			if (Colony->GetTeamId() == TeamId)
 			{
 				continue;
 			}
@@ -149,17 +215,37 @@ void AMetalizationAIManager::UpdateAIOrders()
 
 			AMetalizationEnergyVent* OwnedVent = FindNearestOwnedVent(Unit);
 			AMetalizationColony* OwnedColony = FindNearestOwnedColony(Unit);
+			AMetalizationEnergyVent* CapturableVent = FindNearestCapturableVent(Unit);
+			AMetalizationColony* EnemyColony = FindNearestEnemyColony(Unit);
 			AMetalizationStructure* EnemyTarget = FindNearestEnemyStructure(Unit);
 
-			if (OwnedVent && OwnedColony)
+			if (OwnedColony && OwnedVent)
 			{
 				Unit->IssueHarvestOrder(OwnedVent, OwnedColony);
+				continue;
+			}
+
+			if (CapturableVent)
+			{
+				Unit->IssueCaptureOrder(CapturableVent);
+				continue;
+			}
+
+			if (EnemyColony)
+			{
+				Unit->IssueCaptureOrder(EnemyColony);
 				continue;
 			}
 
 			if (EnemyTarget)
 			{
 				Unit->IssueCaptureOrder(EnemyTarget);
+				continue;
+			}
+
+			if (OwnedVent)
+			{
+				Unit->IssueMoveToWorldLocation(OwnedVent->GetActorLocation());
 				continue;
 			}
 

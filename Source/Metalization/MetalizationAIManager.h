@@ -32,7 +32,9 @@ private:
 	void UpdateAIOrders();
 	AMetalizationGroundUnit* GetNextUnitToOrder() const;
 	AMetalizationEnergyVent* FindNearestOwnedVent(const AMetalizationGroundUnit* Unit) const;
+	AMetalizationEnergyVent* FindNearestCapturableVent(const AMetalizationGroundUnit* Unit) const;
 	AMetalizationColony* FindNearestOwnedColony(const AMetalizationGroundUnit* Unit) const;
+	AMetalizationColony* FindNearestEnemyColony(const AMetalizationGroundUnit* Unit) const;
 	AMetalizationStructure* FindNearestEnemyStructure(const AMetalizationGroundUnit* Unit) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
