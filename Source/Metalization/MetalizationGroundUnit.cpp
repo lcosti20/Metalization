@@ -1,6 +1,7 @@
 #include "MetalizationGroundUnit.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "MetalizationStructure.h"
 #include "PlanetSurfaceSubsystem.h"
 
 AMetalizationGroundUnit::AMetalizationGroundUnit()
@@ -59,6 +60,12 @@ void AMetalizationGroundUnit::SetPath(const TArray<FVector>& InPath)
 
 void AMetalizationGroundUnit::IssueMoveToDirection(const FVector& Direction)
 {
+	CurrentTask = EMetalizationUnitTask::Move;
+	CurrentTargetStructure.Reset();
+	HarvestSource.Reset();
+	DeliveryTarget.Reset();
+	CarriedEnergy = 0.f;
+
 	if (!SurfaceSubsystem.IsValid())
 	{
 		return;
@@ -80,22 +87,33 @@ void AMetalizationGroundUnit::IssueMoveToDirection(const FVector& Direction)
 
 void AMetalizationGroundUnit::IssueMoveToWorldLocation(const FVector& WorldLocation)
 {
-	if (!SurfaceSubsystem.IsValid())
-	{	return;
-	}
+	IssueMoveToDirection(SurfaceSubsystem.IsValid() ? SurfaceSubsystem->DirectionFromWorld(WorldLocation) : FVector::UpVector);
+}
 
-	const FVector CurrentDirection = SurfaceSubsystem->DirectionFromWorld(GetActorLocation());
-	const FVector TargetDirection = SurfaceSubsystem->DirectionFromWorld(WorldLocation);
-	SurfaceSubsystem->RequestPath(CurrentDirection, TargetDirection, [this](TArray<FVector> InPath)
+void AMetalizationGroundUnit::IssueCaptureOrder(AActor* TargetStructure)
+{
+	CurrentTask = EMetalizationUnitTask::Capture;
+	CurrentTargetStructure = Cast<AMetalizationStructure>(TargetStructure);
+	HarvestSource.Reset();
+	DeliveryTarget.Reset();
+	CarriedEnergy = 0.f;
+	if (CurrentTargetStructure.IsValid())
 	{
-		if (InPath.Num() == 0)
-		{
-			StopMovement();
-			return;
-		}
+		IssueMoveToWorldLocation(CurrentTargetStructure->GetActorLocation());
+	}
+}
 
-		SetPath(InPath);
-	});
+void AMetalizationGroundUnit::IssueHarvestOrder(AActor* SourceVent, AActor* DestinationColony)
+{
+	CurrentTask = EMetalizationUnitTask::Harvest;
+	HarvestSource = Cast<AMetalizationStructure>(SourceVent);
+	DeliveryTarget = Cast<AMetalizationStructure>(DestinationColony);
+	CurrentTargetStructure.Reset();
+	CarriedEnergy = 0.f;
+	if (HarvestSource.IsValid())
+	{
+		IssueMoveToWorldLocation(HarvestSource->GetActorLocation());
+	}
 }
 
 void AMetalizationGroundUnit::ApplySurfaceTransform(const FVector& NewDirection, float Offset)
@@ -155,8 +173,71 @@ void AMetalizationGroundUnit::UpdateMovement(float DeltaSeconds)
 	}
 }
 
+void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
+{
+	if (CurrentTask == EMetalizationUnitTask::Capture && CurrentTargetStructure.IsValid())
+	{
+		AMetalizationStructure* Target = CurrentTargetStructure.Get();
+		if (!Target->IsValidLowLevel())
+		{
+			CurrentTask = EMetalizationUnitTask::Idle;
+			CurrentTargetStructure.Reset();
+			return;
+		}
+
+		if (FVector::DistSquared(GetActorLocation(), Target->GetActorLocation()) <= Target->CaptureRadius * Target->CaptureRadius)
+		{
+			Target->ApplyCaptureProgress(CaptureRate * DeltaSeconds, TeamId);
+		}
+		else if (PathDirections.Num() == 0)
+		{
+			IssueMoveToWorldLocation(Target->GetActorLocation());
+		}
+		return;
+	}
+
+	if (CurrentTask == EMetalizationUnitTask::Harvest)
+	{
+		AMetalizationStructure* Vent = HarvestSource.Get();
+		AMetalizationStructure* Colony = DeliveryTarget.Get();
+
+		if (!Vent || !Colony)
+		{
+			CurrentTask = EMetalizationUnitTask::Idle;
+			HarvestSource.Reset();
+			DeliveryTarget.Reset();
+			return;
+		}
+
+		if (CarriedEnergy <= KINDA_SMALL_NUMBER && FVector::DistSquared(GetActorLocation(), Vent->GetActorLocation()) <= 75.f * 75.f)
+		{
+			if (AMetalizationEnergyVent* EnergyVent = Cast<AMetalizationEnergyVent>(Vent))
+			{
+				CarriedEnergy += EnergyVent->HarvestEnergy(GatherRate * DeltaSeconds);
+			}
+		}
+		else if (CarriedEnergy > KINDA_SMALL_NUMBER && FVector::DistSquared(GetActorLocation(), Colony->GetActorLocation()) <= 75.f * 75.f)
+		{
+			if (AMetalizationColony* Settlement = Cast<AMetalizationColony>(Colony))
+			{
+				Settlement->DepositEnergy(CarriedEnergy);
+				CarriedEnergy = 0.f;
+			}
+		}
+		else if (CarriedEnergy <= KINDA_SMALL_NUMBER && PathDirections.Num() == 0)
+		{
+			IssueMoveToWorldLocation(Vent->GetActorLocation());
+		}
+		else if (CarriedEnergy > KINDA_SMALL_NUMBER && PathDirections.Num() == 0)
+		{
+			IssueMoveToWorldLocation(Colony->GetActorLocation());
+		}
+	}
+}
+
 void AMetalizationGroundUnit::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	UpdateMovement(DeltaSeconds);
+	UpdateTaskState(DeltaSeconds);
 }
