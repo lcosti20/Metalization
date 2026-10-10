@@ -39,6 +39,14 @@ void AMetalizationHUD::DrawTeamStats() const
 	FCanvasTextItem EnemyTextItem(FVector2D(20.0f, 50.0f), FText::FromString(EnemySummary), HudFont,
 		FLinearColor(0.85f, 0.5f, 0.5f, 1.0f));
 	Canvas->DrawItem(EnemyTextItem);
+
+	if (GameState->IsGameOver())
+	{
+		const FString WinnerSummary = FString::Printf(TEXT("Winner: Team %d"), GameState->GetWinnerTeamId());
+		FCanvasTextItem WinnerTextItem(FVector2D(20.0f, 80.0f), FText::FromString(WinnerSummary), HudFont,
+			FLinearColor::Green);
+		Canvas->DrawItem(WinnerTextItem);
+	}
 }
 
 void AMetalizationHUD::DrawHUD()

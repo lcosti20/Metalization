@@ -1,6 +1,7 @@
 #include "MetalizationStructure.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "MetalizationGameState.h"
 #include "PlanetSurfaceSubsystem.h"
 
@@ -79,8 +80,53 @@ void AMetalizationStructure::ApplyCaptureProgress(float Amount, int32 CapturingT
 	CaptureProgress += Amount;
 	if (CaptureProgress >= CaptureProgressRequired)
 	{
+		const int32 OldTeamId = TeamId;
 		TeamId = CapturingTeamId;
 		CaptureProgress = 0.f;
+
+		if (UWorld* World = GetWorld())
+		{
+			if (AMetalizationGameState* GameState = World->GetGameState<AMetalizationGameState>())
+			{
+				GameState->RegisterTeam(CapturingTeamId, 0.f);
+				GameState->AddTeamEnergy(CapturingTeamId, 100.f);
+				if (OldTeamId != CapturingTeamId)
+				{
+					GameState->RegisterTeam(OldTeamId, 0.f);
+				}
+			}
+		}
+
+		TArray<AActor*> ColonyActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMetalizationColony::StaticClass(), ColonyActors);
+		if (ColonyActors.Num() > 0)
+		{
+			int32 DominantTeamId = -1;
+			bool bAllOwnedBySameTeam = true;
+			for (AActor* ColonyActor : ColonyActors)
+			{
+				if (AMetalizationColony* Colony = Cast<AMetalizationColony>(ColonyActor))
+				{
+					if (DominantTeamId == -1)
+					{
+						DominantTeamId = Colony->GetTeamId();
+					}
+					else if (Colony->GetTeamId() != DominantTeamId)
+					{
+						bAllOwnedBySameTeam = false;
+						break;
+					}
+				}
+			}
+
+			if (bAllOwnedBySameTeam && DominantTeamId >= 0 && GetWorld())
+			{
+				if (AMetalizationGameState* GameState = GetWorld()->GetGameState<AMetalizationGameState>())
+				{
+					GameState->DeclareWinner(DominantTeamId);
+				}
+			}
+		}
 	}
 }
 

@@ -62,3 +62,23 @@ bool AMetalizationGameState::HasTeam(int32 TeamId) const
 {
 	return TeamEnergy.Contains(TeamId) || TeamUnitCounts.Contains(TeamId);
 }
+
+void AMetalizationGameState::DeclareWinner(int32 TeamId)
+{
+	if (TeamId < 0)
+	{
+		return;
+	}
+
+	WinnerTeamId = TeamId;
+}
+
+bool AMetalizationGameState::IsGameOver() const
+{
+	return WinnerTeamId >= 0;
+}
+
+int32 AMetalizationGameState::GetWinnerTeamId() const
+{
+	return WinnerTeamId;
+}
