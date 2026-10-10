@@ -18,6 +18,9 @@ public:
 	bool HasPlanet() const { return NavGraph.IsValid(); }
 
 	UFUNCTION(BlueprintPure, Category = "Planet")
+	AActor* GetRegisteredPlanet() const { return Planet.Get(); }
+
+	UFUNCTION(BlueprintPure, Category = "Planet")
 	FVector GetCenter() const { return Center; }
 
 	UFUNCTION(BlueprintPure, Category = "Planet")

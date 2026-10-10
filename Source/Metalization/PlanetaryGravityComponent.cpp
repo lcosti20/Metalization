@@ -144,6 +144,7 @@ void UPlanetaryGravityComponent::SetPlanet(AActor* Planet)
 		return;
 	}
 
+	const bool bPlanetChanged = CurrentPlanet != Planet;
 	CurrentPlanet = Planet;
 	PlanetCenter = CurrentPlanet->GetActorLocation();
 
@@ -159,10 +160,20 @@ void UPlanetaryGravityComponent::SetPlanet(AActor* Planet)
 		return;
 	}
 
+	if (SurfaceSubsystem->HasPlanet() && SurfaceSubsystem->GetRegisteredPlanet() == Planet)
+	{
+		return;
+	}
+
+	if (!bPlanetChanged && SurfaceSubsystem->HasPlanet())
+	{
+		return;
+	}
+
 	float Radius = 1000.f;
 	if (USceneComponent* RootComponent = Planet->GetRootComponent())
 	{
-		Radius = RootComponent->Bounds.SphereRadius * FMath::Max(1.f, RootComponent->GetComponentScale().GetMax());
+		Radius = FMath::Max(RootComponent->Bounds.SphereRadius, 1.f);
 	}
 
 	SurfaceSubsystem->RegisterPlanet(Planet, Radius, 6);

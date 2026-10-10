@@ -45,18 +45,33 @@ void AMetalizationFactionSpawner::SetPlanetReference(AActor* InPlanet, float InR
 
 AMetalizationGroundUnit* AMetalizationFactionSpawner::SpawnUnitAtLocation(const FVector& WorldLocation)
 {
-	if (!UnitClass) return nullptr;
+	TSubclassOf<AMetalizationGroundUnit> SpawnClass = UnitClass;
+	if (!SpawnClass)
+	{
+		SpawnClass = LoadClass<AMetalizationGroundUnit>(nullptr, TEXT("/Game/BP_MetalizationGroundUnit.BP_MetalizationGroundUnit_C"));
+	}
+	if (!SpawnClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MetalizationFactionSpawner: UnitClass is not assigned and BP_MetalizationGroundUnit could not be loaded."));
+		return nullptr;
+	}
+
 	UWorld* World = GetWorld();
-	if (!World) return nullptr;
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MetalizationFactionSpawner: Cannot spawn a ground unit because the world is unavailable."));
+		return nullptr;
+	}
 
 	const FVector Direction = SurfaceDirectionForWorld(WorldLocation);
 	const FVector SpawnLocation = PlanetActor.IsValid() ? PlanetActor.Get()->GetActorLocation() + Direction * (PlanetRadius + 60.f) : WorldLocation;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AMetalizationGroundUnit* Unit = World->SpawnActor<AMetalizationGroundUnit>(UnitClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+	AMetalizationGroundUnit* Unit = World->SpawnActor<AMetalizationGroundUnit>(SpawnClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
 	if (!Unit)
 	{
+		UE_LOG(LogTemp, Error, TEXT("MetalizationFactionSpawner: Failed to spawn ground unit for team %d."), TeamId);
 		return nullptr;
 	}
 
@@ -117,16 +132,23 @@ void AMetalizationFactionSpawner::SpawnStartSetup()
 	}
 
 	const FVector PlanetCenter = PlanetActor->GetActorLocation();
+	int32 SpawnedUnitCount = 0;
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		const float Angle = Index * (2.f * PI / 3.f);
-		const FVector Offset = FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.1f) * 200.f;
+		const float TeamSide = TeamId % 2 == 0 ? 1.f : -1.f;
+		const FVector Offset = FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.1f) * (200.f * TeamSide);
 		const FVector Direction = (PlanetCenter + Offset - PlanetCenter).GetSafeNormal();
 		SpawnVentAtLocation(PlanetCenter + Direction * (PlanetRadius + 80.f));
-		SpawnUnitAtLocation(PlanetCenter + Direction * (PlanetRadius + 70.f));
+		if (SpawnUnitAtLocation(PlanetCenter + Direction * (PlanetRadius + 70.f)))
+		{
+			++SpawnedUnitCount;
+		}
 	}
+	UE_LOG(LogTemp, Display, TEXT("MetalizationFactionSpawner: Spawned %d of 3 starting units for team %d."), SpawnedUnitCount, TeamId);
 
-	AMetalizationColony* Colony = SpawnColonyAtLocation(PlanetCenter + FVector::UpVector * (PlanetRadius + 150.f));
+	const FVector ColonyDirection = TeamId % 2 == 0 ? FVector::UpVector : FVector::DownVector;
+	AMetalizationColony* Colony = SpawnColonyAtLocation(PlanetCenter + ColonyDirection * (PlanetRadius + 150.f));
 	if (Colony)
 	{
 		Colony->SetTeamId(TeamId);

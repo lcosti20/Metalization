@@ -4,6 +4,7 @@
 #include "MetalizationGameState.h"
 #include "MetalizationStructure.h"
 #include "PlanetSurfaceSubsystem.h"
+#include "UObject/ConstructorHelpers.h"
 
 AMetalizationGroundUnit::AMetalizationGroundUnit()
 {
@@ -21,6 +22,13 @@ AMetalizationGroundUnit::AMetalizationGroundUnit()
 	VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	VisualMesh->SetSimulatePhysics(false);
 	VisualMesh->SetCanEverAffectNavigation(false);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultUnitMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (DefaultUnitMesh.Succeeded())
+	{
+		VisualMesh->SetStaticMesh(DefaultUnitMesh.Object);
+		VisualMesh->SetRelativeScale3D(FVector(0.5f));
+	}
 }
 
 void AMetalizationGroundUnit::BeginPlay()
@@ -34,6 +42,16 @@ void AMetalizationGroundUnit::BeginPlay()
 	}
 
 	SurfaceSubsystem = World->GetSubsystem<UPlanetSurfaceSubsystem>();
+	if (VisualMesh && !VisualMesh->GetStaticMesh())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s has no unit mesh assigned; displaying the fallback cube."), *GetName());
+		if (UStaticMesh* DefaultUnitMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")))
+		{
+			VisualMesh->SetStaticMesh(DefaultUnitMesh);
+			VisualMesh->SetRelativeScale3D(FVector(0.5f));
+		}
+	}
+
 	if (AMetalizationGameState* GameState = World->GetGameState<AMetalizationGameState>())
 	{
 		GameState->RegisterTeam(TeamId, 0.f);
@@ -260,7 +278,9 @@ void AMetalizationGroundUnit::UpdateMovement(float DeltaSeconds)
 	const bool bReached = SurfaceSubsystem->StepToward(NextDirection, TargetDirection, DistanceToTravel);
 	ApplySurfaceTransform(NextDirection, SurfaceOffset);
 
-	if (bReached || FVector::Distance(CurrentDirection, TargetDirection) <= ReachDistance)
+	const float AngleToWaypoint = FMath::Acos(FMath::Clamp(FVector::DotProduct(CurrentDirection, TargetDirection), -1.f, 1.f));
+	const float DistanceToWaypoint = AngleToWaypoint * SurfaceSubsystem->GetRadius();
+	if (bReached || DistanceToWaypoint <= ReachDistance)
 	{
 		if (CurrentWaypointIndex + 1 >= PathDirections.Num())
 		{
