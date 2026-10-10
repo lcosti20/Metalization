@@ -12,7 +12,6 @@ class AMetalizationGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
-	
 	AMetalizationGameMode();
 };
 
