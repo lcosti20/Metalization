@@ -11,4 +11,7 @@ class AMetalizationHUD : public AHUD
 
 public:
 	virtual void DrawHUD() override;
+
+private:
+	void DrawTeamStats() const;
 };

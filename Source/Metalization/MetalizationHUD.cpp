@@ -1,11 +1,50 @@
 #include "MetalizationHUD.h"
 
 #include "Engine/Canvas.h"
+#include "MetalizationGameState.h"
 #include "MetalizationPlayerController.h"
+
+void AMetalizationHUD::DrawTeamStats() const
+{
+	if (!Canvas || !GetWorld())
+	{
+		return;
+	}
+
+	const AMetalizationGameState* GameState = GetWorld()->GetGameState<AMetalizationGameState>();
+	if (!GameState)
+	{
+		return;
+	}
+
+	const UFont* HudFont = GEngine ? GEngine->GetSmallFont() : nullptr;
+	if (!HudFont)
+	{
+		return;
+	}
+
+	const int32 PlayerTeamId = 0;
+	const float PlayerEnergy = GameState->GetTeamEnergy(PlayerTeamId);
+	const int32 PlayerUnits = GameState->GetTeamUnitCount(PlayerTeamId);
+
+	const FString TeamSummary = FString::Printf(TEXT("Team %d | Energy: %.0f | Units: %d"),
+		PlayerTeamId, PlayerEnergy, PlayerUnits);
+	const FString EnemySummary = FString::Printf(TEXT("Enemy | Energy: %.0f | Units: %d"),
+		GameState->GetTeamEnergy(1), GameState->GetTeamUnitCount(1));
+
+	FCanvasTextItem TextItem(FVector2D(20.0f, 20.0f), FText::FromString(TeamSummary), HudFont,
+		FLinearColor::White);
+	Canvas->DrawItem(TextItem);
+
+	FCanvasTextItem EnemyTextItem(FVector2D(20.0f, 50.0f), FText::FromString(EnemySummary), HudFont,
+		FLinearColor(0.85f, 0.5f, 0.5f, 1.0f));
+	Canvas->DrawItem(EnemyTextItem);
+}
 
 void AMetalizationHUD::DrawHUD()
 {
 	Super::DrawHUD();
+	DrawTeamStats();
 
 	const AMetalizationPlayerController* RTSController =
 		Cast<AMetalizationPlayerController>(PlayerOwner);
