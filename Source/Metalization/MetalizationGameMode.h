@@ -9,7 +9,7 @@
 class AMetalizationFactionSpawner;
 
 UCLASS()
-class AMetalizationGameMode : public AGameModeBase
+class METALIZATION_API AMetalizationGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
