@@ -25,6 +25,7 @@ AMetalizationCharacter::AMetalizationCharacter()
 	bUseControllerRotationRoll = false;
 
 	PlanetaryGravity = CreateDefaultSubobject<UPlanetaryGravityComponent>(TEXT("PlanetaryGravity"));
+	PlanetaryGravity->bDriveMovementComponentGravity = false;
 
 	InitMovement();
 	InitCameraBoom();
@@ -37,6 +38,7 @@ void AMetalizationCharacter::InitMovement()
 	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
 	if (MovementComp)
 	{
+		MovementComp->GravityScale = 0.f;
 		MovementComp->DisableMovement();
 		MovementComp->SetComponentTickEnabled(false);
 	}
