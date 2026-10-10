@@ -1,6 +1,7 @@
 #include "MetalizationStructure.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "MetalizationGameState.h"
 #include "PlanetSurfaceSubsystem.h"
 
 AMetalizationStructure::AMetalizationStructure()
@@ -122,7 +123,18 @@ void AMetalizationColony::BeginPlay()
 void AMetalizationColony::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	StoredEnergy = FMath::Clamp(StoredEnergy + ProductionPerSecond * DeltaSeconds, 0.f, MaxStoredEnergy);
+
+	const float GeneratedEnergy = ProductionPerSecond * DeltaSeconds;
+	StoredEnergy = FMath::Clamp(StoredEnergy + GeneratedEnergy, 0.f, MaxStoredEnergy);
+
+	if (UWorld* World = GetWorld())
+	{
+		if (AMetalizationGameState* GameState = World->GetGameState<AMetalizationGameState>())
+		{
+			GameState->RegisterTeam(TeamId, 0.f);
+			GameState->AddTeamEnergy(TeamId, GeneratedEnergy);
+		}
+	}
 }
 
 float AMetalizationColony::DepositEnergy(float Amount)

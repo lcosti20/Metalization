@@ -1,6 +1,7 @@
 #include "MetalizationGroundUnit.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "MetalizationGameState.h"
 #include "MetalizationStructure.h"
 #include "PlanetSurfaceSubsystem.h"
 
@@ -33,7 +34,28 @@ void AMetalizationGroundUnit::BeginPlay()
 	}
 
 	SurfaceSubsystem = World->GetSubsystem<UPlanetSurfaceSubsystem>();
+	if (AMetalizationGameState* GameState = World->GetGameState<AMetalizationGameState>())
+	{
+		GameState->RegisterTeam(TeamId, 0.f);
+		GameState->IncrementUnitCount(TeamId, 1);
+	}
 	SetActorTickEnabled(true);
+}
+
+void AMetalizationGroundUnit::Destroyed()
+{
+	Super::Destroyed();
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (AMetalizationGameState* GameState = World->GetGameState<AMetalizationGameState>())
+	{
+		GameState->IncrementUnitCount(TeamId, -1);
+	}
 }
 
 void AMetalizationGroundUnit::SetSelected(bool bSelected)
