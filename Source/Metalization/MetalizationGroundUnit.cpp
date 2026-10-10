@@ -241,19 +241,27 @@ void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 			return;
 		}
 
-		if (CarriedEnergy <= KINDA_SMALL_NUMBER && FVector::DistSquared(GetActorLocation(), Vent->GetActorLocation()) <= 75.f * 75.f)
+		const bool bAtVent = FVector::DistSquared(GetActorLocation(), Vent->GetActorLocation()) <= 75.f * 75.f;
+		const bool bAtColony = FVector::DistSquared(GetActorLocation(), Colony->GetActorLocation()) <= 75.f * 75.f;
+
+		if (CarriedEnergy <= KINDA_SMALL_NUMBER && bAtVent)
 		{
 			if (AMetalizationEnergyVent* EnergyVent = Cast<AMetalizationEnergyVent>(Vent))
 			{
-				CarriedEnergy += EnergyVent->HarvestEnergy(GatherRate * DeltaSeconds);
+				const float RemainingCapacity = FMath::Max(0.f, CarryCapacity - CarriedEnergy);
+				if (RemainingCapacity > KINDA_SMALL_NUMBER)
+				{
+					const float Harvested = EnergyVent->HarvestEnergy(FMath::Min(GatherRate * DeltaSeconds, RemainingCapacity));
+					CarriedEnergy += Harvested;
+				}
 			}
 		}
-		else if (CarriedEnergy > KINDA_SMALL_NUMBER && FVector::DistSquared(GetActorLocation(), Colony->GetActorLocation()) <= 75.f * 75.f)
+		else if (CarriedEnergy > KINDA_SMALL_NUMBER && bAtColony)
 		{
 			if (AMetalizationColony* Settlement = Cast<AMetalizationColony>(Colony))
 			{
-				Settlement->DepositEnergy(CarriedEnergy);
-				CarriedEnergy = 0.f;
+				const float Deposited = Settlement->DepositEnergy(CarriedEnergy);
+				CarriedEnergy = FMath::Max(0.f, CarriedEnergy - Deposited);
 			}
 		}
 		else if (CarriedEnergy <= KINDA_SMALL_NUMBER && PathDirections.Num() == 0)
