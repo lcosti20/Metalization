@@ -188,8 +188,8 @@ void AMetalizationPlayerController::EndSelection()
 	}
 
 	FHitResult Hit;
-	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit) && Hit.GetActor() &&
-		Hit.GetActor()->ActorHasTag(SelectableActorTag))
+	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit) &&
+		Hit.GetActor() && IsSelectableActor(Hit.GetActor()))
 	{
 		SelectActor(Hit.GetActor(), bAddToSelection);
 	}
@@ -223,7 +223,7 @@ void AMetalizationPlayerController::SelectActorsInBox()
 
 	for (AActor* Actor : SelectableActors)
 	{
-		if (!IsValid(Actor))
+		if (!IsSelectableActor(Actor))
 		{
 			continue;
 		}
@@ -241,23 +241,12 @@ void AMetalizationPlayerController::SelectActorsInBox()
 		}
 	}
 
-	for (AActor* ExistingActor : SelectedActors)
-	{
-		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(ExistingActor))
-		{
-			if (!bAddToSelection)
-			{
-				Unit->SetSelected(true);
-			}
-		}
-	}
-
 	OnSelectionChanged.Broadcast();
 }
 
 void AMetalizationPlayerController::SelectActor(AActor* Actor, bool bAddToSelection)
 {
-	if (!IsValid(Actor))
+	if (!IsSelectableActor(Actor))
 	{
 		return;
 	}
@@ -279,6 +268,21 @@ void AMetalizationPlayerController::SelectActor(AActor* Actor, bool bAddToSelect
 		Unit->SetSelected(true);
 	}
 	OnSelectionChanged.Broadcast();
+}
+
+bool AMetalizationPlayerController::IsSelectableActor(AActor* Actor) const
+{
+	if (!IsValid(Actor) || !Actor->ActorHasTag(SelectableActorTag))
+	{
+		return false;
+	}
+
+	if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+	{
+		return Unit->GetTeamId() == TeamId;
+	}
+
+	return false;
 }
 
 void AMetalizationPlayerController::ClearSelection()

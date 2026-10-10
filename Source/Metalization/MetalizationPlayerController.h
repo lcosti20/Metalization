@@ -39,6 +39,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Selection")
 	FName SelectableActorTag = TEXT("Selectable");
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Selection")
+	int32 TeamId = 0;
+
 	UPROPERTY(BlueprintReadOnly, Category = "RTS Selection")
 	TArray<AActor*> SelectedActors;
 
@@ -77,4 +80,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "RTS Selection")
 	FVector2D GetSelectionCurrent() const { return SelectionCurrent; }
+
+	UFUNCTION(BlueprintCallable, Category = "RTS Selection")
+	void SetTeamId(int32 NewTeamId) { TeamId = NewTeamId; }
+
+	UFUNCTION(BlueprintPure, Category = "RTS Selection")
+	int32 GetTeamId() const { return TeamId; }
+
+private:
+	bool IsSelectableActor(AActor* Actor) const;
 };
