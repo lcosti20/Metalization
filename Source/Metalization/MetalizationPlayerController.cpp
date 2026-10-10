@@ -82,6 +82,7 @@ void AMetalizationPlayerController::SetupInputComponent()
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AMetalizationPlayerController::BeginSelection);
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &AMetalizationPlayerController::EndSelection);
 		InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &AMetalizationPlayerController::IssueMoveOrder);
+		InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMetalizationPlayerController::IssueStopOrder);
 		InputComponent->BindAxis(TEXT("RTSZoom"), this, &AMetalizationPlayerController::ZoomCamera);
 	}
 }
@@ -304,6 +305,17 @@ void AMetalizationPlayerController::ClearSelection()
 	OnSelectionChanged.Broadcast();
 }
 
+void AMetalizationPlayerController::IssueStopOrder()
+{
+	for (AActor* Actor : SelectedActors)
+	{
+		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+		{
+			Unit->IssueStopOrder();
+		}
+	}
+}
+
 void AMetalizationPlayerController::IssueMoveOrder()
 {
 	if (SelectedActors.IsEmpty())
@@ -317,12 +329,25 @@ void AMetalizationPlayerController::IssueMoveOrder()
 		return;
 	}
 
+	const FVector HitNormal = Hit.ImpactNormal.GetSafeNormal();
+	const FVector ReferenceRight = FVector::CrossProduct(HitNormal, FVector::UpVector).IsNearlyZero() ? FVector::RightVector : FVector::CrossProduct(HitNormal, FVector::UpVector).GetSafeNormal();
+	const FVector ReferenceForward = FVector::CrossProduct(ReferenceRight, HitNormal).GetSafeNormal();
+
 	OnMoveOrderIssued.Broadcast(Hit.Location);
-	for (AActor* Actor : SelectedActors)
+	for (int32 Index = 0; Index < SelectedActors.Num(); ++Index)
 	{
+		AActor* Actor = SelectedActors[Index];
+		if (!Actor || !IsValid(Actor))
+		{
+			continue;
+		}
+
 		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
 		{
-			Unit->IssueMoveToWorldLocation(Hit.Location);
+			const int32 Column = Index % 4;
+			const int32 Row = Index / 4;
+			const FVector Offset = (ReferenceRight * (Column - 1.5f) + ReferenceForward * (Row - 1.5f)) * FormationSpacing;
+			Unit->IssueMoveToWorldLocation(Hit.Location + Offset);
 		}
 	}
 }

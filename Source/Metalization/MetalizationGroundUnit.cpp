@@ -74,6 +74,7 @@ void AMetalizationGroundUnit::StopMovement()
 {
 	CurrentWaypointIndex = INDEX_NONE;
 	PathDirections.Reset();
+	PendingMoveTargetDirection = FVector::UpVector;
 }
 
 void AMetalizationGroundUnit::SetPath(const TArray<FVector>& InPath)
@@ -126,6 +127,17 @@ void AMetalizationGroundUnit::IssueMoveToDirection(const FVector& Direction)
 void AMetalizationGroundUnit::IssueMoveToWorldLocation(const FVector& WorldLocation)
 {
 	IssueMoveToDirection(SurfaceSubsystem.IsValid() ? SurfaceSubsystem->DirectionFromWorld(WorldLocation) : FVector::UpVector);
+}
+
+void AMetalizationGroundUnit::IssueStopOrder()
+{
+	CurrentTask = EMetalizationUnitTask::Idle;
+	CurrentTargetStructure.Reset();
+	HarvestSource.Reset();
+	DeliveryTarget.Reset();
+	AttackTarget.Reset();
+	CarriedEnergy = 0.f;
+	StopMovement();
 }
 
 void AMetalizationGroundUnit::IssueCaptureOrder(AActor* TargetStructure)

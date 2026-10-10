@@ -42,6 +42,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Selection")
 	int32 TeamId = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Movement")
+	float FormationSpacing = 60.f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "RTS Selection")
 	TArray<AActor*> SelectedActors;
 
@@ -62,6 +65,7 @@ protected:
 	void BeginSelection();
 	void EndSelection();
 	void IssueMoveOrder();
+	void IssueStopOrder();
 	void ZoomCamera(float Amount);
 	void SelectActor(AActor* Actor, bool bAddToSelection);
 	void SelectActorsInBox();

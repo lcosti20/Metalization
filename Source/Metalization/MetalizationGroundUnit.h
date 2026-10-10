@@ -38,6 +38,9 @@ public:
 	void IssueCaptureOrder(AActor* TargetStructure);
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
+	void IssueStopOrder();
+
+	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void IssueHarvestOrder(AActor* SourceVent, AActor* DestinationColony);
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
@@ -88,7 +91,7 @@ private:
 	UStaticMeshComponent* VisualMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float MoveSpeed = 160.f;
+	float MoveSpeed = 180.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	float SurfaceOffset = 18.f;
@@ -103,28 +106,28 @@ private:
 	int32 TeamId = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float CaptureRate = 25.f;
+	float CaptureRate = 30.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float GatherRate = 18.f;
+	float GatherRate = 20.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	float CarryCapacity = 100.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float MaxHealth = 100.f;
+	float MaxHealth = 120.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float CurrentHealth = 100.f;
+	float CurrentHealth = 120.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float AttackDamage = 18.f;
+	float AttackDamage = 22.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float AttackRange = 80.f;
+	float AttackRange = 95.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
-	float AttackCooldown = 0.75f;
+	float AttackCooldown = 0.65f;
 
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> SurfaceSubsystem;
 	TArray<FVector> PathDirections;

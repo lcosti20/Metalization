@@ -75,22 +75,22 @@ protected:
 	float CaptureProgressRequired = 100.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
-	float CaptureRate = 25.f;
+	float CaptureRate = 30.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
-	float MaxHealth = 150.f;
+	float MaxHealth = 180.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
-	float CurrentHealth = 150.f;
+	float CurrentHealth = 180.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
-	float DefenseDamage = 12.f;
+	float DefenseDamage = 16.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
-	float DefenseRange = 140.f;
+	float DefenseRange = 150.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
-	float DefenseCooldown = 1.25f;
+	float DefenseCooldown = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
 	int32 TeamId = 0;
@@ -127,10 +127,10 @@ protected:
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent")
-	float MaxEnergy = 2000.f;
+	float MaxEnergy = 2200.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vent")
-	float HarvestRate = 30.f;
+	float HarvestRate = 35.f;
 };
 
 UCLASS()
@@ -154,8 +154,8 @@ protected:
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony")
-	float ProductionPerSecond = 8.f;
+	float ProductionPerSecond = 10.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colony")
-	float MaxStoredEnergy = 5000.f;
+	float MaxStoredEnergy = 6000.f;
 };
