@@ -29,6 +29,12 @@ public:
 	bool IsOwnedByTeam(int32 InTeamId) const { return TeamId == InTeamId; }
 
 	UFUNCTION(BlueprintCallable, Category = "Structure")
+	float TakeDamage(float Amount, int32 DamageSourceTeamId = -1);
+
+	UFUNCTION(BlueprintPure, Category = "Structure")
+	bool IsAlive() const { return CurrentHealth > 0.f; }
+
+	UFUNCTION(BlueprintCallable, Category = "Structure")
 	void ApplyCaptureProgress(float Amount, int32 CapturingTeamId);
 
 	UFUNCTION(BlueprintPure, Category = "Structure")
@@ -46,10 +52,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Structure")
 	bool IsStructureNear(const FVector& WorldLocation, float DistanceThreshold) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Structure")
+	void SetHealth(float NewHealth) { CurrentHealth = NewHealth; }
+
 protected:
 	virtual void BeginPlay() override;
 
 	void UpdateSurfaceTransform();
+	void HandleStructureDefense(float DeltaSeconds);
+	void HandleStructureDestruction();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Structure", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* RootScene;
@@ -66,6 +77,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
 	float CaptureRate = 25.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	float MaxHealth = 150.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
+	float CurrentHealth = 150.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	float DefenseDamage = 12.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	float DefenseRange = 140.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Structure")
+	float DefenseCooldown = 1.25f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
 	int32 TeamId = 0;
 
@@ -74,6 +100,8 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Structure")
 	float StoredEnergy = 0.f;
+
+	float DefenseCooldownRemaining = 0.f;
 
 	TWeakObjectPtr<AActor> PlanetActor;
 	FVector SurfaceDirection = FVector::UpVector;

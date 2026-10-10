@@ -155,23 +155,37 @@ void AMetalizationGroundUnit::IssueHarvestOrder(AActor* SourceVent, AActor* Dest
 	}
 }
 
-void AMetalizationGroundUnit::IssueAttackOrder(AActor* TargetUnit)
+void AMetalizationGroundUnit::IssueAttackOrder(AActor* TargetActor)
 {
-	AMetalizationGroundUnit* EnemyUnit = Cast<AMetalizationGroundUnit>(TargetUnit);
-	if (!EnemyUnit || EnemyUnit == this || EnemyUnit->GetTeamId() == TeamId)
+	if (!TargetActor || TargetActor == this)
 	{
 		return;
 	}
 
+	if (AMetalizationGroundUnit* EnemyUnit = Cast<AMetalizationGroundUnit>(TargetActor))
+	{
+		if (EnemyUnit->GetTeamId() == TeamId)
+		{
+			return;
+		}
+	}
+	else if (AMetalizationStructure* EnemyStructure = Cast<AMetalizationStructure>(TargetActor))
+	{
+		if (EnemyStructure->GetTeamId() == TeamId)
+		{
+			return;
+		}
+	}
+
 	CurrentTask = EMetalizationUnitTask::Attack;
-	AttackTarget = EnemyUnit;
+	AttackTarget = TargetActor;
 	CurrentTargetStructure.Reset();
 	HarvestSource.Reset();
 	DeliveryTarget.Reset();
 	CarriedEnergy = 0.f;
 	if (SurfaceSubsystem.IsValid())
 	{
-		IssueMoveToWorldLocation(EnemyUnit->GetActorLocation());
+		IssueMoveToWorldLocation(TargetActor->GetActorLocation());
 	}
 }
 
@@ -328,29 +342,65 @@ void AMetalizationGroundUnit::UpdateTaskState(float DeltaSeconds)
 
 	if (CurrentTask == EMetalizationUnitTask::Attack)
 	{
-		AMetalizationGroundUnit* Target = AttackTarget.Get();
-		if (!Target || !Target->IsAlive() || Target->GetTeamId() == TeamId)
+		AActor* TargetActor = AttackTarget.Get();
+		if (!TargetActor)
 		{
 			AttackTarget.Reset();
 			CurrentTask = EMetalizationUnitTask::Idle;
 			return;
 		}
 
-		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Target->GetActorLocation());
-		if (DistanceSq <= AttackRange * AttackRange)
+		if (AMetalizationGroundUnit* Target = Cast<AMetalizationGroundUnit>(TargetActor))
 		{
-			if (AttackCooldownRemaining <= 0.f)
+			if (!Target->IsAlive() || Target->GetTeamId() == TeamId)
 			{
-				Target->ApplyDamage(AttackDamage, TeamId);
-				AttackCooldownRemaining = AttackCooldown;
+				AttackTarget.Reset();
+				CurrentTask = EMetalizationUnitTask::Idle;
+				return;
 			}
-			StopMovement();
+
+			const float DistanceSq = FVector::DistSquared(GetActorLocation(), Target->GetActorLocation());
+			if (DistanceSq <= AttackRange * AttackRange)
+			{
+				if (AttackCooldownRemaining <= 0.f)
+				{
+					Target->ApplyDamage(AttackDamage, TeamId);
+					AttackCooldownRemaining = AttackCooldown;
+				}
+				StopMovement();
+				return;
+			}
+			if (PathDirections.Num() == 0)
+			{
+				IssueMoveToWorldLocation(Target->GetActorLocation());
+			}
 			return;
 		}
 
-		if (PathDirections.Num() == 0)
+		if (AMetalizationStructure* TargetStructure = Cast<AMetalizationStructure>(TargetActor))
 		{
-			IssueMoveToWorldLocation(Target->GetActorLocation());
+			if (!TargetStructure->IsAlive() || TargetStructure->GetTeamId() == TeamId)
+			{
+				AttackTarget.Reset();
+				CurrentTask = EMetalizationUnitTask::Idle;
+				return;
+			}
+
+			const float DistanceSq = FVector::DistSquared(GetActorLocation(), TargetStructure->GetActorLocation());
+			if (DistanceSq <= AttackRange * AttackRange)
+			{
+				if (AttackCooldownRemaining <= 0.f)
+				{
+					TargetStructure->TakeDamage(AttackDamage, TeamId);
+					AttackCooldownRemaining = AttackCooldown;
+				}
+				StopMovement();
+				return;
+			}
+			if (PathDirections.Num() == 0)
+			{
+				IssueMoveToWorldLocation(TargetStructure->GetActorLocation());
+			}
 		}
 	}
 }

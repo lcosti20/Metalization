@@ -263,6 +263,16 @@ void AMetalizationAIManager::UpdateAIOrders()
 				}
 			}
 
+			if (EnemyTarget)
+			{
+				const float DistanceSq = FVector::DistSquared(Unit->GetActorLocation(), EnemyTarget->GetActorLocation());
+				if (DistanceSq <= (Unit->GetAttackRange() * Unit->GetAttackRange()) + 200.f)
+				{
+					Unit->IssueAttackOrder(EnemyTarget);
+					continue;
+				}
+			}
+
 			if (OwnedColony && OwnedVent)
 			{
 				Unit->IssueHarvestOrder(OwnedVent, OwnedColony);

@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetalizationGameState.h"
+#include "MetalizationGroundUnit.h"
 #include "PlanetSurfaceSubsystem.h"
 
 AMetalizationStructure::AMetalizationStructure()
@@ -25,6 +26,7 @@ AMetalizationStructure::AMetalizationStructure()
 void AMetalizationStructure::BeginPlay()
 {
 	Super::BeginPlay();
+	CurrentHealth = MaxHealth;
 	UpdateSurfaceTransform();
 }
 
@@ -32,6 +34,7 @@ void AMetalizationStructure::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	UpdateSurfaceTransform();
+	HandleStructureDefense(DeltaSeconds);
 }
 
 void AMetalizationStructure::SetSurfaceDetails(AActor* InPlanet, const FVector& InDirection, float InRadius)
@@ -68,6 +71,22 @@ void AMetalizationStructure::UpdateSurfaceTransform()
 	const FVector Up = SurfaceSubsystem->DirectionFromWorld(WorldLocation);
 	const FVector Forward = (SurfaceDirection - Up * FVector::DotProduct(Up, SurfaceDirection)).GetSafeNormal();
 	SetActorRotation(FRotationMatrix::MakeFromXZ(Forward, Up).Rotator());
+}
+
+float AMetalizationStructure::TakeDamage(float Amount, int32 DamageSourceTeamId)
+{
+	if (CurrentHealth <= 0.f)
+	{
+		return 0.f;
+	}
+
+	const float ActualDamage = FMath::Min(Amount, CurrentHealth);
+	CurrentHealth = FMath::Max(0.f, CurrentHealth - Amount);
+	if (CurrentHealth <= 0.f)
+	{
+		HandleStructureDestruction();
+	}
+	return ActualDamage;
 }
 
 void AMetalizationStructure::ApplyCaptureProgress(float Amount, int32 CapturingTeamId)
@@ -127,6 +146,47 @@ void AMetalizationStructure::ApplyCaptureProgress(float Amount, int32 CapturingT
 				}
 			}
 		}
+	}
+}
+
+void AMetalizationStructure::HandleStructureDefense(float DeltaSeconds)
+{
+	if (!IsAlive() || DefenseCooldownRemaining > 0.f)
+	{
+		DefenseCooldownRemaining = FMath::Max(0.f, DefenseCooldownRemaining - DeltaSeconds);
+		return;
+	}
+
+	TArray<AActor*> FoundUnits;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMetalizationGroundUnit::StaticClass(), FoundUnits);
+	for (AActor* Actor : FoundUnits)
+	{
+		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+		{
+			if (Unit->GetTeamId() == TeamId || !Unit->IsAlive())
+			{
+				continue;
+			}
+
+			if (FVector::DistSquared(GetActorLocation(), Unit->GetActorLocation()) <= DefenseRange * DefenseRange)
+			{
+				Unit->ApplyDamage(DefenseDamage, TeamId);
+				DefenseCooldownRemaining = DefenseCooldown;
+				return;
+			}
+		}
+	}
+}
+
+void AMetalizationStructure::HandleStructureDestruction()
+{
+	if (!IsAlive())
+	{
+		if (AMetalizationGameState* GameState = GetWorld() ? GetWorld()->GetGameState<AMetalizationGameState>() : nullptr)
+		{
+			GameState->RegisterTeam(TeamId, 0.f);
+		}
+		Destroy();
 	}
 }
 

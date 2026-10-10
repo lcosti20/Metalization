@@ -41,7 +41,7 @@ public:
 	void IssueHarvestOrder(AActor* SourceVent, AActor* DestinationColony);
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
-	void IssueAttackOrder(AActor* TargetUnit);
+	void IssueAttackOrder(AActor* TargetActor);
 
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	bool HasMovementPath() const { return CurrentWaypointIndex != INDEX_NONE; }
@@ -134,7 +134,7 @@ private:
 	TWeakObjectPtr<AMetalizationStructure> CurrentTargetStructure;
 	TWeakObjectPtr<AMetalizationStructure> HarvestSource;
 	TWeakObjectPtr<AMetalizationStructure> DeliveryTarget;
-	TWeakObjectPtr<AMetalizationGroundUnit> AttackTarget;
+	TWeakObjectPtr<AActor> AttackTarget;
 	float CarriedEnergy = 0.f;
 	float AttackCooldownRemaining = 0.f;
 };
