@@ -29,6 +29,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void SetMoveSpeed(float NewSpeed) { MoveSpeed = NewSpeed; }
 
+	UFUNCTION(BlueprintCallable, Category = "Unit")
+	void SetSelected(bool bSelected);
+
+	UFUNCTION(BlueprintPure, Category = "Unit")
+	bool IsSelected() const { return bIsSelected; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -55,6 +61,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	float ReachDistance = 8.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit")
+	bool bIsSelected = false;
 
 	TWeakObjectPtr<UPlanetSurfaceSubsystem> SurfaceSubsystem;
 	TArray<FVector> PathDirections;

@@ -7,12 +7,16 @@ AMetalizationGroundUnit::AMetalizationGroundUnit()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	Tags.Add(TEXT("Selectable"));
+
 	RootScene = CreateDefaultSubobject<USceneComponent>(TEXT("RootScene"));
 	RootComponent = RootScene;
 
 	VisualMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VisualMesh"));
 	VisualMesh->SetupAttachment(RootScene);
-	VisualMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	VisualMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	VisualMesh->SetSimulatePhysics(false);
 	VisualMesh->SetCanEverAffectNavigation(false);
 }
@@ -29,6 +33,16 @@ void AMetalizationGroundUnit::BeginPlay()
 
 	SurfaceSubsystem = World->GetSubsystem<UPlanetSurfaceSubsystem>();
 	SetActorTickEnabled(true);
+}
+
+void AMetalizationGroundUnit::SetSelected(bool bSelected)
+{
+	bIsSelected = bSelected;
+	if (VisualMesh)
+	{
+		VisualMesh->SetRenderCustomDepth(bSelected);
+		VisualMesh->SetCustomDepthStencilValue(bSelected ? 1 : 0);
+	}
 }
 
 void AMetalizationGroundUnit::StopMovement()

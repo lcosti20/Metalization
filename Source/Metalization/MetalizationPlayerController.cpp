@@ -9,6 +9,7 @@
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "MetalizationCharacter.h"
+#include "MetalizationGroundUnit.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -203,6 +204,13 @@ void AMetalizationPlayerController::SelectActorsInBox()
 	const bool bAddToSelection = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
 	if (!bAddToSelection)
 	{
+		for (AActor* ExistingActor : SelectedActors)
+		{
+			if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(ExistingActor))
+			{
+				Unit->SetSelected(false);
+			}
+		}
 		SelectedActors.Reset();
 	}
 
@@ -226,6 +234,21 @@ void AMetalizationPlayerController::SelectActorsInBox()
 			ScreenPosition.Y >= MinY && ScreenPosition.Y <= MaxY)
 		{
 			SelectedActors.AddUnique(Actor);
+			if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+			{
+				Unit->SetSelected(true);
+			}
+		}
+	}
+
+	for (AActor* ExistingActor : SelectedActors)
+	{
+		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(ExistingActor))
+		{
+			if (!bAddToSelection)
+			{
+				Unit->SetSelected(true);
+			}
 		}
 	}
 
@@ -241,9 +264,20 @@ void AMetalizationPlayerController::SelectActor(AActor* Actor, bool bAddToSelect
 
 	if (!bAddToSelection)
 	{
+		for (AActor* ExistingActor : SelectedActors)
+		{
+			if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(ExistingActor))
+			{
+				Unit->SetSelected(false);
+			}
+		}
 		SelectedActors.Reset();
 	}
 	SelectedActors.AddUnique(Actor);
+	if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+	{
+		Unit->SetSelected(true);
+	}
 	OnSelectionChanged.Broadcast();
 }
 
@@ -252,6 +286,14 @@ void AMetalizationPlayerController::ClearSelection()
 	if (SelectedActors.IsEmpty())
 	{
 		return;
+	}
+
+	for (AActor* Actor : SelectedActors)
+	{
+		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+		{
+			Unit->SetSelected(false);
+		}
 	}
 
 	SelectedActors.Reset();
@@ -266,9 +308,18 @@ void AMetalizationPlayerController::IssueMoveOrder()
 	}
 
 	FHitResult Hit;
-	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
 	{
-		OnMoveOrderIssued.Broadcast(Hit.Location);
+		return;
+	}
+
+	OnMoveOrderIssued.Broadcast(Hit.Location);
+	for (AActor* Actor : SelectedActors)
+	{
+		if (AMetalizationGroundUnit* Unit = Cast<AMetalizationGroundUnit>(Actor))
+		{
+			Unit->IssueMoveToWorldLocation(Hit.Location);
+		}
 	}
 }
 
