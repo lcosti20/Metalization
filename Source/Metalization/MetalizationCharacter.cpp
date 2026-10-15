@@ -1,170 +1,133 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MetalizationCharacter.h"
+#include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
-#include "GameFramework/PlayerController.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "Engine/World.h"
-#include "PlanetaryGravityComponent.h"
+#include "Metalization.h"
 
 AMetalizationCharacter::AMetalizationCharacter()
 {
-	PrimaryActorTick.bCanEverTick = true;
-
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->SetSimulatePhysics(false);
-	GetMesh()->SetHiddenInGame(true);
-	SetActorEnableCollision(false);
-
+	// Set size for collision capsule
+	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+		
+	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	PlanetaryGravity = CreateDefaultSubobject<UPlanetaryGravityComponent>(TEXT("PlanetaryGravity"));
+	// Configure character movement
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
-	InitMovement();
-	InitCameraBoom();
-	InitFollowCamera();
-}
+	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
+	// instead of recompiling to adjust them
+	GetCharacterMovement()->JumpZVelocity = 500.f;
+	GetCharacterMovement()->AirControl = 0.35f;
+	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
+	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
-void AMetalizationCharacter::InitMovement()
-{
-	// Movement settings
-	UCharacterMovementComponent* MovementComp = GetCharacterMovement();
-	if (MovementComp)
-	{
-		MovementComp->DisableMovement();
-		MovementComp->SetComponentTickEnabled(false);
-	}
-}
-
-void AMetalizationCharacter::InitCameraBoom()
-{
-	// Camera Boom (Spring Arm)
+	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f;
-
-	// Inherit Pawn Control Rotation so mouse/stick controls orbit the player relative to the planet surface
 	CameraBoom->bUsePawnControlRotation = true;
-	CameraBoom->bInheritPitch = true;
-	CameraBoom->bInheritYaw = true;
-	CameraBoom->bInheritRoll = true;
-	CameraBoom->bDoCollisionTest = false;
-}
 
-void AMetalizationCharacter::InitFollowCamera()
-{
-	// Follow Camera
+	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
+	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
 void AMetalizationCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
-	{
+	// Set up action bindings
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
+		
+		// Jumping
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Move);
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
+
+		// Looking
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMetalizationCharacter::Look);
+	}
+	else
+	{
+		UE_LOG(LogMetalization, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
 
 void AMetalizationCharacter::Move(const FInputActionValue& Value)
 {
+	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
+
+	// route the input
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
-// Used in blueprints
+void AMetalizationCharacter::Look(const FInputActionValue& Value)
+{
+	// input is a Vector2D
+	FVector2D LookAxisVector = Value.Get<FVector2D>();
+
+	// route the input
+	DoLook(LookAxisVector.X, LookAxisVector.Y);
+}
+
 void AMetalizationCharacter::DoMove(float Right, float Forward)
 {
-	AController* LocalController = GetController();
-	if (!LocalController || !PlanetaryGravity)
+	if (GetController() != nullptr)
 	{
-		return;
-	}
+		// find out which way is forward
+		const FRotator Rotation = GetController()->GetControlRotation();
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-	const FRotator ControlRot = LocalController->GetControlRotation();
-	CurrentSurfaceUp = PlanetaryGravity->GetCurrentSurfaceUp();
+		// get forward vector
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
-	FVector ForwardDir = FVector::VectorPlaneProject(ControlRot.Vector(), CurrentSurfaceUp);
-	if (ForwardDir.SizeSquared() < KINDA_SMALL_NUMBER)
-	{
-		ForwardDir = FVector::VectorPlaneProject(GetActorForwardVector(), CurrentSurfaceUp);
-	}
-	ForwardDir = ForwardDir.GetSafeNormal();
+		// get right vector 
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	FVector RightDir = FVector::CrossProduct(CurrentSurfaceUp, ForwardDir).GetSafeNormal();
-	const FVector MoveDirection = (ForwardDir * Forward + RightDir * Right).GetClampedToMaxSize(1.0f);
-	if (MoveDirection.IsNearlyZero())
-	{
-		return;
-	}
-
-	const float Distance = CameraPanSpeed * GetWorld()->GetDeltaSeconds();
-	const FVector MoveTangent = MoveDirection.GetSafeNormal() * Distance;
-	AActor* Planet = PlanetaryGravity->GetCurrentPlanet();
-	if (Planet)
-	{
-		const FVector PlanetCenter = PlanetaryGravity->GetPlanetCenter();
-		const FVector RelativePosition = GetActorLocation() - PlanetCenter;
-		const float Radius = RelativePosition.Size();
-		if (Radius > KINDA_SMALL_NUMBER)
-		{
-			const FVector RotationAxis = FVector::CrossProduct(CurrentSurfaceUp, MoveDirection).GetSafeNormal();
-			const float AngleRadians = Distance / Radius;
-			const FQuat SurfaceStep(RotationAxis, AngleRadians);
-			SetActorLocation(PlanetCenter + SurfaceStep.RotateVector(RelativePosition), false);
-		}
-	}
-	else
-	{
-		SetActorLocation(GetActorLocation() + MoveTangent, false);
+		// add movement 
+		AddMovementInput(ForwardDirection, Forward);
+		AddMovementInput(RightDirection, Right);
 	}
 }
 
-// Used in blueprints
 void AMetalizationCharacter::DoLook(float Yaw, float Pitch)
 {
-	LookYaw += Yaw * LookYawRate;
-	LookPitch = FMath::Clamp(LookPitch + Pitch * LookPitchRate, -MaxLookPitch, MaxLookPitch);
-}
-
-void AMetalizationCharacter::DoZoom(float Amount)
-{
-	if (CameraBoom)
+	if (GetController() != nullptr)
 	{
-		CameraBoom->TargetArmLength = FMath::Clamp(
-			CameraBoom->TargetArmLength - Amount * CameraZoomSpeed,
-			MinimumCameraDistance,
-			MaximumCameraDistance);
+		// add yaw and pitch input to controller
+		AddControllerYawInput(Yaw);
+		AddControllerPitchInput(Pitch);
 	}
 }
 
-void AMetalizationCharacter::Tick(float DeltaTime)
+void AMetalizationCharacter::DoJumpStart()
 {
-	Super::Tick(DeltaTime);
+	// signal the character to jump
+	Jump();
+}
 
-	// Update planetary frame
-	// ------------------------------------------------
-	AController* LocalController = GetController();
-	if (!LocalController || !PlanetaryGravity)
-	{
-		return;
-	}
-
-	CurrentSurfaceUp = PlanetaryGravity->GetCurrentSurfaceUp();
-	SurfaceOrientation = PlanetaryGravity->GetSurfaceOrientation();
-
-	FQuat YawQuat(SurfaceOrientation.GetAxisZ(), FMath::DegreesToRadians(LookYaw));
-	FQuat FrameWithYaw = YawQuat * SurfaceOrientation;
-	FQuat PitchQuat(FrameWithYaw.GetAxisY(), FMath::DegreesToRadians(LookPitch));
-	FQuat FinalRot = PitchQuat * FrameWithYaw;
-
-	LocalController->SetControlRotation(FinalRot.Rotator());
-
+void AMetalizationCharacter::DoJumpEnd()
+{
+	// signal the character to stop jumping
+	StopJumping();
 }

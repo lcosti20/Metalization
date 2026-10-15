@@ -1,4 +1,5 @@
 # IDE and Compiler folders
+.claude/
 .vs/
 .idea/
 DerivedDataCache/
@@ -7,6 +8,7 @@ Saved/
 Binaries/
 Plugins/*/Binaries
 Plugins/*/Intermediate
+__pycache__/
 
 /Build/
 /Windows/

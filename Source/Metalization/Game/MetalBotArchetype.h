@@ -1,0 +1,127 @@
+// Data-driven robot definition: mesh, rig, stats, AI tuning and hacking rules.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "MetalTypes.h"
+#include "MetalBotArchetype.generated.h"
+
+class USkeletalMesh;
+class UMetalWeaponData;
+
+UCLASS(BlueprintType)
+class UMetalBotArchetype : public UPrimaryDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	/** Matches the key used in UMetalWeaponData::FMetalWeaponLevel::HeldMeshes ("player", "shooter"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
+	FName ArchetypeId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
+	EMetalTeam Team = EMetalTeam::Villains;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	TObjectPtr<USkeletalMesh> Mesh;
+
+	/** Extra body parts that share the skeleton (backpacks, visors, built-in tools). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	TArray<TObjectPtr<USkeletalMesh>> Parts;
+
+	/** Shown instead of a held weapon (e.g. the player's right hand). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	TObjectPtr<USkeletalMesh> UnarmedPart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	float MeshScale = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	FMetalBotRig Rig;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float CapsuleRadius = 34.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float CapsuleHalfHeight = 68.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float MaxHealth = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float WalkSpeed = 500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float JumpZVelocity = 600.f;
+
+	/** 2 gives the player a mid-air double jump (played as a forward flip). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	int32 MaxJumps = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	TArray<FMetalHitZone> HitZones;
+
+	/** Weapons this robot spawns with. The first one is equipped. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TArray<TObjectPtr<UMetalWeaponData>> StartingWeapons;
+
+	/** Used when the weapon arm is destroyed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TObjectPtr<UMetalWeaponData> MeleeWeapon;
+
+	/** Secondary equipment thrown with the grenade button. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TObjectPtr<UMetalWeaponData> GrenadeWeapon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	int32 StartingGrenades = 0;
+
+	/** Built-in guns (Brute miniguns) fire from these bones instead of the weapon bone. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TArray<FName> MuzzleBones;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float SightRange = 3500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float SightHalfAngle = 70.f;
+
+	/** Distance the robot tries to keep from its target. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float PreferredRange = 900.f;
+
+	/** Aim error cone (degrees) when an AI fires. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float AimErrorDegrees = 4.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float BurstDuration = 1.2f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float BurstPause = 1.0f;
+
+	/** Health fraction below which the robot falls back to cover. 0 = never retreats. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float RetreatHealthFraction = 0.f;
+
+	/** Nearby allies within this radius join the fight when this robot spots an enemy. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float SquadAlertRadius = 2000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
+	bool bHackable = true;
+
+	/** Seconds the player can control this robot with the Hack Tether. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
+	float PossessionDuration = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Camera")
+	float CameraDistance = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Camera")
+	FVector CameraOffset = FVector(0.f, 55.f, 55.f);
+};

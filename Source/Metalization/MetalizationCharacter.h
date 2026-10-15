@@ -1,96 +1,96 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "InputActionValue.h"
+#include "Logging/LogMacros.h"
 #include "MetalizationCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
-class UPlanetaryGravityComponent;
+struct FInputActionValue;
 
-UCLASS(config = Game)
+DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+
+/**
+ *  A simple player-controllable third person character
+ *  Implements a controllable orbiting camera
+ */
+UCLASS(abstract)
 class AMetalizationCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	/** Camera boom positioning the camera behind the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	/** Follow camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+	
+protected:
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	/** Jump Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* JumpAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	/** Move Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MoveAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* LookAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	/** Mouse Look Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Planetary Gravity", meta = (AllowPrivateAccess = "true"))
-	UPlanetaryGravityComponent* PlanetaryGravity;
-
-	void InitMovement();
-	void InitCameraBoom();
-	void InitFollowCamera();
-
 public:
-	AMetalizationCharacter();
 
-	virtual void Tick(float DeltaTime) override;
+	/** Constructor */
+	AMetalizationCharacter();	
 
 protected:
-	// Accumulated look input, independent of engine ControlRotation
-	float LookYaw = 0.0f;
-	float LookPitch = 0.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Planetary Gravity")
-	float LookYawRate = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Planetary Gravity")
-	float LookPitchRate = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Planetary Gravity")
-	float MaxLookPitch = 85.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planetary Gravity")
-	float BodyRotationInterpSpeed = 10.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
-	float CameraPanSpeed = 1200.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
-	float CameraZoomSpeed = 150.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
-	float MinimumCameraDistance = 300.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RTS Camera")
-	float MaximumCameraDistance = 30000.0f;
-
-	// Persistent, incrementally-updated surface-aligned frame (no yaw/pitch baked in)
-	FQuat SurfaceOrientation = FQuat::Identity;
-
-	// Cached each tick so DoMove and camera code agree on the same "up"
-	FVector CurrentSurfaceUp = FVector::UpVector;
-
-	bool bSurfaceFrameInitialized = false;
-
+	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+protected:
+
+	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
+	/** Called for looking input */
+	void Look(const FInputActionValue& Value);
+
 public:
-	UFUNCTION(BlueprintCallable, Category = "Movement")
-	void DoMove(float Right, float Forward);
-	UFUNCTION(BlueprintCallable, Category = "Movement")
-	void DoLook(float Yaw, float Pitch);
-	UFUNCTION(BlueprintCallable, Category = "RTS Camera")
-	void DoZoom(float Amount);
+
+	/** Handles move inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoMove(float Right, float Forward);
+
+	/** Handles look inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoLook(float Yaw, float Pitch);
+
+	/** Handles jump pressed inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoJumpStart();
+
+	/** Handles jump pressed inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoJumpEnd();
+
+public:
+
+	/** Returns CameraBoom subobject **/
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+
+	/** Returns FollowCamera subobject **/
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
+

@@ -15,6 +15,7 @@ public class Metalization : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"AIModule",
+			"NavigationSystem",
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
@@ -25,6 +26,7 @@ public class Metalization : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Metalization",
+			"Metalization/Game",
 			"Metalization/Variant_Platforming",
 			"Metalization/Variant_Platforming/Animation",
 			"Metalization/Variant_Combat",
