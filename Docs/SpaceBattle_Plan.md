@@ -166,7 +166,7 @@ Built in Phase 5 (`MetalSpaceBattleGameMode.*`, `MetalHUD.cpp`):
 4. **Portals**: capture visual, then two-way transit.
 5. **Battle map + game mode**: two ships, subsystems, turrets, tickets, HUD.
 6. **AI pilots and turrets**.
-7. **Polish + shipping**: cook the interior map (path-only, like `DA_Bot_Player`), docs, `MZ_LEVELS=space`.
+7. **Polish + shipping**: cook every game map (the interior is only streamed by reference), a packaged-build smoke test, docs.
 
 ## 9. Risks
 
@@ -224,4 +224,16 @@ Built in Phase 5 (`MetalSpaceBattleGameMode.*`, `MetalHUD.cpp`):
     - Raiders circle-strafe the enemy shield generators: Villain shield 2500 → 2128, Hero's 2500 → 2356. Flak is visible around the ships.
   - `hangar`, `battle`, `flight` and `combat` still pass with the AI squadrons in the air.
   - **Balance is a first pass.** In 90 s the 3-pilot Villains had the upper hand, and no subsystem fell, so a full battle would take a long time.
-- Phase 7: next (polish and shipping).
+- **Phase 7: done (2026-10-19).**
+  - **Packaging:** the previous build only cooked the default map (`MZ_Outpost_Demo`), so no other map was in it. `DefaultGame.ini` now lists all five game maps in `MapsToCook`, including `MZ_CapitalShip_Interior`, which is only streamed in through `DA_Ship_Capital`.
+  - A Development build packaged with `RunUAT BuildCookRun -archivedirectory=<project>` contains every map.
+  - `smoke_test.ps1 -Packaged` runs any scenario in that build. `-Scenario battle -Packaged`:
+    - Both interiors stream in, each hangar parks its Stalkers, the portals link.
+    - AI and player Stalkers cross both portals.
+    - The enemy loses its subsystems and the battle ends 150 / 0.
+  - Docs: `Docs/Metalization_Plan.md` §5d.
+- **Follow-ups (not scheduled):**
+  - balance (a 90 s AI battle doesn't knock out a subsystem)
+  - space lighting (dark hull sides facing each other, no star field)
+  - shots carrying through portals
+  - a playtest of the full battle by hand

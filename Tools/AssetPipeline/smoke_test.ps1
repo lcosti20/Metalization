@@ -13,11 +13,16 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
 Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
+
+-Packaged runs the same scenario in the packaged Development build (Windows\Metalization.exe, made with
+BuildCookRun -archivedirectory=<project>) instead of the editor. Its screenshots land in
+Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario>_packaged.log.
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "ships")]
     [string]$Scenario = "combat",
-    [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe"
+    [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
+    [switch]$Packaged
 )
 $Project = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $setups = @{
@@ -35,14 +40,25 @@ $setups = @{
 }
 $maps = @{ "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
-$log = "$Project\Saved\smoke_$Scenario.log".Replace("\", "/")
-Remove-Item -Recurse -Force "$Project\Saved\Screenshots" -ErrorAction SilentlyContinue
-$uproject = $Project.Replace("\", "/") + "/Metalization.uproject"
-[string[]]$arguments = @($uproject, $map, "-game", "-windowed", "-ResX=1600", "-ResY=900",
-    "-nosplash", "-unattended", "-log", "-abslog=$log", "-MetalAutopilot=$Scenario")
-$arguments += $setups[$Scenario]
-& $Editor @arguments | Out-Null
+$suffix = if ($Packaged) { "_packaged" } else { "" }
+$log = "$Project\Saved\smoke_$Scenario$suffix.log".Replace("\", "/")
+$shots = if ($Packaged) { "$Project\Windows\Metalization\Saved\Screenshots" } else { "$Project\Saved\Screenshots" }
+Remove-Item -Recurse -Force $shots -ErrorAction SilentlyContinue
+[string[]]$options = @("-windowed", "-ResX=1600", "-ResY=900", "-nosplash", "-unattended", "-log", "-abslog=$log", "-MetalAutopilot=$Scenario")
+$options += $setups[$Scenario]
+if ($Packaged) {
+    $game = "$Project\Windows\Metalization.exe"
+    if (-not (Test-Path $game)) { throw "No packaged build at $game" }
+    # The root exe is a launcher that starts Windows\Metalization\Binaries\Win64\Metalization.exe: wait for both.
+    # Start-Process joins arguments with spaces and no quoting: quote the ones with spaces (the log path).
+    $quoted = (@($map) + $options) | ForEach-Object { if ($_ -match " ") { '"' + $_ + '"' } else { $_ } }
+    Start-Process -FilePath $game -ArgumentList $quoted -Wait
+    while (Get-Process -Name "Metalization" -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 500 }
+} else {
+    $uproject = $Project.Replace("\", "/") + "/Metalization.uproject"
+    & $Editor (@($uproject, $map, "-game") + $options) | Out-Null
+}
 Select-String -Path $log -Pattern "\[Autopilot\] (step|t=[0-9.]+ pawn)|Objective|LogMetal: (Warning|Error)" |
     ForEach-Object { $_.Line -replace '^\[[^\]]*\]\[[^\]]*\]', '' }
-Get-ChildItem "$Project\Saved\Screenshots" -Recurse -Filter *.png | ForEach-Object { $_.FullName }
+Get-ChildItem $shots -Recurse -Filter *.png -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
 

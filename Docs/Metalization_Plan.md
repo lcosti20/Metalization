@@ -142,6 +142,10 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 
 Each run launches the standalone game, drives the player with `AMetalDevAutopilot`, prints a state trace, and saves screenshots to `Saved/Screenshots/WindowsEditor`. `-MetalObjective=N` starts the mission at a later objective, which is also handy in the editor's *Standalone Game* launch options. The `combat` hijack occasionally misses when the target Shooter walks behind a crate; rerun it once before suspecting a regression.
 
+To check a packaged build, package Development with `RunUAT.bat BuildCookRun -project=<uproject> -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory=<project folder>`, then add `-Packaged` to any `smoke_test.ps1` run. That runs `Windows\Metalization.exe`, with screenshots in `Windows\Metalization\Saved\Screenshots\Windows`.
+- Every game map is listed in `MapsToCook` in `DefaultGame.ini`; add new maps there or they won't be packaged.
+- Assets loaded only by path from C++ live in the always-cooked `Data` and `Materials` folders.
+
 ### Verified by automated runs
 - All 27 characters import at correct scale with every material slot assigned (`ue_validate.py`: PASSED).
 - Combat: the Laser hits and damages Shooters. AI spots, alerts its squad, strafes and returns fire.
@@ -183,6 +187,29 @@ Phase 1 of the space battle plan (`Docs/SpaceBattle_Plan.md`). Walk up to one of
 - Press [F] again to return to your body.
 
 The range has towers and an arch to weave through, five hovering red Stalkers to shoot (their arms come off one at a time), and a Shooter squad on the ground. Regenerate it with `$env:MZ_LEVELS="flight"`.
+
+## 5d. Space battle: `MZ_SpaceBattle`
+
+Two 600 m capital ships (blue Heroes, red Villains) face each other broadside across 1.6 km of asteroids. The full design and build notes are in `Docs/SpaceBattle_Plan.md`.
+
+1. You spawn on foot in the Heroes ship's spawn room. Walk forward down the corridor into the hangar.
+2. Aim at a parked Stalker and press **[F]** to pilot it. Friendly links have no time limit.
+3. Fly out through the hangar mouth. It's a two-way portal that comes out at the hull's hangar mouth, still at speed.
+4. Knock out the enemy's shield generators (the hull only takes 25% damage while either stands), then their engines and comms.
+5. Fly in through their hangar mouth and destroy the life-support core at the back of their hangar.
+
+**Tickets:** each team starts with 150. A team loses tickets for:
+- each combatant death (robots on foot, AI-piloted Stalkers)
+- each destroyed subsystem
+- a steady bleed while life support is down
+
+A team loses when its tickets run out or its ship is destroyed, and the game shows VICTORY or DEFEAT.
+
+**AI:** each hangar keeps an AI squadron in the air (2 Heroes and 3 Villains). Fighters defend their ship and dogfight; raiders attack the enemy ship's subsystems. Ship turrets fire flak at enemy flyers.
+
+**HUD:** tickets, hull and subsystem status at the top. In space there's a HANGAR marker (an edge arrow when off screen) and enemy subsystem markers. While flying, a lead ring marks where to shoot the nearest enemy flyer.
+
+Controls while flying are in §5c. Regenerate the maps (and `DA_Ship_Capital`, `M_Portal`) with `$env:MZ_LEVELS="space"`. The interior `MZ_CapitalShip_Interior` can also be opened on its own: its hangar parks Hero Stalkers by itself.
 
 ## 6. Roadmap
 
