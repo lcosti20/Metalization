@@ -9,6 +9,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario hangar # spawn aboard a capital ship, pilot a parked Stalker
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle # board the enemy hangar, shoot life support, win
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario dogfight # 90 s AI-only battle (pilots + turrets)
+    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario menu   # pause menu: Level Select, Back, switch to Arena, Continue
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships  # exterior views of MZ_SpaceBattle
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
@@ -19,7 +20,7 @@ BuildCookRun -archivedirectory=<project>) instead of the editor. Its screenshots
 Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario>_packaged.log.
 #>
 param(
-    [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "ships")]
+    [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -35,6 +36,8 @@ $setups = @{
     "battle" = @("-MetalShots=16.2,17.5,24,27,31.5,33.5", "-MetalQuitAt=35")
     "dogfight" = @("-MetalCam=0,-30000,25000,-28,90;-45000,-110000,30000,-20,45;30000,40000,14000,-12,-110;-60000,0,40000,-35,0",
                    "-MetalShots=20,40,60,80", "-MetalQuitAt=90")
+    # Runs in the Outpost, switches to the Arena from Level Select, and runs again there (shots 00-02, then 03-06).
+    "menu"   = @("-MetalMenuLevel=Arena", "-MetalShots=1.2,2.0,2.8,5.2", "-MetalQuitAt=6.5")
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }

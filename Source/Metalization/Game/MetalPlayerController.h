@@ -18,6 +18,7 @@ class AMetalBotCharacter;
 class AMetalControlConsole;
 class AMetalFX;
 class AMetalStalker;
+class UMetalPauseMenu;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -46,6 +47,12 @@ public:
 
 	/** Use the nearby console, if any. */
 	void Interact() { InteractPressed(); }
+
+	/** Pauses the game and shows the pause menu (Continue / Level Select / Quit). */
+	void OpenPauseMenu();
+	/** Hides the pause menu and resumes. */
+	void ClosePauseMenu();
+	UMetalPauseMenu* GetPauseMenu() const { return PauseMenu; }
 
 	void NotifyHitConfirmed();
 	void NotifyDamageTaken();
@@ -90,6 +97,7 @@ private:
 	void TetherPressed();
 	void InteractPressed();
 	void ConfirmPressed();
+	void PausePressed();
 	void AscendAxis(const FInputActionValue& Value);
 	void BoostPressed();
 	void BoostReleased();
@@ -111,6 +119,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<AMetalFX> TetherBeam;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMetalPauseMenu> PauseMenu;
 
 	TWeakObjectPtr<AMetalBotCharacter> PlayerBody;
 	TWeakObjectPtr<AMetalBotCharacter> Host;

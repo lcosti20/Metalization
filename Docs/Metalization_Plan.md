@@ -124,7 +124,8 @@ Open `/Game/Metalization/Maps/MZ_Outpost_Demo` (the project's default map) and p
 | EMP grenade | G | RB |
 | Hack Tether (hack / disconnect) | F | LB |
 | Use console | E | B |
-| Replay after mission | Enter | Start |
+| Replay after mission | Enter | Pause menu > Level Select |
+| Pause menu | Esc or P (Esc also ends Play-In-Editor, so use P there) | Start |
 
 ### Testing without playing
 
@@ -210,6 +211,17 @@ A team loses when its tickets run out or its ship is destroyed, and the game sho
 **HUD:** tickets, hull and subsystem status at the top. In space there's a HANGAR marker (an edge arrow when off screen) and enemy subsystem markers. While flying, a lead ring marks where to shoot the nearest enemy flyer.
 
 Controls while flying are in §5c. Regenerate the maps (and `DA_Ship_Capital`, `M_Portal`) with `$env:MZ_LEVELS="space"`. The interior `MZ_CapitalShip_Interior` can also be opened on its own: its hangar parks Hero Stalkers by itself.
+
+## 5e. Pause menu and level switching
+
+Esc, P or Start pauses the game and opens the menu (`UMetalPauseMenu`, built in C++ like the HUD, no widget assets):
+- **Continue** resumes the game.
+- **Level Select** lists the levels, with "(current)" on the one you're in, plus **Back**. Picking a level loads it.
+- **Quit** exits the game (in the editor it ends the Play session).
+
+Mouse, keyboard (arrows + Enter) and gamepad (stick or d-pad + A) all work. Esc, P, Start or B backs out one step.
+
+The list comes from **Project Settings > Game > Metalization Levels** (`UMetalLevelSettings`, saved in `Config/DefaultGame.ini`). A map added there must also be in the packaging `MapsToCook` list, or it won't exist in packaged builds. `smoke_test.ps1 -Scenario menu` clicks through every button, switches from the Outpost to the Arena, and continues there.
 
 ## 6. Roadmap
 

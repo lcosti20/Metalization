@@ -7,6 +7,7 @@
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
 #include "MetalHangar.h"
+#include "MetalPauseMenu.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
@@ -25,7 +26,8 @@ namespace
 {
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
-		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip };
+		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
+		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue };
 
 	struct FAutopilotStep
 	{
@@ -69,6 +71,10 @@ namespace
 				{16.0f, EStep::Stop}, {16.5f, EStep::GoNearEnemyMouth}, {16.7f, EStep::AimEnemyMouth}, {16.9f, EStep::Run},
 				{23.5f, EStep::Stop}, {24.2f, EStep::AimEnemyLifeSupport}, {24.5f, EStep::Fire}, {30.5f, EStep::StopFire},
 				{31.0f, EStep::WreckEnemyShip}}},
+			// Pause menu: open it, into Level Select and Back out, then pick -MetalMenuLevel. The scenario runs
+			// again in the new level, where picking it again is skipped and Continue resumes the game.
+			{TEXT("menu"), {{0.8f, EStep::OpenPauseMenu}, {1.6f, EStep::MenuLevelSelect}, {2.4f, EStep::MenuBack}, {3.2f, EStep::MenuLevelSelect},
+				{3.6f, EStep::MenuPickLevel}, {4.4f, EStep::MenuContinue}}},
 			// AI-only battle: the player stays aboard while both squadrons and the turrets fight it out.
 			{TEXT("dogfight"), {}},
 			// No inputs: exterior screenshots with -MetalCam.
@@ -93,6 +99,8 @@ namespace
 AMetalDevAutopilot::AMetalDevAutopilot()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	// Keeps driving (and timing) scenarios while the game is paused behind the pause menu.
+	PrimaryActorTick.bTickEvenWhenPaused = true;
 }
 
 void AMetalDevAutopilot::SpawnIfRequested(UWorld* World)
@@ -110,7 +118,7 @@ void AMetalDevAutopilot::BeginPlay()
 {
 	Super::BeginPlay();
 	const TCHAR* Cmd = FCommandLine::Get();
-	StartTime = GetWorld()->GetTimeSeconds();
+	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
 	bAutopilot = FParse::Param(Cmd, TEXT("MetalAutopilot")) || FParse::Value(Cmd, TEXT("MetalAutopilot="), Scenario);
 	if (bAutopilot && !Scenarios().Contains(Scenario))
@@ -136,13 +144,14 @@ void AMetalDevAutopilot::BeginPlay()
 		}
 		ViewFromCamera(0);
 	}
-	UE_LOG(LogMetal, Display, TEXT("[Autopilot] active (scenario=%s shots=%d quit=%.1f)"), bAutopilot ? *Scenario : TEXT("none"), ShotTimes.Num(), QuitAt);
+	UE_LOG(LogMetal, Display, TEXT("[Autopilot] active in %s (scenario=%s shots=%d quit=%.1f)"), *UGameplayStatics::GetCurrentLevelName(this),
+		bAutopilot ? *Scenario : TEXT("none"), ShotTimes.Num(), QuitAt);
 }
 
 void AMetalDevAutopilot::Start()
 {
 	bStarted = true;
-	StartTime = GetWorld()->GetTimeSeconds();
+	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
@@ -244,7 +253,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
 		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
 		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
-		TEXT("aim at enemy life support"), TEXT("wreck enemy ship")};
+		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
+		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -279,6 +289,26 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			const AMetalPortal* Mouth = Inner->GetSideDistance(Me->GetActorLocation()) > 0.f && FVector::Dist(Inner->GetActorLocation(), Me->GetActorLocation()) < 50000.f
 				? Inner : HomeShip->GetOuterPortal();
 			AimComponent = Mouth ? Mouth->GetRootComponent() : nullptr;
+		}
+		break;
+	case EStep::OpenPauseMenu: PC->OpenPauseMenu(); break;
+	case EStep::MenuLevelSelect: if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Level Select")); } break;
+	case EStep::MenuBack:      if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Back")); } break;
+	case EStep::MenuContinue:  if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->ShowMainPanel(); Menu->PressButton(TEXT("Continue")); } break;
+	case EStep::MenuPickLevel:
+		if (UMetalPauseMenu* Menu = PC->GetPauseMenu())
+		{
+			FString Level = TEXT("Arena");
+			FParse::Value(FCommandLine::Get(), TEXT("MetalMenuLevel="), Level);
+			// Already here (the scenario's second run): don't travel again.
+			if (Menu->HasButton(Level + TEXT("  (current)")))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot] menu: already in %s"), *Level);
+			}
+			else
+			{
+				Menu->PressButton(Level);
+			}
 		}
 		break;
 	case EStep::GoNearEnemyMouth:
@@ -332,13 +362,14 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 	if (!bStarted)
 	{
 		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
-		if ((PC && PC->GetPawn()) || GetWorld()->GetTimeSeconds() > 15.f)
+		if ((PC && PC->GetPawn()) || GetWorld()->GetUnpausedTimeSeconds() > 15.f)
 		{
 			Start();
 		}
 		return;
 	}
-	const float T = GetWorld()->GetTimeSeconds() - StartTime;
+	// Unpaused time: the same as game time, except it keeps running while the pause menu is up.
+	const float T = GetWorld()->GetUnpausedTimeSeconds() - StartTime;
 
 	if (bAutopilot)
 	{
@@ -382,8 +413,10 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 
 	if (ShotTimes.IsValidIndex(ShotIndex) && T >= ShotTimes[ShotIndex])
 	{
-		FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("MetalShot_%02d.png"), ShotIndex), true, false);
-		UE_LOG(LogMetal, Display, TEXT("[Autopilot] screenshot %d at %.1fs"), ShotIndex, T);
+		// Numbered for the whole process, so a scenario that changes level doesn't overwrite its first shots.
+		static int32 ShotNumber = 0;
+		FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("MetalShot_%02d.png"), ShotNumber), true, false);
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot] screenshot %d at %.1fs"), ShotNumber++, T);
 		ShotIndex++;
 		// Switch after the capture has been taken at the end of this frame.
 		CameraSwitchTime = T + 0.3f;

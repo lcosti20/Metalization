@@ -4,6 +4,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalFX.h"
+#include "MetalPauseMenu.h"
 #include "MetalStalker.h"
 #include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
@@ -103,7 +104,10 @@ void AMetalPlayerController::CreateInputObjects()
 	Map(MakeAction(TEXT("Interact"), Bool), EKeys::E);
 	Map(Actions[TEXT("Interact")], EKeys::Gamepad_FaceButton_Right);
 	Map(MakeAction(TEXT("Confirm"), Bool), EKeys::Enter);
-	Map(Actions[TEXT("Confirm")], EKeys::Gamepad_Special_Right);
+	// Escape ends Play-In-Editor sessions, so P opens the menu too.
+	Map(MakeAction(TEXT("Pause"), Bool), EKeys::Escape);
+	Map(Actions[TEXT("Pause")], EKeys::P);
+	Map(Actions[TEXT("Pause")], EKeys::Gamepad_Special_Right);
 	Map(MakeAction(TEXT("CycleWeapon"), Axis1D), EKeys::MouseWheelAxis);
 	Map(MakeAction(TEXT("NextWeapon"), Bool), EKeys::Gamepad_FaceButton_Top);
 	const FKey NumberKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six};
@@ -139,6 +143,9 @@ void AMetalPlayerController::CreateInputObjects()
 	Map(Actions[TEXT("DodgeLeft")], EKeys::Gamepad_DPad_Left);
 	Map(MakeAction(TEXT("DodgeRight"), Bool), EKeys::E);
 	Map(Actions[TEXT("DodgeRight")], EKeys::Gamepad_DPad_Right);
+	Map(Actions[TEXT("Pause")], EKeys::Escape);
+	Map(Actions[TEXT("Pause")], EKeys::P);
+	Map(Actions[TEXT("Pause")], EKeys::Gamepad_Special_Right);
 }
 
 void AMetalPlayerController::SetupInputComponent()
@@ -165,6 +172,7 @@ void AMetalPlayerController::SetupInputComponent()
 	Input->BindAction(Actions[TEXT("Tether")], ETriggerEvent::Started, this, &AMetalPlayerController::TetherPressed);
 	Input->BindAction(Actions[TEXT("Interact")], ETriggerEvent::Started, this, &AMetalPlayerController::InteractPressed);
 	Input->BindAction(Actions[TEXT("Confirm")], ETriggerEvent::Started, this, &AMetalPlayerController::ConfirmPressed);
+	Input->BindAction(Actions[TEXT("Pause")], ETriggerEvent::Started, this, &AMetalPlayerController::PausePressed);
 	Input->BindAction(Actions[TEXT("CycleWeapon")], ETriggerEvent::Triggered, this, &AMetalPlayerController::CycleWeaponAxis);
 	Input->BindAction(Actions[TEXT("NextWeapon")], ETriggerEvent::Started, this, &AMetalPlayerController::NextWeapon);
 	for (int32 Index = 0; Index < 6; ++Index)
@@ -386,6 +394,55 @@ void AMetalPlayerController::DodgePressed(float Direction)
 	{
 		Flyer->Dodge(Direction);
 	}
+}
+
+void AMetalPlayerController::PausePressed()
+{
+	// While the menu is up it has the input; it handles its own back/close keys.
+	if (PauseMenu == nullptr)
+	{
+		OpenPauseMenu();
+	}
+}
+
+void AMetalPlayerController::OpenPauseMenu()
+{
+	if (PauseMenu)
+	{
+		return;
+	}
+	// Button releases won't arrive while the menu has the input: let go of everything now.
+	if (AMetalBotCharacter* Bot = GetBot())
+	{
+		Bot->StopFire();
+		Bot->SetAiming(false);
+	}
+	if (AMetalStalker* Flyer = GetFlyer())
+	{
+		Flyer->SetBoostHeld(false);
+	}
+	PauseMenu = CreateWidget<UMetalPauseMenu>(this, UMetalPauseMenu::StaticClass());
+	PauseMenu->AddToViewport(100);
+	SetPause(true);
+	FInputModeUIOnly Mode;
+	Mode.SetWidgetToFocus(PauseMenu->TakeWidget());
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(Mode);
+	bShowMouseCursor = true;
+	PauseMenu->ShowMainPanel();
+}
+
+void AMetalPlayerController::ClosePauseMenu()
+{
+	if (PauseMenu == nullptr)
+	{
+		return;
+	}
+	PauseMenu->RemoveFromParent();
+	PauseMenu = nullptr;
+	SetPause(false);
+	SetInputMode(FInputModeGameOnly());
+	bShowMouseCursor = false;
 }
 
 void AMetalPlayerController::ConfirmPressed()
