@@ -105,10 +105,23 @@ Built in Phase 3 (`Source/Metalization/Game/MetalCapitalShip.*`, `MetalHangar.*`
 
 ## 6. Hangar portal
 
-- `AMetalPortal` pairs (interior hangar mouth <-> exterior `hangar_portal` socket).
-- Visual: `USceneCaptureComponent2D` placed at the player camera's transform mapped through the pair, oblique clip plane at the linked portal, matching FOV. Only captures when on screen and within about 300 m, at half resolution.
-- Transit: a trigger on the portal plane teleports pawns crossing it forward, keeping velocity and control rotation; camera lag snaps. Projectiles die at the portal in the first pass.
-- AI pilots treat each pair as a navigation link.
+Built in Phase 4 (`Source/Metalization/Game/MetalPortal.*`).
+- **Pair:** when its interior is ready, each `AMetalCapitalShip` spawns two `AMetalPortal`s and links them.
+  - One is at the hull's `hangar_portal` socket, attached to the hull so it moves with the ship.
+  - The other is at the interior hangar's mouth, in the interior level.
+  - Each end's +X points out of its hangar, and the ends map one to one in those frames. Standing 30 m inside the hangar shows the view from 30 m inside the hull recess.
+  - `MapToLinked()` does the mapping, and the ship exposes the pair as `GetOuterPortal` / `GetInnerPortal`.
+- **Window:** a `USceneCaptureComponent2D` is moved every frame (after the camera updates) to where the player's camera would be at the far end, with the same FOV.
+  - It renders linear HDR (`SCS_SceneColorHDRNoAlpha`) into an `RTF_RGBA16f` target at half the viewport size.
+  - The surface (`M_Portal`) samples that target in screen space, so it lines up pixel for pixel. The main view then applies exposure and tonemapping once: `Brightness` = 1.0 matched by screenshot.
+  - It only renders while the camera is on that end's side, within 2.5 km, and the surface was drawn in the last 0.25 s.
+- **Instead of a clip plane**, the capture hides the actors that would block it: both portal surfaces, and, looking out of the hangar, the ship's own hull (that camera sits inside it). An oblique clip plane would need `r.AllowGlobalClipPlane` and a project-wide shader rebuild.
+- **Transit:** each end tracks the pawns and projectiles near it and its side of the plane. On the frame one crosses inside the opening:
+  - A pawn is teleported to the mapped spot at the other end, with its velocity and control rotation turned to match. Only yaw applies to its body, so it stays upright.
+  - Its camera lag is switched off for two frames, so the camera doesn't sweep across 20 km.
+  - It's marked as arrived so it doesn't bounce straight back.
+  - Projectiles fizzle at the threshold.
+- **AI navigation links** come with the AI pilots (Phase 6).
 
 ## 7. Battle mode
 
@@ -157,4 +170,14 @@ Built in Phase 3 (`Source/Metalization/Game/MetalCapitalShip.*`, `MetalHangar.*`
     - Until the portals exist, a dev-only autopilot step then teleports the Stalker outside the Villain ship. It shoots a shield generator (2500 → 1828) while the shielded hull takes nothing.
   - `-Scenario ships` takes exterior shots of the fleet. `flight`, `combat` and `arena` still pass.
   - The autopilot now starts its clock when the player has a body.
-- Phase 4: next (hangar portals: capture view, then two-way transit). The mouth sockets line up: Villain hull mouth at world (18000, 72000), Hero's at (-18000, -72000), interior mouths at `InteriorLocation` + (0, 200, 1900).
+- **Phase 4: done (2026-10-19).**
+  - Built: `AMetalPortal`, plus `M_Portal` (from `ue_setup_space.py`). The ship data gained `PortalMaterial` and `HangarMouthSize`.
+  - `smoke_test.ps1 -Scenario hangar` now runs the full loop:
+    - Spawn aboard, pilot a parked Stalker.
+    - Fly out through the hangar mouth: it arrives in space at the hull mouth still doing 45 m/s.
+    - Boost toward the enemy and shoot its shield generators (2500 → 2464 / 2404).
+    - Turn round, fly back in through the hull mouth into the hangar, disconnect.
+  - Screenshots show both windows: space and the enemy ship through the hangar mouth, and the lit hangar with its parked Stalkers through the hull mouth.
+  - `flight` and `combat` still pass.
+  - The Villain side (its hull end is turned 180° from its interior end) was confirmed by hand in the editor.
+- Phase 5: next (battle mode: tickets, win/lose, subsystem penalties, battle HUD, life-support sabotage).

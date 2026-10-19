@@ -5,6 +5,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
+#include "MetalPortal.h"
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
 #include "Camera/CameraActor.h"
@@ -18,7 +19,7 @@
 namespace
 {
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
-		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, GoToEnemyShip, AimEnemyShield };
+		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth };
 
 	struct FAutopilotStep
 	{
@@ -47,10 +48,13 @@ namespace
 				{7.6f, EStep::AimEnemyGun}, {7.7f, EStep::Fire}, {9.4f, EStep::AimEnemy}, {11.0f, EStep::StopFire}, {11.2f, EStep::DodgeLeft}, {12.2f, EStep::DodgeRight}, {13.2f, EStep::Tether}}},
 			// Capital ship interior (MZ_SpaceBattle): spawn aboard, run down the corridor into the hangar,
 			// link to a parked Stalker and lift off.
-			// Then (until the hangar portals exist) jump the Stalker out next to the enemy ship and shoot a shield generator.
+			// Fly out through the hangar portal into space, boost toward the enemy ship and shoot a shield
+			// generator, then turn round, fly back in through the hull's portal and disconnect.
 			{TEXT("hangar"), {{0.5f, EStep::Run}, {10.5f, EStep::Stop}, {10.7f, EStep::AimLinkable}, {11.3f, EStep::Tether},
-				{12.2f, EStep::Climb}, {13.5f, EStep::StopClimb}, {13.7f, EStep::GoToEnemyShip}, {14.0f, EStep::AimEnemyShield},
-				{14.2f, EStep::Fire}, {21.0f, EStep::StopFire}}},
+				{12.2f, EStep::Climb}, {12.6f, EStep::StopClimb}, {12.7f, EStep::AimHomeMouth}, {13.4f, EStep::Run},
+				{15.6f, EStep::Boost}, {16.8f, EStep::StopBoost}, {17.6f, EStep::Stop}, {18.0f, EStep::AimEnemyShield},
+				{18.2f, EStep::Fire}, {22.0f, EStep::StopFire}, {22.2f, EStep::AimHomeMouth}, {22.8f, EStep::Run},
+				{29.5f, EStep::Stop}, {30.5f, EStep::Tether}}},
 			// No inputs: exterior screenshots with -MetalCam.
 			{TEXT("ships"), {}},
 		};
@@ -215,14 +219,15 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	AimBone = NAME_None;
 	AimComponent.Reset();
 	const AMetalCapitalShip* EnemyShip = nullptr;
+	const AMetalCapitalShip* HomeShip = nullptr;
 	for (TActorIterator<AMetalCapitalShip> It(GetWorld()); It; ++It)
 	{
-		EnemyShip = It->GetTeam() != Me->GetTeam() ? *It : EnemyShip;
+		(It->GetTeam() != Me->GetTeam() ? EnemyShip : HomeShip) = *It;
 	}
 	static const TCHAR* Names[] = {TEXT("aim at enemy"), TEXT("aim at hackable"), TEXT("aim at boss"), TEXT("aim at gate guard"), TEXT("fire"), TEXT("stop fire"), TEXT("tether"), TEXT("go to console"), TEXT("interact"),
 		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
 		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
-		TEXT("go to enemy ship"), TEXT("aim at enemy shield")};
+		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -240,17 +245,6 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::TurnLeft:    PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, -90.f, 0.f)); break;
 	case EStep::TurnRight:   PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, 90.f, 0.f)); break;
 	case EStep::AimLinkable: AimTarget = FindNearestLinkable(); break;
-	case EStep::GoToEnemyShip:
-		if (EnemyShip)
-		{
-			// 450 m off the enemy's broadside on the battle side (towards the world origin), above its deck.
-			const FVector Ship = EnemyShip->GetActorLocation();
-			const FVector Right = EnemyShip->GetActorRightVector();
-			const FVector Side = FVector::DotProduct(Right, -Ship) >= 0.f ? Right : -Right;
-			Me->TeleportTo(Ship + Side * 45000.f + FVector(0.f, 0.f, 9000.f), (-Side).Rotation());
-			PC->SetControlRotation((-Side).Rotation());
-		}
-		break;
 	case EStep::AimEnemyShield:
 		for (UMetalShipSubsystemComponent* Part : EnemyShip ? EnemyShip->GetSubsystems() : TArray<TObjectPtr<UMetalShipSubsystemComponent>>())
 		{
@@ -259,6 +253,15 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 				AimComponent = Part;
 				break;
 			}
+		}
+		break;
+	case EStep::AimHomeMouth:
+		// Whichever end of our hangar portal is on our side: the hangar mouth from inside, the hull's from outside.
+		if (const AMetalPortal* Inner = HomeShip ? HomeShip->GetInnerPortal() : nullptr)
+		{
+			const AMetalPortal* Mouth = Inner->GetSideDistance(Me->GetActorLocation()) > 0.f && FVector::Dist(Inner->GetActorLocation(), Me->GetActorLocation()) < 50000.f
+				? Inner : HomeShip->GetOuterPortal();
+			AimComponent = Mouth ? Mouth->GetRootComponent() : nullptr;
 		}
 		break;
 	case EStep::AimEnemyGun:
@@ -307,7 +310,8 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 			FVector ViewLocation;
 			FRotator ViewRotation;
 			GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
-			GetWorld()->GetFirstPlayerController()->SetControlRotation((Component->Bounds.Origin - ViewLocation).Rotation());
+			const FVector Point = Component->IsA<UPrimitiveComponent>() ? FVector(Component->Bounds.Origin) : Component->GetComponentLocation();
+			GetWorld()->GetFirstPlayerController()->SetControlRotation((Point - ViewLocation).Rotation());
 		}
 		else if (AMetalBotCharacter* Target = AimTarget.Get())
 		{

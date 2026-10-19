@@ -24,7 +24,7 @@ $setups = @{
     "boss"   = @("-MetalObjective=4", "-MetalTeleport=11400,1000,150,-28", "-MetalShots=1.4,3,5.5,9", "-MetalQuitAt=10")
     "arena"  = @("-MetalShots=0.8,1.7,2.5,2.65,2.8,3.3,4.6,6.9,7.8,9", "-MetalQuitAt=10")
     "flight" = @("-MetalShots=1.4,2.2,3.5,6,9,10.8,11.4,12.5,14", "-MetalQuitAt=15")
-    "hangar" = @("-MetalShots=0.3,4,10.6,11.8,13.6,15,20.5", "-MetalQuitAt=22")
+    "hangar" = @("-MetalShots=10.6,13.2,15.2,17,20,25,28.5,31.5", "-MetalQuitAt=33")
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }

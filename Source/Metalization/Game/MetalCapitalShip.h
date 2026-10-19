@@ -16,6 +16,8 @@
 
 class AMetalBotCharacter;
 class AMetalHangar;
+class AMetalPortal;
+class UMaterialInterface;
 class APlayerStart;
 class UInstancedStaticMeshComponent;
 class ULevelStreamingDynamic;
@@ -93,6 +95,14 @@ public:
 	/** Seconds before a destroyed hangar robot is replaced on its pad. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interior")
 	float HangarRespawnDelay = 20.f;
+
+	/** Opening of the hangar mouth (cm): matches the hull's and the interior shell's hangar_portal sockets. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interior")
+	FVector2D HangarMouthSize = FVector2D(8000.f, 3000.f);
+
+	/** Surface of the hangar portal windows (screen-space sample of a "PortalTexture" parameter). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interior")
+	TObjectPtr<UMaterialInterface> PortalMaterial;
 };
 
 /** A destructible part of a capital ship (shield generator, engines...). Takes damage through the ship. */
@@ -178,6 +188,9 @@ public:
 
 	const TArray<TObjectPtr<UMetalShipSubsystemComponent>>& GetSubsystems() const { return Subsystems; }
 	AMetalHangar* GetHangar() const { return Hangar.Get(); }
+	/** The two ends of the hangar portal: on the hull, and at the interior hangar's mouth. */
+	AMetalPortal* GetOuterPortal() const { return OuterPortal.Get(); }
+	AMetalPortal* GetInnerPortal() const { return InnerPortal.Get(); }
 	/** The streamed interior level, once loaded. */
 	ULevel* GetInteriorLevel() const;
 	bool IsInInterior(const AActor* Actor) const;
@@ -230,6 +243,7 @@ private:
 	UFUNCTION()
 	void HandleInteriorShown();
 	void ApplyTeamColors();
+	void CreatePortals();
 	void FlashComponent(UPrimitiveComponent* Component);
 	void DestroySubsystem(UMetalShipSubsystemComponent* Subsystem);
 	void DestroyShip();
@@ -245,6 +259,8 @@ private:
 	TMap<TObjectPtr<UPrimitiveComponent>, float> HitFlash;
 
 	TWeakObjectPtr<AMetalHangar> Hangar;
+	TWeakObjectPtr<AMetalPortal> OuterPortal;
+	TWeakObjectPtr<AMetalPortal> InnerPortal;
 	float MaxHullHealth = 20000.f;
 	float HullHealth = 20000.f;
 	bool bShipDestroyed = false;

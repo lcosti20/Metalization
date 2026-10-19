@@ -3,6 +3,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
 #include "MetalHangar.h"
+#include "MetalPortal.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/Level.h"
@@ -221,10 +222,44 @@ void AMetalCapitalShip::HandleInteriorShown()
 	{
 		UE_LOG(LogMetal, Warning, TEXT("%s: interior %s has no AMetalHangar."), *GetName(), *ShipData->Interior.ToString());
 	}
+	CreatePortals();
 	bInteriorReady = true;
 	UE_LOG(LogMetal, Display, TEXT("%s interior ready at %s (%d spawn points)"), *GetName(), *InteriorLocation.ToCompactString(), GetSpawnPoints().Num());
 	OnInteriorReady();
 	OnAnyInteriorReady.Broadcast(this);
+}
+
+void AMetalCapitalShip::CreatePortals()
+{
+	AMetalHangar* InteriorHangar = Hangar.Get();
+	if (InteriorHangar == nullptr || !Hull->DoesSocketExist(TEXT("hangar_portal")))
+	{
+		UE_LOG(LogMetal, Warning, TEXT("%s: no hangar portal (hangar %s, hull socket %d)"), *GetName(), InteriorHangar ? *InteriorHangar->GetName() : TEXT("missing"), Hull->DoesSocketExist(TEXT("hangar_portal")));
+		return;
+	}
+	// The hull end rides along with the ship; the interior end stays put in the interior level.
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AMetalPortal* Outer = GetWorld()->SpawnActor<AMetalPortal>(AMetalPortal::StaticClass(), Hull->GetSocketTransform(TEXT("hangar_portal")), Params);
+	Params.OverrideLevel = GetInteriorLevel();
+	AMetalPortal* Inner = GetWorld()->SpawnActor<AMetalPortal>(AMetalPortal::StaticClass(), InteriorHangar->GetMouthTransform(), Params);
+	if (Outer == nullptr || Inner == nullptr)
+	{
+		return;
+	}
+	Outer->AttachToComponent(Hull, FAttachmentTransformRules::KeepWorldTransform, TEXT("hangar_portal"));
+	UMaterialInterface* Material = ShipData ? ShipData->PortalMaterial.Get() : nullptr;
+	const FVector2D Mouth = ShipData ? ShipData->HangarMouthSize : FVector2D(8000.f, 3000.f);
+	// Open space is in front of the hull end; the hangar is behind the interior end.
+	Outer->Link(Inner, 1.f, Mouth, Material);
+	Inner->Link(Outer, -1.f, Mouth, Material);
+	// Looking out of the hangar, the view starts inside our own hull: don't draw it.
+	Inner->AddHiddenActor(this);
+	OuterPortal = Outer;
+	InnerPortal = Inner;
+	UE_LOG(LogMetal, Display, TEXT("%s hangar portal: hull end %s facing %s, interior end %s facing %s"), *GetName(),
+		*Outer->GetActorLocation().ToCompactString(), *Outer->GetActorForwardVector().ToCompactString(),
+		*Inner->GetActorLocation().ToCompactString(), *Inner->GetActorForwardVector().ToCompactString());
 }
 
 TArray<APlayerStart*> AMetalCapitalShip::GetSpawnPoints_Implementation() const

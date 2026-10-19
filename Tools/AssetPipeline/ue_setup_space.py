@@ -2,6 +2,7 @@
 Metalization pipeline: capital ship data and the space battle maps (Phase 3 of Docs/SpaceBattle_Plan.md).
 
 Creates:
+    /Game/Metalization/Materials/M_Portal                hangar portal window (screen-space sample of PortalTexture)
     /Game/Metalization/Data/DA_Ship_Capital              the capital ship class (UMetalCapitalShipData)
     /Game/Metalization/Maps/MZ_CapitalShip_Interior      the interior every ship streams in as its own instance:
                                                          hangar (AMetalHangar, 3 parked Stalkers), corridor, spawn room
@@ -35,6 +36,8 @@ INTERIOR_DRAW = 500000.0
 SPACE_DRAW = 1500000.0
 # Same fixed exposure in both maps: there is no sky to adapt to, and the camera crosses between them.
 EXPOSURE_EV100 = 3.5
+# Scale from the portal capture's scene colour to the window's emissive (calibrated by screenshot).
+PORTAL_BRIGHTNESS = 1.0
 
 
 def log(msg):
@@ -165,6 +168,39 @@ def build_interior(archetypes):
 
 
 # --------------------------------------------------------------------------------------------
+# Portal window material
+# --------------------------------------------------------------------------------------------
+def make_portal_material():
+    """Unlit surface showing the far end's scene capture (linear HDR) at the same screen position.
+
+    The main view applies exposure and tonemapping once on top; Brightness scales the capture to match.
+    """
+    mel = unreal.MaterialEditingLibrary
+    name, folder = "M_Portal", ROOT + "/Materials"
+    mat = load(f"{folder}/{name}")
+    if mat is None:
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, folder, unreal.Material, unreal.MaterialFactoryNew())
+    else:
+        mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("used_with_static_lighting", False)
+    screen = mel.create_material_expression(mat, unreal.MaterialExpressionScreenPosition, -700, 0)
+    sample = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -450, 0)
+    setp(sample, parameter_name="PortalTexture", texture=load("/Engine/EngineResources/DefaultTexture"))
+    mel.connect_material_expressions(screen, "ViewportUV", sample, "UVs")
+    brightness = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -450, 250)
+    setp(brightness, parameter_name="Brightness", default_value=PORTAL_BRIGHTNESS)
+    out = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -200, 100)
+    mel.connect_material_expressions(sample, "RGB", out, "A")
+    mel.connect_material_expressions(brightness, "", out, "B")
+    mel.connect_material_property(out, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    eal.save_loaded_asset(mat)
+    log("material: " + mat.get_path_name())
+    return mat
+
+
+# --------------------------------------------------------------------------------------------
 # Ship class
 # --------------------------------------------------------------------------------------------
 def make_ship_data(archetypes):
@@ -186,7 +222,8 @@ def make_ship_data(archetypes):
          shielded_hull_damage_scale=0.25,
          team_colors={unreal.MetalTeam.HEROES: colors((0.16, 0.2, 0.36), (0.45, 0.52, 0.72)),
                       unreal.MetalTeam.VILLAINS: colors((0.36, 0.17, 0.13), (0.72, 0.5, 0.42))},
-         interior=load(INTERIOR_PATH), hangar_robot=archetypes["stalker"], hangar_respawn_delay=20.0)
+         interior=load(INTERIOR_PATH), hangar_robot=archetypes["stalker"], hangar_respawn_delay=20.0,
+         hangar_mouth_size=unreal.Vector2D(8000.0, 3000.0), portal_material=make_portal_material())
     eal.save_loaded_asset(data)
     log("ship data: " + path)
     return data
