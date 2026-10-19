@@ -27,7 +27,8 @@ DEFINE_LOG_CATEGORY(LogMetal);
 
 FOnMetalBotDied AMetalBotCharacter::OnAnyBotDied;
 
-AMetalBotCharacter::AMetalBotCharacter()
+AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -119,7 +120,7 @@ void AMetalBotCharacter::ApplyArchetype()
 	}
 	GetCapsuleComponent()->SetCapsuleSize(Archetype->CapsuleRadius, Archetype->CapsuleHalfHeight);
 	GetMesh()->SetSkeletalMeshAsset(Archetype->Mesh);
-	MeshBaseLocation = FVector(0.f, 0.f, -Archetype->CapsuleHalfHeight);
+	MeshBaseLocation = FVector(0.f, 0.f, -Archetype->CapsuleHalfHeight) + Archetype->MeshOffset;
 	GetMesh()->SetRelativeLocationAndRotation(MeshBaseLocation, MeshBaseRotation);
 	GetMesh()->SetRelativeScale3D(FVector(Archetype->MeshScale));
 	GetMesh()->SetAnimInstanceClass(UMetalBotAnimInstance::StaticClass());
@@ -137,7 +138,7 @@ void AMetalBotCharacter::ApplyArchetype()
 	CameraBoom->TargetArmLength = DefaultArmLength;
 	CameraBoom->SocketOffset = DefaultCameraOffset;
 
-	Team = bOverrideTeam ? TeamOverride : Archetype->Team;
+	Team = GetBaseTeam();
 }
 
 void AMetalBotCharacter::BeginPlay()
@@ -229,6 +230,7 @@ bool AMetalBotCharacter::IsInCombatStance() const
 void AMetalBotCharacter::SetTeam(EMetalTeam NewTeam)
 {
 	Team = NewTeam;
+	ApplyTeamColors();
 }
 
 bool AMetalBotCharacter::IsHostileTo(const AMetalBotCharacter* Other) const
@@ -269,15 +271,28 @@ void AMetalBotCharacter::Heal(float Amount)
 	}
 }
 
-bool AMetalBotCharacter::CanBeHacked() const
+bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 {
-	return Archetype && Archetype->bHackable && !bDead && !bHijacked && !IsPlayerControlled() && Team == EMetalTeam::Villains;
+	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled())
+	{
+		return false;
+	}
+	if (Team == Hacker->GetTeam())
+	{
+		return Archetype->bAllyHackable;
+	}
+	return Archetype->bHackable && Hacker->IsHostileTo(this);
+}
+
+EMetalTeam AMetalBotCharacter::GetBaseTeam() const
+{
+	return bOverrideTeam ? TeamOverride : (Archetype ? Archetype->Team : EMetalTeam::Villains);
 }
 
 void AMetalBotCharacter::SetHijacked(bool bNewHijacked)
 {
 	bHijacked = bNewHijacked;
-	SetTeam(bHijacked ? EMetalTeam::Heroes : (Archetype ? Archetype->Team : EMetalTeam::Villains));
+	SetTeam(bHijacked ? EMetalTeam::Heroes : GetBaseTeam());
 	SetMaterialScalar(TEXT("HackGlow"), bHijacked ? 1.f : 0.f);
 }
 
@@ -486,6 +501,21 @@ FVector AMetalBotCharacter::GetMuzzleLocation() const
 	return GetActorLocation() + AimRotation.Vector() * GetCapsuleComponent()->GetScaledCapsuleRadius() * 1.5f;
 }
 
+int32 AMetalBotCharacter::GetMuzzleCount() const
+{
+	return Archetype ? Archetype->MuzzleBones.Num() : 0;
+}
+
+int32 AMetalBotCharacter::GetWorkingMuzzleCount() const
+{
+	return bWeaponDisabled ? 0 : FMath::Max(0, GetMuzzleCount() - BrokenMuzzles.Num());
+}
+
+FVector AMetalBotCharacter::GetAimForward() const
+{
+	return FRotator(GetAimPitch(), GetActorRotation().Yaw, 0.f).Vector();
+}
+
 FVector AMetalBotCharacter::GetAimPoint() const
 {
 	if (const APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -560,12 +590,17 @@ void AMetalBotCharacter::FireOnce()
 		return;
 	}
 
+	// Guns whose arm was shot off are skipped in the firing order.
+	for (int32 Skip = 0; Skip < GetMuzzleCount() && BrokenMuzzles.Contains(Archetype->MuzzleBones[MuzzleCycle % GetMuzzleCount()]); ++Skip)
+	{
+		MuzzleCycle++;
+	}
 	const FVector Muzzle = GetMuzzleLocation();
 	MuzzleCycle++;
 	FVector AimDirection = (GetAimPoint() - Muzzle).GetSafeNormal();
-	if (FVector::DotProduct(AimDirection, GetActorForwardVector()) < 0.2f)
+	if (FVector::DotProduct(AimDirection, GetAimForward()) < 0.2f)
 	{
-		AimDirection = FRotator(GetAimPitch(), GetActorRotation().Yaw, 0.f).Vector();
+		AimDirection = GetAimForward();
 	}
 	const float AIError = (!IsPlayerControlled() && Archetype) ? Archetype->AimErrorDegrees : 0.f;
 	const float Cone = FMath::DegreesToRadians(Data->SpreadDegrees + AIError);
@@ -686,6 +721,19 @@ int32 AMetalBotCharacter::FindHitZone(const FDamageEvent& DamageEvent) const
 	}
 	const FPointDamageEvent& Point = static_cast<const FPointDamageEvent&>(DamageEvent);
 	const FHitResult& Hit = Point.HitInfo;
+
+	// Shots that hit the mesh's physics bodies (flyers' arms stick far out of the capsule) know their bone.
+	if (!Hit.BoneName.IsNone() && Hit.GetComponent() == GetMesh())
+	{
+		for (int32 Index = 0; Index < Archetype->HitZones.Num(); ++Index)
+		{
+			const FName ZoneBone = Archetype->HitZones[Index].Bone;
+			if (Hit.BoneName == ZoneBone || GetMesh()->BoneIsChildOf(Hit.BoneName, ZoneBone))
+			{
+				return Index;
+			}
+		}
+	}
 	const FVector RayStart = Hit.TraceStart.IsZero() ? FVector(Hit.ImpactPoint) - Point.ShotDirection * 50.f : FVector(Hit.TraceStart);
 	const float Scale = GetMesh()->GetRelativeScale3D().X;
 
@@ -737,9 +785,9 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		Damage *= HitZone.DamageMultiplier;
 		const bool bWasIntact = HitZone.Durability <= 0.f || ZoneDamage[Zone] < HitZone.Durability;
 		ZoneDamage[Zone] += Damage;
-		if (bWasIntact && HitZone.Durability > 0.f && ZoneDamage[Zone] >= HitZone.Durability && HitZone.bDisablesWeaponWhenBroken)
+		if (bWasIntact && HitZone.Durability > 0.f && ZoneDamage[Zone] >= HitZone.Durability)
 		{
-			DisableWeapon();
+			BreakZone(HitZone);
 		}
 	}
 	if (Attacker == this)
@@ -781,6 +829,26 @@ void AMetalBotCharacter::DisableWeapon()
 	bWeaponDisabled = true;
 	AMetalFX::SpawnBurst(GetWorld(), GetMuzzleLocation(), FLinearColor(1.f, 0.6f, 0.1f), 40.f, 0.4f);
 	RefreshWeaponVisual();
+}
+
+void AMetalBotCharacter::BreakZone(const FMetalHitZone& Zone)
+{
+	if (Zone.bDisablesWeaponWhenBroken)
+	{
+		DisableWeapon();
+	}
+	if (!Zone.DisablesMuzzleBone.IsNone() && !BrokenMuzzles.Contains(Zone.DisablesMuzzleBone))
+	{
+		BrokenMuzzles.Add(Zone.DisablesMuzzleBone);
+		const float Scale = GetMesh()->GetRelativeScale3D().X;
+		AMetalFX::SpawnBurst(GetWorld(), GetMesh()->GetBoneLocation(Zone.DisablesMuzzleBone), FLinearColor(1.f, 0.6f, 0.1f), 120.f * Scale, 0.5f);
+		// The arm comes off: hide it and drop its physics bodies so shots pass through the gap.
+		GetMesh()->HideBoneByName(Zone.Bone, PBO_Term);
+		if (GetWorkingMuzzleCount() == 0)
+		{
+			DisableWeapon();
+		}
+	}
 }
 
 void AMetalBotCharacter::Die(AController* Killer)
@@ -893,7 +961,8 @@ void AMetalBotCharacter::TickFlip(float Now)
 	}
 	// Spin the whole body (and everything attached to it) forward around the capsule centre.
 	const FQuat Flip(FVector::RightVector, FMath::DegreesToRadians(Angle));
-	GetMesh()->SetRelativeLocationAndRotation(Flip.RotateVector(MeshBaseLocation), Flip * MeshBaseRotation);
+	const FQuat Turn = MeshTilt * Flip;
+	GetMesh()->SetRelativeLocationAndRotation(Turn.RotateVector(MeshBaseLocation), Turn * MeshBaseRotation);
 }
 
 void AMetalBotCharacter::Landed(const FHitResult& Hit)
@@ -940,6 +1009,42 @@ void AMetalBotCharacter::RefreshMaterials()
 		}
 	}
 	SetMaterialScalar(TEXT("HackGlow"), bHijacked ? 1.f : 0.f);
+	ApplyTeamColors();
+}
+
+void AMetalBotCharacter::ApplyTeamColors()
+{
+	const FMetalTeamColors* Colors = Archetype ? Archetype->TeamColors.Find(Team) : nullptr;
+	if (Colors == nullptr)
+	{
+		return;
+	}
+	TArray<USkeletalMeshComponent*> Components = {GetMesh()};
+	for (USkeletalMeshComponent* Part : PartMeshes)
+	{
+		Components.Add(Part);
+	}
+	for (USkeletalMeshComponent* Component : Components)
+	{
+		if (Component == nullptr)
+		{
+			continue;
+		}
+		const TArray<FName> SlotNames = Component->GetMaterialSlotNames();
+		for (int32 Index = 0; Index < SlotNames.Num(); ++Index)
+		{
+			UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Component->GetMaterial(Index));
+			const FString Slot = SlotNames[Index].ToString();
+			if (MID && Slot.EndsWith(TEXT("_Body")))
+			{
+				MID->SetVectorParameterValue(TEXT("Tint"), Colors->Body);
+			}
+			else if (MID && Slot.EndsWith(TEXT("_Accent")))
+			{
+				MID->SetVectorParameterValue(TEXT("Tint"), Colors->Accent);
+			}
+		}
+	}
 }
 
 void AMetalBotCharacter::SetMaterialScalar(FName Parameter, float Value)

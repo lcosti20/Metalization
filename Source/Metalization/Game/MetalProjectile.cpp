@@ -47,6 +47,8 @@ void AMetalProjectile::Launch(const UMetalWeaponData* Weapon, float InDamage, co
 	ExplosionRadius = Weapon->ExplosionRadius;
 	StunDuration = Weapon->StunDuration;
 	Color = Weapon->TracerColor;
+	Scale = FMath::Max(0.1f, Weapon->ProjectileScale);
+	Collision->SetSphereRadius(6.f * Scale);
 
 	// Ignore each other both ways: the shooter's capsule sweep walking into a fresh shot would
 	// otherwise report a hit on us and set it off point-blank.
@@ -70,7 +72,7 @@ void AMetalProjectile::Launch(const UMetalWeaponData* Weapon, float InDamage, co
 	{
 		// Glowing slug: the engine sphere stretched along the flight direction.
 		Visual->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")));
-		Visual->SetRelativeScale3D(ExplosionRadius > 0.f ? FVector(0.35f, 0.16f, 0.16f) : FVector(0.3f, 0.07f, 0.07f));
+		Visual->SetRelativeScale3D((ExplosionRadius > 0.f ? FVector(0.35f, 0.16f, 0.16f) : FVector(0.3f, 0.07f, 0.07f)) * Scale);
 		if (UMaterialInterface* Glow = MetalAssets::GetGlowMaterial())
 		{
 			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Glow, this);
@@ -166,7 +168,7 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 			UGameplayStatics::ApplyPointDamage(DirectHit->GetActor(), Damage, GetVelocity().GetSafeNormal(), *DirectHit,
 				InstigatorController, this, UDamageType::StaticClass());
 		}
-		AMetalFX::SpawnBurst(World, Location, Color, 18.f, 0.15f);
+		AMetalFX::SpawnBurst(World, Location, Color, 18.f * Scale, 0.15f);
 	}
 	Destroy();
 }

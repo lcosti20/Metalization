@@ -4,6 +4,9 @@
 // (and can still be shot), the target robot's AI controller is destroyed, and this controller
 // possesses the robot. When the link ends - by choice, timeout, or the host being destroyed -
 // control returns to the player's body and the burnt-out host self-destructs.
+//
+// Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer and no
+// self-destruct, the player flies them until they disconnect. Flyers use their own input context.
 
 #pragma once
 
@@ -14,6 +17,7 @@
 class AMetalBotCharacter;
 class AMetalControlConsole;
 class AMetalFX;
+class AMetalStalker;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -34,6 +38,8 @@ public:
 	AMetalControlConsole* GetNearbyConsole() const { return NearbyConsole.Get(); }
 	float GetPossessionTimeRemaining() const;
 	float GetPossessionDuration() const { return PossessionDuration; }
+	/** Linked to a friendly robot: no time limit, no self-destruct. */
+	bool IsAllyLink() const { return bAllyLink; }
 
 	/** Hijack the robot under the crosshair, or disconnect from the current host. */
 	void ToggleTether() { TetherPressed(); }
@@ -63,7 +69,10 @@ private:
 	UInputAction* MakeAction(const TCHAR* Name, int32 ValueType);
 
 	AMetalBotCharacter* GetBot() const;
+	AMetalStalker* GetFlyer() const;
 	bool CanAct() const;
+	/** Walking or flying controls, depending on the pawn. */
+	void UpdateMappingContext();
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -81,6 +90,10 @@ private:
 	void TetherPressed();
 	void InteractPressed();
 	void ConfirmPressed();
+	void AscendAxis(const FInputActionValue& Value);
+	void BoostPressed();
+	void BoostReleased();
+	void DodgePressed(float Direction);
 
 	AMetalBotCharacter* FindHackCandidate() const;
 	void BeginPossession(AMetalBotCharacter* Target);
@@ -89,6 +102,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> MappingContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> FlightContext;
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UInputAction>> Actions;
@@ -105,6 +121,7 @@ private:
 	float LastHitConfirmTime = -100.f;
 	float LastDamageTime = -100.f;
 	bool bSwitchingBodies = false;
+	bool bAllyLink = false;
 	bool bApplySpawnPitch = false;
 	FDelegateHandle BotDiedHandle;
 };

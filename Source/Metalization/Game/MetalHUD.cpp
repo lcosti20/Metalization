@@ -4,6 +4,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalPlayerController.h"
+#include "MetalStalker.h"
 #include "MetalWeaponData.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -83,7 +84,9 @@ void AMetalHUD::DrawHUD()
 		DrawLine(CX, CY + Gap, CX, CY + Gap + Len, CrossColor, 2.f);
 		if (bHackable)
 		{
-			DrawTextShadowed(FString::Printf(TEXT("[F] HACK %s"), *PC->GetHackCandidate()->GetDisplayName().ToString().ToUpper()), CX, CY + 30.f * UI, Cyan, Medium, UI, true);
+			const AMetalBotCharacter* Candidate = PC->GetHackCandidate();
+			const TCHAR* Verb = Candidate->GetTeam() == Bot->GetTeam() ? TEXT("PILOT") : TEXT("HACK");
+			DrawTextShadowed(FString::Printf(TEXT("[F] %s %s"), Verb, *Candidate->GetDisplayName().ToString().ToUpper()), CX, CY + 30.f * UI, Cyan, Medium, UI, true);
 		}
 
 		// Health.
@@ -95,13 +98,24 @@ void AMetalHUD::DrawHUD()
 		DrawTextShadowed(Name, BarX, BarY - 34.f * UI, Bot->IsHijacked() ? Cyan : Amber, Medium, UI);
 		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthFraction < 0.3f ? Danger : FLinearColor(0.3f, 1.f, 0.4f));
 
+		// Flying: airspeed and the boost meter.
+		if (const AMetalStalker* Flyer = Cast<AMetalStalker>(Bot))
+		{
+			const int32 Speed = FMath::RoundToInt(Flyer->GetVelocity().Size() / 100.f);
+			DrawTextShadowed(FString::Printf(TEXT("SPEED %d m/s%s"), Speed, Flyer->IsBoosting() ? TEXT("   BOOST") : TEXT("")), BarX, BarY - 64.f * UI, FLinearColor::White, Small, UI * 1.3f);
+			const float Boost = Flyer->GetBoostFraction();
+			DrawBar(BarX, BarY + 30.f * UI, BarW, 8.f * UI, Boost, Flyer->IsBoosting() ? Amber : Cyan);
+		}
+
 		// Weapon and ammo.
 		const float RightX = W - 40.f * UI;
 		if (const FMetalWeaponSlot* Slot = Bot->GetCurrentWeapon(); Slot && Slot->Data)
 		{
 			const FString WeaponName = FString::Printf(TEXT("%s  LV%d"), *Slot->Data->DisplayName.ToString().ToUpper(), Slot->Level + 1);
-			const FString Ammo = Bot->IsWeaponDisabled() ? TEXT("WEAPON ARM DESTROYED")
+			const int32 Guns = Bot->GetMuzzleCount();
+			const FString Ammo = Bot->IsWeaponDisabled() ? (Guns > 1 ? TEXT("GUNS DESTROYED") : TEXT("WEAPON ARM DESTROYED"))
 				: Bot->IsReloading() ? TEXT("RELOADING...")
+				: Guns > 1 && Bot->GetWorkingMuzzleCount() < Guns ? FString::Printf(TEXT("GUNS %d / %d"), Bot->GetWorkingMuzzleCount(), Guns)
 				: Slot->Data->bInfiniteAmmo ? TEXT("INF")
 				: FString::Printf(TEXT("%d / %d"), Slot->Clip, Slot->Reserve);
 			float TW = 0.f, TH = 0.f;
@@ -135,8 +149,12 @@ void AMetalHUD::DrawHUD()
 
 	if (Bot && Bot->IsAlive())
 	{
-		// Possession timer.
-		if (PC->GetHost())
+		// Possession timer (friendly links have none).
+		if (PC->GetHost() && PC->IsAllyLink())
+		{
+			DrawTextShadowed(TEXT("LINKED   [F] disconnect"), W * 0.5f, 92.f * UI, Cyan, Medium, UI, true);
+		}
+		else if (PC->GetHost())
 		{
 			const float Fraction = PC->GetPossessionTimeRemaining() / FMath::Max(1.f, PC->GetPossessionDuration());
 			const float TimerW = 420.f * UI;

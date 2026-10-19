@@ -98,6 +98,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	float MuzzleOffset = 45.f;
 
+	/** Size multiplier for projectile slugs and their impacts (craft-sized cannons). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	float ProjectileScale = 1.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	FLinearColor TracerColor = FLinearColor(1.f, 0.4f, 0.1f);
 

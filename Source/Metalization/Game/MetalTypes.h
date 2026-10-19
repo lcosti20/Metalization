@@ -103,6 +103,95 @@ struct FMetalBotRig
 	/** Rotate the upper arms (shoulder) for aiming instead of the forearms (elbow). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Aim")
 	bool bAimFromShoulder = false;
+
+	/** Flying robots (Stalkers): roots of the four gun arms. Setting FlyerArmUpperL switches on the flight poses. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	FName FlyerArmUpperL = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	FName FlyerArmUpperR = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	FName FlyerArmLowerL = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	FName FlyerArmLowerR = NAME_None;
+
+	/** Upper arms tilt up and lower arms down by this much, making the X seen from the front. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float XSpreadDegrees = 28.f;
+
+	/** Arms sweep back by this much at full boost. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float BoostSweepDegrees = 40.f;
+
+	/** Arms fold back by this much while parked. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float ParkedFoldDegrees = 55.f;
+};
+
+/** Flight handling for robots that fly instead of walk (Stalkers). Speeds in cm/s. */
+USTRUCT(BlueprintType)
+struct FMetalFlightTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float MaxSpeed = 4500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float Acceleration = 6000.f;
+
+	/** Deceleration with no input: the craft coasts to a hover rather than drifting forever. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float Braking = 4000.f;
+
+	/** How quickly the velocity swings round to a new stick direction. Higher = less drift, tighter corners. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float Grip = 3.f;
+
+	/** Yaw speed of the body following the camera, degrees per second. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float TurnRate = 140.f;
+
+	/** Bank angle at full strafe speed or a hard turn. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
+	float MaxBank = 35.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float BoostSpeed = 10000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float BoostAcceleration = 14000.f;
+
+	/** Seconds of continuous boost from a full meter. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float BoostDuration = 3.f;
+
+	/** Seconds to refill an empty meter once the boost is released. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float BoostRechargeTime = 5.f;
+
+	/** Sideways burst of a dodge roll. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float DodgeSpeed = 4500.f;
+
+	/** Boost meter fraction one dodge costs. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
+	float DodgeCost = 0.25f;
+};
+
+/** Per-team paint for robots that fight on both sides (Stalkers): applied to the Body / Accent material slots. */
+USTRUCT(BlueprintType)
+struct FMetalTeamColors
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Colors")
+	FLinearColor Body = FLinearColor::Gray;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Colors")
+	FLinearColor Accent = FLinearColor::White;
 };
 
 /** A region of a robot that reacts differently to damage (weak points, destructible weapon arms). */
@@ -132,4 +221,11 @@ struct FMetalHitZone
 	/** When the zone breaks the robot loses its gun and switches to melee. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Hit Zone")
 	bool bDisablesWeaponWhenBroken = false;
+
+	/**
+	 * When the zone breaks, this built-in gun (one of the archetype's MuzzleBones) stops firing and the
+	 * zone's bone is hidden, while the other guns keep going. Losing every gun disables the weapon.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Hit Zone")
+	FName DisablesMuzzleBone = NAME_None;
 };

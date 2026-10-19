@@ -44,7 +44,7 @@ class AMetalBotCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	AMetalBotCharacter();
+	AMetalBotCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** Fired for every robot death; missions and the player controller listen to this. */
 	static FOnMetalBotDied OnAnyBotDied;
@@ -77,7 +77,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Metalization|AI", meta=(ClampMin="0.1", ClampMax="1"))
 	float PatrolSpeedFraction = 0.4f;
 
-	void ApplyArchetype();
+	virtual void ApplyArchetype();
 	const FMetalBotRig& GetRig() const;
 	FName GetArchetypeId() const;
 	FText GetDisplayName() const;
@@ -87,7 +87,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	EMetalTeam GetTeam() const { return Team; }
 
-	void SetTeam(EMetalTeam NewTeam);
+	virtual void SetTeam(EMetalTeam NewTeam);
 	bool IsHostileTo(const AMetalBotCharacter* Other) const;
 
 	UFUNCTION(BlueprintPure, Category="Metalization")
@@ -105,12 +105,15 @@ public:
 	bool IsDormant() const { return bDormant; }
 	bool IsWeaponDisabled() const { return bWeaponDisabled; }
 
-	void SetDormant(bool bNewDormant);
+	virtual void SetDormant(bool bNewDormant);
 	void Stun(float Duration);
 	void Heal(float Amount);
 
-	/** Hijacked robots fight for the player until the link ends, then they self-destruct. */
-	bool CanBeHacked() const;
+	/**
+	 * Enemy robots can be hijacked (a timed link, then they self-destruct). Friendly robots built for it
+	 * (bAllyHackable, e.g. parked Stalkers) accept an open-ended link instead.
+	 */
+	bool CanBeHackedBy(const AMetalBotCharacter* Hacker) const;
 	void SetHijacked(bool bNewHijacked);
 	bool IsHijacked() const { return bHijacked; }
 	float GetPossessionDuration() const;
@@ -132,7 +135,7 @@ public:
 	bool IsAiming() const { return bAiming; }
 
 	/** Player robot in a level whose game mode uses the action camera (see AMetalGameMode::bActionCamera). */
-	bool UsesActionCamera() const;
+	virtual bool UsesActionCamera() const;
 	/** Gun up and facing the aim (aiming, shooting, or an AI with a target), as opposed to running freely. */
 	bool IsInCombatStance() const;
 
@@ -157,7 +160,12 @@ public:
 	FVector GetAimPoint() const;
 	/** Aim pitch in degrees for the animator. */
 	float GetAimPitch() const;
-	FVector GetMuzzleLocation() const;
+	virtual FVector GetMuzzleLocation() const;
+	/** Direction the robot's guns face: its yaw, pitched with the aim. */
+	virtual FVector GetAimForward() const;
+	/** Built-in guns (MuzzleBones), and how many of them haven't been shot off. */
+	int32 GetMuzzleCount() const;
+	int32 GetWorkingMuzzleCount() const;
 	FVector GetEyesLocation() const;
 
 	/** AI sets this to the point it wants to shoot at. */
@@ -181,17 +189,22 @@ protected:
 	void TickActionCamera(float DeltaSeconds);
 	void TickFlip(float Now);
 
-	void Die(AController* Killer);
+	virtual void Die(AController* Killer);
 	void Explode();
-	void FireOnce();
+	virtual void FireOnce();
 	void FireMelee(const FMetalWeaponSlot& Slot);
 	void FinishReload();
 	void RefreshWeaponVisual();
 	void RefreshMaterials();
 	void SetMaterialScalar(FName Parameter, float Value);
-	void ConfigureRotationForController();
+	virtual void ConfigureRotationForController();
+	/** Team from the archetype or the per-instance override, ignoring any hijack. */
+	EMetalTeam GetBaseTeam() const;
 	int32 FindHitZone(const FDamageEvent& DamageEvent) const;
 	void DisableWeapon();
+	void BreakZone(const FMetalHitZone& Zone);
+	/** Repaints the Body/Accent material slots with the archetype's colours for the current team, if it has any. */
+	void ApplyTeamColors();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -246,4 +259,8 @@ protected:
 	FVector MeshBaseLocation = FVector(0.f, 0.f, -68.f);
 	int32 MuzzleCycle = 0;
 	FTimerHandle ExplodeTimer;
+	/** Built-in guns whose arm was shot off. */
+	TSet<FName> BrokenMuzzles;
+	/** Extra mesh rotation around the capsule centre (flyers pitch and bank the body with it). */
+	FQuat MeshTilt = FQuat::Identity;
 };

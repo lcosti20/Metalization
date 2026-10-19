@@ -1,9 +1,11 @@
 #include "MetalDevAutopilot.h"
 
 #include "MetalBotAIController.h"
+#include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalPlayerController.h"
+#include "MetalStalker.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
@@ -14,7 +16,8 @@
 
 namespace
 {
-	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight };
+	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
+		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun };
 
 	struct FAutopilotStep
 	{
@@ -36,6 +39,11 @@ namespace
 			// Free-roam movement in the arena: run, double-jump flip, turn, then shoot (action camera).
 			{TEXT("arena"), {{1.0f, EStep::Run}, {2.0f, EStep::Jump}, {2.35f, EStep::Jump}, {3.6f, EStep::TurnLeft}, {4.4f, EStep::Jump},
 				{5.4f, EStep::TurnRight}, {6.4f, EStep::Stop}, {7.0f, EStep::AimEnemy}, {7.2f, EStep::Fire}, {8.5f, EStep::StopFire}}},
+			// Stalker flight (MZ_FlightTest): link to a parked Stalker, lift off, cruise, boost, shoot a gun
+			// arm off an enemy Stalker and then finish it, dodge both ways, disconnect back to the body.
+			{TEXT("flight"), {{1.0f, EStep::AimLinkable}, {1.6f, EStep::Tether}, {2.4f, EStep::Climb}, {3.0f, EStep::StopClimb},
+				{3.0f, EStep::Run}, {4.4f, EStep::Boost}, {5.2f, EStep::StopBoost}, {6.0f, EStep::Stop}, {7.4f, EStep::AimEnemy},
+				{7.6f, EStep::AimEnemyGun}, {7.7f, EStep::Fire}, {9.4f, EStep::AimEnemy}, {11.0f, EStep::StopFire}, {11.2f, EStep::DodgeLeft}, {12.2f, EStep::DodgeRight}, {13.2f, EStep::Tether}}},
 		};
 		return Map;
 	}
@@ -131,7 +139,7 @@ AMetalBotCharacter* AMetalDevAutopilot::FindNearest(bool bHackableOnly, FName Ta
 	float BestDistance = TNumericLimits<float>::Max();
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); Me && It; ++It)
 	{
-		if (!It->IsAlive() || !Me->IsHostileTo(*It) || (bHackableOnly && !It->CanBeHacked()) || (!Tag.IsNone() && !It->ActorHasTag(Tag)))
+		if (!It->IsAlive() || !Me->IsHostileTo(*It) || (bHackableOnly && !It->CanBeHackedBy(Me)) || (!Tag.IsNone() && !It->ActorHasTag(Tag)))
 		{
 			continue;
 		}
@@ -140,6 +148,27 @@ AMetalBotCharacter* AMetalDevAutopilot::FindNearest(bool bHackableOnly, FName Ta
 		{
 			Best = *It;
 			BestDistance = Distance;
+		}
+	}
+	return Best;
+}
+
+AMetalBotCharacter* AMetalDevAutopilot::FindNearestLinkable() const
+{
+	const AMetalPlayerController* PC = Cast<AMetalPlayerController>(GetWorld()->GetFirstPlayerController());
+	const AMetalBotCharacter* Me = PC ? PC->GetPlayerBody() : nullptr;
+	AMetalBotCharacter* Best = nullptr;
+	float BestDistance = TNumericLimits<float>::Max();
+	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); Me && It; ++It)
+	{
+		if (It->GetTeam() == Me->GetTeam() && It->CanBeHackedBy(Me))
+		{
+			const float Distance = FVector::Dist(It->GetActorLocation(), Me->GetActorLocation());
+			if (Distance < BestDistance)
+			{
+				Best = *It;
+				BestDistance = Distance;
+			}
 		}
 	}
 	return Best;
@@ -166,8 +195,10 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		return;
 	}
 	const EStep Action = Scenarios()[Scenario][Step].Action;
+	AimBone = NAME_None;
 	static const TCHAR* Names[] = {TEXT("aim at enemy"), TEXT("aim at hackable"), TEXT("aim at boss"), TEXT("aim at gate guard"), TEXT("fire"), TEXT("stop fire"), TEXT("tether"), TEXT("go to console"), TEXT("interact"),
-		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right")};
+		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
+		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -184,6 +215,17 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::Jump:        Me->StopJumping(); Me->Jump(); break;
 	case EStep::TurnLeft:    PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, -90.f, 0.f)); break;
 	case EStep::TurnRight:   PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, 90.f, 0.f)); break;
+	case EStep::AimLinkable: AimTarget = FindNearestLinkable(); break;
+	case EStep::AimEnemyGun:
+		AimTarget = FindNearest(false, NAME_None);
+		AimBone = AimTarget.IsValid() && AimTarget->Archetype && AimTarget->Archetype->MuzzleBones.Num() > 0 ? AimTarget->Archetype->MuzzleBones[0] : NAME_None;
+		break;
+	case EStep::Climb:       bClimbing = true; break;
+	case EStep::StopClimb:   bClimbing = false; break;
+	case EStep::Boost:       if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->SetBoostHeld(true); } break;
+	case EStep::StopBoost:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->SetBoostHeld(false); } break;
+	case EStep::DodgeLeft:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(-1.f); } break;
+	case EStep::DodgeRight:  if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(1.f); } break;
 	case EStep::GoToConsole:
 		for (TActorIterator<AMetalControlConsole> It(GetWorld()); It; ++It)
 		{
@@ -206,14 +248,28 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			RunStep(NextStep++);
 		}
-		if (AimTarget.IsValid())
+		if (AMetalBotCharacter* Target = AimTarget.Get())
 		{
-			AimAt(AimTarget.Get());
+			if (!AimBone.IsNone() && Target->GetMesh()->GetBoneIndex(AimBone) != INDEX_NONE)
+			{
+				FVector ViewLocation;
+				FRotator ViewRotation;
+				GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+				GetWorld()->GetFirstPlayerController()->SetControlRotation((Target->GetMesh()->GetBoneLocation(AimBone) - ViewLocation).Rotation());
+			}
+			else
+			{
+				AimAt(Target);
+			}
 		}
 		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (APawn* Pawn = PC ? PC->GetPawn() : nullptr; Pawn && bRunning)
 		{
 			Pawn->AddMovementInput(FRotator(0.f, PC->GetControlRotation().Yaw, 0.f).Vector());
+		}
+		if (AMetalStalker* Flyer = PC ? Cast<AMetalStalker>(PC->GetPawn()) : nullptr; Flyer && bClimbing)
+		{
+			Flyer->AddVerticalInput(1.f);
 		}
 	}
 
@@ -240,12 +296,21 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 			const FMetalWeaponSlot* Slot = Me->GetCurrentWeapon();
 			UE_LOG(LogMetal, Display, TEXT("[Autopilot] t=%.1f pawn=%s hp=%.0f loc=%s hijacked=%d clip=%d"),
 				T, *Me->GetName(), Me->GetHealth(), *Me->GetActorLocation().ToCompactString(), Me->IsHijacked(), Slot ? Slot->Clip : -1);
+			if (const AMetalStalker* Flyer = Cast<AMetalStalker>(Me))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    flight speed=%.0f boost=%.2f boosting=%d guns=%d"),
+					Flyer->GetVelocity().Size(), Flyer->GetBoostFraction(), Flyer->IsBoosting(), Flyer->GetWorkingMuzzleCount());
+			}
 		}
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 		{
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
 				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()));
+			}
+			else if (It->IsA<AMetalStalker>() && !It->IsPlayerControlled())
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f team=%d guns=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(It->GetTeam()), It->GetWorkingMuzzleCount());
 			}
 		}
 	}

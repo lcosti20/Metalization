@@ -39,25 +39,29 @@ Instead of entering vehicles, the player **hacks Stalkers** (flying X-armed robo
 
 ## 3. Stalker: flight, weapons, animation
 
-- `AMetalStalker : AMetalBotCharacter` with `UMetalFlightMovementComponent` (custom `PhysFlying`). Capsule around the body only; the arms are hit through hit zones, so they don't snag on geometry.
-- **Flight model**: velocity eases toward the input direction in camera space (forward/strafe/vertical), the body turns toward the camera aim at a limited rate, banks into turns, and rolls back to level when there is no roll input. No gravity in space; with a `bGravityHover` volume/setting (hangar) it holds a hover height above the floor.
-- **Boost**: hold to multiply max speed and acceleration, drains a boost meter that refills when released; arms sweep back while boosting.
+- `AMetalStalker : AMetalBotCharacter` with `UMetalFlightMovementComponent`, the stock character movement in `MOVE_Flying` plus a tunable **grip** (how fast the velocity swings to a new stick direction). The capsule wraps only the body. The arms take hits through the mesh's physics bodies and never snag on geometry.
+- **Flight model**: W/S thrust along the full aim (pitch up and push forward to climb), A/D strafe level, Space/Ctrl climb and dive. The body yaws toward the aim at `TurnRate`. Pitch and bank are visual only, because the capsule stays upright. It banks into strafes and turns and levels out when the controls are released. With no input it brakes to a dead hover. There's no gravity in flight.
+- **Parked**: a Stalker placed with `bStartParked` sits on the floor with its arms folded and no brain. Linking to it lifts it off; disconnecting leaves it hovering, ready to be linked again.
+- **Boost**: hold to raise the speed cap and acceleration (45 to 100 m/s). It always thrusts forward along the aim, like sprinting. It drains a 3 s meter that refills 0.6 s after release. Arms close up and sweep back while boosting.
+- **Dodge**: Q/E is a sideways burst with a barrel roll, costing a quarter of the boost meter.
+- All tuning lives in the archetype (`DA_Bot_Stalker` > Flight).
 - **Controls** (separate mapping context while flying):
 
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
 | Aim / steer | Mouse | Right stick |
 | Throttle / strafe | W/S, A/D | Left stick |
-| Climb / descend | Space / Left Ctrl | A / B |
-| Roll | Q / E | D-pad left / right |
+| Climb / dive | Space / Left Ctrl | A / B |
+| Dodge roll left / right | Q / E | D-pad left / right |
 | Boost | Left Shift | Left stick click |
 | Fire (4 guns in X order) | LMB | RT |
 | Zoom | RMB | LT |
 | Disconnect | F | LB |
 
 - **Weapon**: `WD_StalkerCannons`, fast projectiles. `MuzzleBones = gun_upper_L, gun_lower_R, gun_upper_R, gun_lower_L`.
-- **Hit zones**: one per gun arm, with durability. A broken arm stops its gun (the barrel cycle skips it) instead of disarming the whole craft. All four gone means no guns.
-- **Animation** (flyer branch of `UMetalBotAnimInstance`): bank into turns, arms spread when hovering/firing and swept back when boosting, per-gun recoil, hover bob, arms droop when parked.
+- **Hit zones**: one per gun arm (90 durability), using the new `FMetalHitZone::DisablesMuzzleBone`. A broken arm is hidden, its physics bodies are removed, and the firing order skips its gun. Losing all four disables the weapon. Hits on the mesh map to zones by bone name.
+- **Team colours**: `UMetalBotArchetype::TeamColors` repaints the `_Body`/`_Accent` slots for the current team (Heroes use the player's blues).
+- **Animation** (flight branch of `UMetalBotAnimInstance`, enabled by `FMetalBotRig::FlyerArmUpperL`): arms open into the X (upper pair up, lower pair down), close and sweep back under boost, kick back on each shot, and fold flat while parked. The body bobs while hovering.
 
 ## 4. Capital ship class
 
@@ -108,4 +112,9 @@ Instead of entering vehicles, the player **hacks Stalkers** (flying X-armed robo
 
 ## Progress
 
-- Phase 1: in progress.
+- **Phase 1: done (2026-10-19).**
+  - Code: `AMetalStalker` (`Source/Metalization/Game/MetalStalker.*`), the flight input context in `AMetalPlayerController`, and friendly links (`UMetalBotArchetype::bAllyHackable`; `AMetalBotCharacter::CanBeHackedBy` replaces `CanBeHacked`).
+  - Assets and map: `WD_StalkerCannons`, `MZ_FlightTest` (`Tools/AssetPipeline/ue_setup_flight.py`, `MZ_LEVELS=flight`).
+  - Test: `smoke_test.ps1 -Scenario flight` links to a parked Stalker, climbs, cruises, boosts, shoots two arms off an enemy Stalker and destroys it, dodges both ways and disconnects. `combat` and `boss` still pass.
+  - No AI pilots yet (Phase 6). Unpiloted Stalkers just hover or sit parked.
+- Phase 2: next.

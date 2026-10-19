@@ -87,7 +87,8 @@ To replace a graybox with authored art, model it in `Metalization_Graybox.blend`
 | AI | `AMetalBotAIController` | Patrol → Investigate → Combat (strafe at preferred range, burst fire) → Retreat. Plus Stunned, Disabled-weapon melee, squad alerts. Runtime navmesh |
 | Mission | `AMetalMission`, `AMetalTriggerZone`, `AMetalControlConsole`, `AMetalGate`, `AMetalPickup` | Ordered objectives (eliminate tagged / reach zone / activate console / hijack tagged) with dialogue lines. Checkpoints. Villain-only consoles for possession puzzles |
 | Flow / UI | `AMetalGameMode`, `AMetalHUD` | Respawn at checkpoint keeping inventory. Dialogue queue, banners, objective, health, ammo, tether timer, hack prompt, hit markers |
-| Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
+| Flying robots | `AMetalStalker`, `UMetalFlightMovementComponent` | Hover-gunship flight, boost, dodge roll, four arm guns that can be shot off one by one. Friendly Stalkers can be piloted with the Hack Tether with no time limit. See `Docs/SpaceBattle_Plan.md` |
+| Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena|flight -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
 
 Input is Enhanced Input, built in code (`AMetalPlayerController::CreateInputObjects`), for keyboard/mouse and gamepad.
 
@@ -130,6 +131,7 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario gate     # possession puzzle
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario boss     # hijack the Brute
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario arena    # free roam in MZ_Arena
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario flight   # pilot a Stalker in MZ_FlightTest
 ```
 
 Each run launches the standalone game, drives the player with `AMetalDevAutopilot`, prints a state trace, and saves screenshots to `Saved/Screenshots/WindowsEditor`. `-MetalObjective=N` starts the mission at a later objective, which is also handy in the editor's *Standalone Game* launch options. The `combat` hijack occasionally misses when the target Shooter walks behind a crate; rerun it once before suspecting a regression.
@@ -166,6 +168,15 @@ A recreation of the first progress update video described in `Docs/example_video
 Regenerate only this map with `$env:MZ_LEVELS="arena"` before running `ue_setup_gameplay.py` (or `outpost` for the mission only). Test it with `smoke_test.ps1 -Scenario arena`: the run takes screenshots of running, the flip, turning, landing and shooting.
 
 The Player archetype changes apply to both maps: the double jump, plus speed 600 and stride 200. The stride was 95, which made the legs cycle about 5× a second at full speed, the main source of the "janky" run.
+
+## 5c. Stalker flight sandbox: `MZ_FlightTest`
+
+Phase 1 of the space battle plan (`Docs/SpaceBattle_Plan.md`). Walk up to one of the three parked blue Stalkers, aim at it and press **[F]** to pilot it.
+- Fly with WASD and the mouse, climb and dive with Space/Ctrl.
+- Boost with Shift, dodge-roll with Q/E, and fire all four arm guns with LMB.
+- Press [F] again to return to your body.
+
+The range has towers and an arch to weave through, five hovering red Stalkers to shoot (their arms come off one at a time), and a Shooter squad on the ground. Regenerate it with `$env:MZ_LEVELS="flight"`.
 
 ## 6. Roadmap
 
