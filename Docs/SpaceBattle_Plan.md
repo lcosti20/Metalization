@@ -79,17 +79,29 @@ Materials are flat colours: `GB_ship_Hull`/`_Accent`/`_Dark`/`_Glow` and `GB_han
 
 ## 4. Capital ship class
 
-- `AMetalCapitalShip` (C++, Blueprintable): team, hull health, `UMetalCapitalShipData`, `TSoftObjectPtr<UWorld> InteriorLevel`, `InteriorOffset`. Virtual hooks: `OnSubsystemDestroyed`, `OnHullBreached`, `OnShipDestroyed`, `GetSpawnPoints`.
-- `UMetalShipSubsystemComponent`: ShieldGen / Engines / Comms / LifeSupport, health, ticket penalty. Shield up = reduced hull damage.
-- `AMetalShipTurret`: AI flak/laser turrets on sockets, destructible.
-- `UMetalHangarComponent`: parks dormant Stalkers on pads in the interior instance, respawns a pad's Stalker N seconds after it's destroyed, exposes launch/landing zones.
-- A new ship class = a new data asset, an optional Blueprint subclass, and an interior map.
+Built in Phase 3 (`Source/Metalization/Game/MetalCapitalShip.*`, `MetalHangar.*`):
+- **`UMetalCapitalShipData`** (`DA_Ship_Capital`): the part meshes, hull and subsystem health, `ShieldedHullDamageScale` (0.25), team paint for the `_Hull`/`_Accent` slots, the `Interior` level, and the hangar robot archetype plus its respawn delay.
+- **`AMetalCapitalShip`** (Blueprintable): `ShipData`, `Team`, `InteriorLocation`, `DrawDistance`.
+  - In the editor it builds the whole ship from the data: the hull, then engines, shields and comms on their sockets, and one turret per `turret_NN`.
+  - Hits on a subsystem damage that subsystem. Anything else hits the hull, scaled down while either shield generator stands.
+  - Friendly fire is ignored. Hit parts flash, destroyed subsystems turn black, and a destroyed ship breaks up in a chain of explosions.
+  - Extension points (BlueprintNativeEvents): `OnSubsystemDestroyed`, `OnShipDestroyed`, `OnInteriorReady` and `GetSpawnPoints`. There are also static delegates `OnAnyInteriorReady` and `OnAnyShipDestroyed`. (I dropped `OnHullBreached`; nothing needed it yet.)
+- **`UMetalShipSubsystemComponent`**: a static mesh with `Type` (ShieldGenerator / Engines / Comms / LifeSupport) and health. Ticket penalties come with the battle mode.
+- **`AMetalHangar`**: a placed actor (not a component) in the interior level.
+  - It owns the shell mesh and an instanced pad per `pad_N` socket.
+  - The ship hands it its team and robot. It parks a robot on each pad in team colours and replaces destroyed ones after `RespawnDelay`. A robot that's still out flying keeps its pad.
+  - Opened on its own, the interior map runs with the hangar's own settings.
+- **Turrets** are scenery for now (instanced meshes). `AMetalShipTurret` with AI arrives in Phase 6.
+- **`AMetalSpaceBattleGameMode`** holds joining players back until every ship's interior has loaded, then spawns them at their team ship's spawn points. It never reuses the start spot cached at login, because that was picked before the interiors existed. There's a 10 s fallback.
+- A new ship class = a new data asset, an optional Blueprint subclass, and an interior map with an `AMetalHangar`.
 
 ## 5. Interior sublevel
 
-- `MZ_CapitalShip_Interior`: spawn room, corridor, one hangar, a life-support room with a console boarders can sabotage.
-- Each ship calls `ULevelStreamingDynamic::LoadLevelInstance` with its own offset (for example Z = -1,000,000 cm and -1,200,000 cm), so one template serves both teams and the interiors never see each other.
-- Self-contained lighting, locked exposure.
+- `MZ_CapitalShip_Interior` (`ue_setup_space.py`): the hangar, then a 20 m corridor through its back door, then a 24 x 24 m spawn room with four player starts lined up with the corridor. The life-support room and its sabotage console come with the battle mode.
+- Each ship calls `ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr` at its `InteriorLocation`, so one interior map serves both teams. In `MZ_SpaceBattle`, the interiors are at (0, 0, +20 km) and (+10 km, 0, +20 km).
+  - **They're above the battle, not below as first planned.** UE's default KillZ is -10.5 km, so anything placed lower dies on arrival.
+- **Hidden by draw distance:** interior pieces stop drawing beyond 5 km, and ship parts and space scenery beyond 15 km. Neither side shows up as a speck in the other's sky, and the two interiors can't see each other.
+- **Lighting:** the interior has its own point lights. Both maps use the same fixed exposure (EV100 3.5, unbound post-process volume), so crossing between them won't flash.
 
 ## 6. Hangar portal
 
@@ -136,4 +148,13 @@ Materials are flat colours: `GB_ship_Hull`/`_Accent`/`_Dark`/`_Glow` and `GB_han
   - `blender_export.py` exports `Ships/` parts with UCX collision and writes the socket transforms (UE space) to the manifest. `ue_import_assets.py` imports them to `/Game/Metalization/Ships` and adds the sockets to the meshes. `run_pipeline.ps1` wipes `Ships` before importing.
   - `ue_validate.py` checks each ship mesh for collision and its required sockets, checks the hull length, checks that the hangar mouth is on the +Y side (which catches an axis mix-up), and checks that both ends of the hangar portal are the same size. Result: PASSED.
   - The `flight` and `boss` smoke tests still pass after the full reimport.
-- Phase 3: next (`AMetalCapitalShip`, interior instancing, parked Stalkers on the pads).
+- **Phase 3: done (2026-10-19).**
+  - Built: `AMetalCapitalShip`, `UMetalCapitalShipData` (`DA_Ship_Capital`), `UMetalShipSubsystemComponent`, `AMetalHangar`, `AMetalSpaceBattleGameMode`.
+  - Maps: `MZ_CapitalShip_Interior`, plus `MZ_SpaceBattle` (two ships broadside to broadside 1.6 km apart, hangar mouths facing each other, with an asteroid field) from `ue_setup_space.py` (`MZ_LEVELS=space`).
+  - `smoke_test.ps1 -Scenario hangar`:
+    - Both interiors stream in, and each hangar parks 3 Stalkers in its team's colours.
+    - The player spawns in the Hero spawn room, runs down the corridor and pilots the centre Stalker, which climbs to the ceiling.
+    - Until the portals exist, a dev-only autopilot step then teleports the Stalker outside the Villain ship. It shoots a shield generator (2500 → 1828) while the shielded hull takes nothing.
+  - `-Scenario ships` takes exterior shots of the fleet. `flight`, `combat` and `arena` still pass.
+  - The autopilot now starts its clock when the player has a body.
+- Phase 4: next (hangar portals: capture view, then two-way transit). The mouth sockets line up: Villain hull mouth at world (18000, 72000), Hero's at (-18000, -72000), interior mouths at `InteriorLocation` + (0, 200, 1900).

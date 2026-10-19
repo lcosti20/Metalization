@@ -88,6 +88,7 @@ To replace a graybox with authored art, model it in `Metalization_Graybox.blend`
 | AI | `AMetalBotAIController` | Patrol → Investigate → Combat (strafe at preferred range, burst fire) → Retreat. Plus Stunned, Disabled-weapon melee, squad alerts. Runtime navmesh |
 | Mission | `AMetalMission`, `AMetalTriggerZone`, `AMetalControlConsole`, `AMetalGate`, `AMetalPickup` | Ordered objectives (eliminate tagged / reach zone / activate console / hijack tagged) with dialogue lines. Checkpoints. Villain-only consoles for possession puzzles |
 | Flow / UI | `AMetalGameMode`, `AMetalHUD` | Respawn at checkpoint keeping inventory. Dialogue queue, banners, objective, health, ammo, tether timer, hack prompt, hit markers |
+| Capital ships | `AMetalCapitalShip`, `UMetalCapitalShipData`, `AMetalHangar`, `AMetalSpaceBattleGameMode` | Modular hull with destructible subsystems and shields. Each ship streams its own instance of the interior map far above the battle, and the hangar parks team-coloured Stalkers. See `Docs/SpaceBattle_Plan.md` |
 | Flying robots | `AMetalStalker`, `UMetalFlightMovementComponent` | Hover-gunship flight, boost, dodge roll, four arm guns that can be shot off one by one. Friendly Stalkers can be piloted with the Hack Tether with no time limit. See `Docs/SpaceBattle_Plan.md` |
 | Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena|flight -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
 
@@ -133,6 +134,8 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario boss     # hijack the Brute
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario arena    # free roam in MZ_Arena
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario flight   # pilot a Stalker in MZ_FlightTest
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario hangar   # spawn aboard a capital ship, pilot a parked Stalker
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships    # exterior shots of MZ_SpaceBattle
 ```
 
 Each run launches the standalone game, drives the player with `AMetalDevAutopilot`, prints a state trace, and saves screenshots to `Saved/Screenshots/WindowsEditor`. `-MetalObjective=N` starts the mission at a later objective, which is also handy in the editor's *Standalone Game* launch options. The `combat` hijack occasionally misses when the target Shooter walks behind a crate; rerun it once before suspecting a regression.

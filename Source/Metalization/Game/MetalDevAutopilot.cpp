@@ -3,6 +3,7 @@
 #include "MetalBotAIController.h"
 #include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
+#include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
@@ -17,7 +18,7 @@
 namespace
 {
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
-		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun };
+		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, GoToEnemyShip, AimEnemyShield };
 
 	struct FAutopilotStep
 	{
@@ -44,6 +45,14 @@ namespace
 			{TEXT("flight"), {{1.0f, EStep::AimLinkable}, {1.6f, EStep::Tether}, {2.4f, EStep::Climb}, {3.0f, EStep::StopClimb},
 				{3.0f, EStep::Run}, {4.4f, EStep::Boost}, {5.2f, EStep::StopBoost}, {6.0f, EStep::Stop}, {7.4f, EStep::AimEnemy},
 				{7.6f, EStep::AimEnemyGun}, {7.7f, EStep::Fire}, {9.4f, EStep::AimEnemy}, {11.0f, EStep::StopFire}, {11.2f, EStep::DodgeLeft}, {12.2f, EStep::DodgeRight}, {13.2f, EStep::Tether}}},
+			// Capital ship interior (MZ_SpaceBattle): spawn aboard, run down the corridor into the hangar,
+			// link to a parked Stalker and lift off.
+			// Then (until the hangar portals exist) jump the Stalker out next to the enemy ship and shoot a shield generator.
+			{TEXT("hangar"), {{0.5f, EStep::Run}, {10.5f, EStep::Stop}, {10.7f, EStep::AimLinkable}, {11.3f, EStep::Tether},
+				{12.2f, EStep::Climb}, {13.5f, EStep::StopClimb}, {13.7f, EStep::GoToEnemyShip}, {14.0f, EStep::AimEnemyShield},
+				{14.2f, EStep::Fire}, {21.0f, EStep::StopFire}}},
+			// No inputs: exterior screenshots with -MetalCam.
+			{TEXT("ships"), {}},
 		};
 		return Map;
 	}
@@ -93,17 +102,6 @@ void AMetalDevAutopilot::BeginPlay()
 		ShotTimes = ParseFloats(Value);
 	}
 	FParse::Value(Cmd, TEXT("MetalQuitAt="), QuitAt);
-
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (FParse::Value(Cmd, TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
-	{
-		const TArray<float> V = ParseFloats(Value);
-		if (V.Num() >= 4)
-		{
-			PC->GetPawn()->TeleportTo(FVector(V[0], V[1], V[2]), FRotator(0.f, V[3], 0.f));
-			PC->SetControlRotation(FRotator(0.f, V[3], 0.f));
-		}
-	}
 	if (FParse::Value(Cmd, TEXT("MetalCam="), Value, false))
 	{
 		TArray<FString> Entries;
@@ -119,6 +117,25 @@ void AMetalDevAutopilot::BeginPlay()
 		ViewFromCamera(0);
 	}
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] active (scenario=%s shots=%d quit=%.1f)"), bAutopilot ? *Scenario : TEXT("none"), ShotTimes.Num(), QuitAt);
+}
+
+void AMetalDevAutopilot::Start()
+{
+	bStarted = true;
+	StartTime = GetWorld()->GetTimeSeconds();
+	FString Value;
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
+	{
+		const TArray<float> V = ParseFloats(Value);
+		if (V.Num() >= 4)
+		{
+			PC->GetPawn()->TeleportTo(FVector(V[0], V[1], V[2]), FRotator(0.f, V[3], 0.f));
+			PC->SetControlRotation(FRotator(0.f, V[3], 0.f));
+		}
+	}
+	// Possessing the freshly spawned body took the view back from the fixed camera.
+	ViewFromCamera(0);
 }
 
 void AMetalDevAutopilot::ViewFromCamera(int32 Index)
@@ -196,9 +213,16 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	}
 	const EStep Action = Scenarios()[Scenario][Step].Action;
 	AimBone = NAME_None;
+	AimComponent.Reset();
+	const AMetalCapitalShip* EnemyShip = nullptr;
+	for (TActorIterator<AMetalCapitalShip> It(GetWorld()); It; ++It)
+	{
+		EnemyShip = It->GetTeam() != Me->GetTeam() ? *It : EnemyShip;
+	}
 	static const TCHAR* Names[] = {TEXT("aim at enemy"), TEXT("aim at hackable"), TEXT("aim at boss"), TEXT("aim at gate guard"), TEXT("fire"), TEXT("stop fire"), TEXT("tether"), TEXT("go to console"), TEXT("interact"),
 		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
-		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun")};
+		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
+		TEXT("go to enemy ship"), TEXT("aim at enemy shield")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -216,6 +240,27 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::TurnLeft:    PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, -90.f, 0.f)); break;
 	case EStep::TurnRight:   PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, 90.f, 0.f)); break;
 	case EStep::AimLinkable: AimTarget = FindNearestLinkable(); break;
+	case EStep::GoToEnemyShip:
+		if (EnemyShip)
+		{
+			// 450 m off the enemy's broadside on the battle side (towards the world origin), above its deck.
+			const FVector Ship = EnemyShip->GetActorLocation();
+			const FVector Right = EnemyShip->GetActorRightVector();
+			const FVector Side = FVector::DotProduct(Right, -Ship) >= 0.f ? Right : -Right;
+			Me->TeleportTo(Ship + Side * 45000.f + FVector(0.f, 0.f, 9000.f), (-Side).Rotation());
+			PC->SetControlRotation((-Side).Rotation());
+		}
+		break;
+	case EStep::AimEnemyShield:
+		for (UMetalShipSubsystemComponent* Part : EnemyShip ? EnemyShip->GetSubsystems() : TArray<TObjectPtr<UMetalShipSubsystemComponent>>())
+		{
+			if (Part->Type == EMetalShipSubsystem::ShieldGenerator && !Part->IsDestroyed())
+			{
+				AimComponent = Part;
+				break;
+			}
+		}
+		break;
 	case EStep::AimEnemyGun:
 		AimTarget = FindNearest(false, NAME_None);
 		AimBone = AimTarget.IsValid() && AimTarget->Archetype && AimTarget->Archetype->MuzzleBones.Num() > 0 ? AimTarget->Archetype->MuzzleBones[0] : NAME_None;
@@ -239,6 +284,15 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 void AMetalDevAutopilot::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (!bStarted)
+	{
+		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+		if ((PC && PC->GetPawn()) || GetWorld()->GetTimeSeconds() > 15.f)
+		{
+			Start();
+		}
+		return;
+	}
 	const float T = GetWorld()->GetTimeSeconds() - StartTime;
 
 	if (bAutopilot)
@@ -248,7 +302,14 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			RunStep(NextStep++);
 		}
-		if (AMetalBotCharacter* Target = AimTarget.Get())
+		if (const USceneComponent* Component = AimComponent.Get())
+		{
+			FVector ViewLocation;
+			FRotator ViewRotation;
+			GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+			GetWorld()->GetFirstPlayerController()->SetControlRotation((Component->Bounds.Origin - ViewLocation).Rotation());
+		}
+		else if (AMetalBotCharacter* Target = AimTarget.Get())
 		{
 			if (!AimBone.IsNone() && Target->GetMesh()->GetBoneIndex(AimBone) != INDEX_NONE)
 			{
@@ -301,6 +362,15 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    flight speed=%.0f boost=%.2f boosting=%d guns=%d"),
 					Flyer->GetVelocity().Size(), Flyer->GetBoostFraction(), Flyer->IsBoosting(), Flyer->GetWorkingMuzzleCount());
 			}
+		}
+		for (TActorIterator<AMetalCapitalShip> It(GetWorld()); It; ++It)
+		{
+			FString Parts;
+			for (const UMetalShipSubsystemComponent* Part : It->GetSubsystems())
+			{
+				Parts += FString::Printf(TEXT(" %s=%.0f"), *Part->GetName(), Part->GetHealth());
+			}
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d hull=%.0f shielded=%d%s"), *It->GetName(), static_cast<int32>(It->GetTeam()), It->GetHullHealth(), It->IsShielded(), *Parts);
 		}
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 		{

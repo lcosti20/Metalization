@@ -7,9 +7,10 @@ Run after ue_import_assets.py (see run_pipeline.ps1). Creates:
     /Game/Metalization/Maps/MZ_Outpost_Demo  the demo mission
     /Game/Metalization/Maps/MZ_Arena         free-roam prototype arena (ue_setup_arena.py)
     /Game/Metalization/Maps/MZ_FlightTest    Stalker flight sandbox (ue_setup_flight.py)
+    /Game/Metalization/Maps/MZ_SpaceBattle   capital ships + MZ_CapitalShip_Interior, DA_Ship_Capital (ue_setup_space.py)
 
 The maps are regenerated from scratch every run - make manual layout changes on a copy.
-Set MZ_LEVELS to a comma-separated subset of outpost,arena,flight to rebuild only those.
+Set MZ_LEVELS to a comma-separated subset of outpost,arena,flight,space to rebuild only those.
 """
 import json
 import math
@@ -583,7 +584,7 @@ def main():
     weapons = make_weapons()
     archetypes = make_archetypes(manifest, weapons)
     restore_template_game_mode()
-    levels = os.environ.get("MZ_LEVELS", "outpost,arena,flight").split(",")
+    levels = os.environ.get("MZ_LEVELS", "outpost,arena,flight,space").split(",")
     sys.path.insert(0, os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline"))
     if "outpost" in levels:
         build_level(archetypes, weapons, manifest)
@@ -593,6 +594,9 @@ def main():
     if "flight" in levels:
         import ue_setup_flight
         ue_setup_flight.build_flight_test(archetypes)
+    if "space" in levels:
+        import ue_setup_space
+        ue_setup_space.build_space_maps(archetypes)
     log("DONE")
 
 
