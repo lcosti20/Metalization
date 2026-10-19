@@ -14,6 +14,7 @@ Creates, under /Game/Metalization:
     Characters/<Name>/SK_<Name>       skeletal meshes (+ skeleton, physics asset, parts)
     Weapons/<Name>/SK_<Name>_On<Holder>  weapons bonemerged onto a holder's skeleton
     Props/SM_<Name>                   weapons and grenades as static meshes (pickups)
+    Ships/SM_<Part>                   capital ship pieces and the hangar kit (UCX collision + sockets)
 
 Safe to re-run: existing assets are updated in place. run_pipeline.ps1 clears the generated folders first,
 because reimporting over a mesh keeps its old material slots (which breaks switching models).
@@ -412,6 +413,24 @@ def import_weapons(manifest, instances, skeletons):
     log(f"weapon followers: {count}")
 
 
+def import_ships(manifest, instances):
+    """Ship pieces: static meshes whose UCX_ hulls become simple collision, plus the sockets from the manifest."""
+    for part, s in manifest.get("ships", {}).items():
+        mesh = import_fbx(s["file"], f"{ROOT}/Ships", f"SM_{part}", fbx_options(False))
+        if mesh is None:
+            continue
+        assign_static_materials(mesh, instances)
+        for name, sock in s["sockets"].items():
+            socket = unreal.new_object(unreal.StaticMeshSocket, outer=mesh)
+            socket.set_editor_property("socket_name", name)
+            socket.set_editor_property("relative_location", unreal.Vector(*sock["location"]))
+            socket.set_editor_property("relative_rotation", unreal.MathLibrary.make_rot_from_xz(
+                unreal.Vector(*sock["forward"]), unreal.Vector(*sock["up"])))
+            mesh.add_socket(socket)
+        report_bounds(mesh)
+    log(f"ships: {len(manifest.get('ships', {}))} meshes")
+
+
 def main():
     with open(os.path.join(PIPELINE_DIR, "manifest.json")) as f:
         manifest = json.load(f)
@@ -421,6 +440,7 @@ def main():
     instances = build_materials(manifest)
     skeletons = import_characters(manifest, instances)
     import_weapons(manifest, instances, skeletons)
+    import_ships(manifest, instances)
     eal.save_directory(ROOT, only_if_is_dirty=False, recursive=True)
     log("DONE")
 

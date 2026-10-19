@@ -47,9 +47,9 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
 | Stage | Script | Output |
 |---|---|---|
 | 1 | `blender_export.py` (Blender 5.2, headless) | `Saved/AssetPipeline/`: FBX per character, part, and weapon-on-holder; `manifest.json` |
-| 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props}` |
+| 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props,Ships}` |
 | 3 | `ue_setup_gameplay.py` | `/Game/Metalization/Data` (weapons, archetypes), `/Game/Metalization/Maps/MZ_Outpost_Demo` and `MZ_Arena` |
-| 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks (`PASSED` / list of problems) |
+| 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks, plus ship collision, sockets and portal sizes (`PASSED` / list of problems) |
 
 Before stage 2, the runner deletes the generated `Characters`, `Weapons`, `Props`, `Textures` and `Materials/Instances` folders. Reimporting over an existing mesh keeps its old material slots, and deleting assets from the commandlet leaves the files on disk.
 
@@ -68,6 +68,7 @@ The source of truth for every model. Layout the exporter expects:
 |---|---|
 | `Characters/Heroes/<Name>`, `Characters/Villains/<Name>` | Armature `hero_<id>_ARM` / `villain_<id>_ARM`. First sub-collection = body, then optional parts (the player's and Shooter's spare hand, backpacks, the Guide's tether...) |
 | `Weapons/<Weapon>`, `Grenades/<Grenade>` | Armature `weapon_<id>_ARM` whose root bone is the grip. Names map to IDs in `blender_export.py` (`WEAPON_COLLECTIONS`, `GRENADE_COLLECTIONS`) |
+| `Ships/<Group>/<Part>` | One static mesh per part collection (`SM_<Part>` in `/Game/Metalization/Ships`): render meshes, `UCX_*` collision, a `PIVOT_*` empty, and `SOCKET_<name>` empties (+X forward). `*_Preview` collections are display-only. See `Docs/SpaceBattle_Plan.md` §2 |
 
 Bodies are one bevelled box per bone, rigidly skinned to it. Gameplay depends on the bone names (`bip_head`, `bip_pelvis`, `bip_hip_L/R`, `bip_upperArm/lowerArm_L/R`, `weapon_bone`, `minigun_R/L`, `ankle_1_L/R`, `hip_L/R`), so keep them when replacing art. Materials are flat colours: Heroes in blues/greens, Villains in reds/oranges, a lighter accent on head/hands/feet, a glowing visor on the front of the player's head, and one colour per weapon family.
 

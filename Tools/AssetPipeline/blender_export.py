@@ -5,7 +5,8 @@ Run headless (see run_pipeline.ps1):
     blender.exe -b "<...>/Art/Graybox/Metalization_Graybox.blend" --python blender_export.py -- <output_dir>
 
 Expected layout: Characters/{Heroes,Villains}/<character> (armature "<hero|villain>_<id>_ARM", body =
-first sub-collection, then optional parts), Weapons/<weapon> and Grenades/<grenade>.
+first sub-collection, then optional parts), Weapons/<weapon>, Grenades/<grenade>, and Ships/<group>/<part>
+(static meshes: capital ship pieces, hangar kit; collections ending in _Preview are skipped).
 
 What it produces in <output_dir>:
     Characters/<id>.fbx            body skeletal mesh (armature + first sub-collection's meshes)
@@ -13,6 +14,8 @@ What it produces in <output_dir>:
     Weapons/<weapon>__on__<char>.fbx  weapon skinned 100% to <char>'s weapon_bone (Source "bonemerge"),
                                    imported in UE onto <char>'s skeleton and driven as a leader-pose follower
     Props/<weapon>.fbx             weapon/grenade as a static mesh, pivot at its attachment bone (pickups)
+    Ships/<part>.fbx               ship/hangar piece as one static mesh with its UCX_ collision, pivot at the
+                                   part's PIVOT_* empty; its SOCKET_* empties go to the manifest (UE space)
     Textures/<image>.png           every image referenced by an exported material (none for the graybox)
     manifest.json                  materials, textures, characters, bones, parts, weapons
 
@@ -352,6 +355,85 @@ def export_weapons(manifest):
         manifest["weapons" if col_name in WEAPON_COLLECTIONS else "props"][wid] = entry
 
 
+# --------------------------------------------------------------------------------------------
+# Ships (capital ship pieces and the hangar kit)
+# --------------------------------------------------------------------------------------------
+def to_ue(v, scale=100.0):
+    """Blender metres (X fwd, Y left) -> UE centimetres (X fwd, Y right), matching the FBX conversion."""
+    return [round(v.x * scale, 3), round(-v.y * scale, 3), round(v.z * scale, 3)]
+
+
+def export_ships(manifest):
+    """Each part collection under Ships/<group> becomes one static mesh.
+
+    Render meshes are joined into an object named after the part, and collision meshes (names starting
+    with UCX_) are renamed UCX_<part>_NN so UE's FBX importer uses them as simple collision. Geometry is
+    re-centred on the part's PIVOT_* empty. SOCKET_<name>[.NNN] empties are written to the manifest relative to
+    the pivot: location in cm, forward (the empty's +X) and up (+Z), plus any custom properties (the
+    hangar portals carry width/height in metres).
+    """
+    for group in child_collections("Ships"):
+        for col in group.children:
+            if col.name.endswith("_Preview"):
+                continue
+            part = safe(col.name)
+            objs = list(col.objects)
+            pivot_obj = next((o for o in objs if o.type == "EMPTY" and o.name.startswith("PIVOT")), None)
+            pivot = pivot_obj.matrix_world.copy() if pivot_obj else Matrix.Identity(4)
+            to_local = pivot.inverted()
+            render = [o for o in objs if o.type == "MESH" and not o.name.startswith("UCX_")]
+            collision = [o for o in objs if o.type == "MESH" and o.name.startswith("UCX_")]
+            if not render:
+                log("skip (no meshes)", col.name)
+                continue
+            sanitize_materials(render)
+
+            def local_copy(o, name):
+                dup = o.copy()
+                dup.data = o.data.copy()
+                dup.parent = None
+                dup.modifiers.clear()
+                dup.data.transform(to_local @ o.matrix_world)
+                dup.matrix_world = Matrix.Identity(4)
+                dup.name = name
+                bpy.context.scene.collection.objects.link(dup)
+                return dup
+
+            joined = [local_copy(o, f"{part}_{i}") for i, o in enumerate(render)]
+            with bpy.context.temp_override(active_object=joined[0], selected_editable_objects=joined, selected_objects=joined):
+                bpy.ops.object.join()
+            body = joined[0]
+            body.name = part
+            hulls = [local_copy(o, f"UCX_{part}_{i + 1:02d}") for i, o in enumerate(collision)]
+            rel = f"Ships/{part}.fbx"
+            export_fbx(os.path.join(OUT_DIR, rel), [body] + hulls, armature=False)
+            mn, mx = bounds([body])
+
+            sockets = {}
+            for e in objs:
+                if e.type != "EMPTY" or not e.name.startswith("SOCKET_"):
+                    continue
+                local = to_local @ e.matrix_world
+                basis = local.to_3x3().normalized()
+                entry = {"location": to_ue(local.to_translation()),
+                         "forward": to_ue(basis @ Vector((1, 0, 0)), 1.0),
+                         "up": to_ue(basis @ Vector((0, 0, 1)), 1.0)}
+                entry.update({k: e[k] for k in e.keys() if isinstance(e[k], (int, float))})
+                # Object names are unique in a .blend, so a second "SOCKET_hangar_portal" is "...portal.001".
+                sockets[re.sub(r"\.\d+$", "", e.name[len("SOCKET_"):])] = entry
+            manifest["ships"][part] = {
+                "group": group.name,
+                "file": rel,
+                "materials": sorted({s.material.name for o in render for s in o.material_slots if s.material}),
+                "collision_hulls": len(hulls),
+                "sockets": sockets,
+                "bounds_min_cm": to_ue(Vector((mn[0], mx[1], mn[2]))),
+                "bounds_max_cm": to_ue(Vector((mx[0], mn[1], mx[2]))),
+            }
+            for o in [body] + hulls:
+                bpy.data.objects.remove(o, do_unlink=True)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     if bpy.context.object and bpy.context.object.mode != "OBJECT":
@@ -362,13 +444,15 @@ def main():
         if o.type == "ARMATURE":
             o.data.pose_position = "REST"
     manifest = {"source": os.path.basename(bpy.data.filepath), "characters": {}, "weapons": {}, "props": {},
-                "materials": materials, "textures": textures}
+                "ships": {}, "materials": materials, "textures": textures}
     export_characters(manifest)
     export_weapons(manifest)
+    export_ships(manifest)
     with open(os.path.join(OUT_DIR, "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=1, sort_keys=True)
-    log("DONE characters=%d weapons=%d props=%d materials=%d textures=%d" % (
-        len(manifest["characters"]), len(manifest["weapons"]), len(manifest["props"]), len(materials), len(textures)))
+    log("DONE characters=%d weapons=%d props=%d ships=%d materials=%d textures=%d" % (
+        len(manifest["characters"]), len(manifest["weapons"]), len(manifest["props"]), len(manifest["ships"]),
+        len(materials), len(textures)))
 
 
 main()

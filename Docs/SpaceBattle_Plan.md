@@ -30,12 +30,26 @@ Instead of entering vehicles, the player **hacks Stalkers** (flying X-armed robo
 
 ## 2. Graybox capital ship (Blender)
 
-- New `Ships/` collection in `Art/Graybox/Metalization_Graybox.blend`, exported as static meshes (like props).
-- One hull of about 600 m, tinted per team with material instances. Separate meshes so parts can break: `SM_CapShip_Hull`, `_Engines`, `_ShieldGen` (two domes), `_Comms`, `_TurretBase`, `_TurretGun`.
-- Hangar mouth in the hull side; its frame is an empty `portal_frame` (about 80 x 30 m) written to `manifest.json`.
-- Sockets from empties: `turret_##`, `subsystem_*`, `hangar_portal`, `launch_dir`.
-- Interior kit: `SM_Hangar_Shell` (its open side matches `portal_frame`), parking pads, blast-door frame. Corridors and the spawn room are box geometry from the level script.
-- Pipeline: `SHIP_COLLECTIONS` in `blender_export.py`, `/Game/Metalization/Ships` in the importer, collision and portal-size checks in the validator.
+Built (see Progress). Layout in `Art/Graybox/Metalization_Graybox.blend`: `Ships/<group>/<part>`, one collection per static mesh. A part collection holds:
+- its render meshes (joined at export)
+- `UCX_*` boxes or convex hulls for collision
+- a `PIVOT_*` empty (the mesh origin)
+- `SOCKET_<name>` empties: +X is forward, +Z is up, and custom properties are carried through
+
+Collections ending in `_Preview` are display-only. `CapShip_Preview` instances the modular parts on their other sockets so the whole ship can be seen in Blender.
+
+| Mesh | Size | Notes |
+|---|---|---|
+| `SM_CapShip_Hull` | 600 x 162 x 119 m | Ship forward is +X. Armoured rear block, tapered prow, keel, bridge tower. The 80 x 30 m hangar mouth is on the starboard (+Y) face: a 4 m recess with a glowing frame. 9 collision hulls; the recess is left open. Sockets: `hangar_portal` (forward = out of the ship, `width`/`height` in m), `engines`, `shieldgen_L/R`, `comms`, `turret_01..09` (05 is on the prow, 06-09 hang under the hull) |
+| `SM_CapShip_Engines` | 33 x 140 x 48 m | Three nozzles with glowing exhausts. Goes on `engines` |
+| `SM_CapShip_ShieldGen` | 25 x 25 x 16 m | Dome on a pedestal. Goes on both `shieldgen_*` sockets |
+| `SM_CapShip_Comms` | 16 x 24 x 33 m | Mast and dish. Goes on `comms` |
+| `SM_CapShip_TurretBase` / `_TurretGun` | 16 m ring / 28 m gun | The base goes on `turret_##`. The gun goes on the base's `gun` socket, pivoting at its yaw/pitch centre with barrels along +X |
+| `SM_Hangar_Shell` | 124 x 104 x 44 m | Interior room: origin is floor level at the middle of the mouth, the room extends along -Y and the mouth faces +Y. The 80 x 30 m mouth sits on a 4 m sill, so robots on foot can't walk out into space. Sockets: `hangar_portal` (same size as the hull's), `corridor_door` (8 x 6 m doorway in the back wall), `pad_1..3` (30 m apart, facing the mouth) |
+| `SM_Hangar_Pad` | 16 x 14 m | Parking pad for the `pad_*` sockets |
+| `SM_Hangar_BlastDoor` | 11 x 8 m frame | Fits the corridor doorway, facing +X |
+
+Materials are flat colours: `GB_ship_Hull`/`_Accent`/`_Dark`/`_Glow` and `GB_hangar_Floor`/`_Wall`/`_Hazard`. Per-team hull tint comes in Phase 3 (dynamic material on the `_Hull` slot, as the Stalker does). The `launch_dir` socket from the first draft was dropped: the portal socket's forward is the launch direction.
 
 ## 3. Stalker: flight, weapons, animation
 
@@ -117,4 +131,9 @@ Instead of entering vehicles, the player **hacks Stalkers** (flying X-armed robo
   - Assets and map: `WD_StalkerCannons`, `MZ_FlightTest` (`Tools/AssetPipeline/ue_setup_flight.py`, `MZ_LEVELS=flight`).
   - Test: `smoke_test.ps1 -Scenario flight` links to a parked Stalker, climbs, cruises, boosts, shoots two arms off an enemy Stalker and destroys it, dodges both ways and disconnects. `combat` and `boss` still pass.
   - No AI pilots yet (Phase 6). Unpiloted Stalkers just hover or sit parked.
-- Phase 2: next.
+- **Phase 2: done (2026-10-19).**
+  - The graybox ship and hangar kit are in the `.blend` (§2).
+  - `blender_export.py` exports `Ships/` parts with UCX collision and writes the socket transforms (UE space) to the manifest. `ue_import_assets.py` imports them to `/Game/Metalization/Ships` and adds the sockets to the meshes. `run_pipeline.ps1` wipes `Ships` before importing.
+  - `ue_validate.py` checks each ship mesh for collision and its required sockets, checks the hull length, checks that the hangar mouth is on the +Y side (which catches an axis mix-up), and checks that both ends of the hangar portal are the same size. Result: PASSED.
+  - The `flight` and `boss` smoke tests still pass after the full reimport.
+- Phase 3: next (`AMetalCapitalShip`, interior instancing, parked Stalkers on the pads).
