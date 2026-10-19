@@ -23,6 +23,7 @@ class UInstancedStaticMeshComponent;
 class ULevelStreamingDynamic;
 class UMaterialInstanceDynamic;
 class UMetalBotArchetype;
+class UMetalWeaponData;
 class UStaticMesh;
 
 UENUM(BlueprintType)
@@ -63,6 +64,22 @@ public:
 	/** Mounted on the turret base's "gun" socket. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> TurretGunMesh;
+
+	/** What the turrets fire (a projectile weapon). None = turrets are scenery. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turrets")
+	TObjectPtr<UMetalWeaponData> TurretWeapon;
+
+	/** Turrets engage enemy flyers this close (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turrets")
+	float TurretRange = 120000.f;
+
+	/** Degrees per second. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turrets")
+	float TurretTurnRate = 70.f;
+
+	/** Extra spread (degrees) on top of the weapon's, so turrets threaten rather than snipe. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turrets")
+	float TurretAimError = 2.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	float HullHealth = 20000.f;
@@ -173,6 +190,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
 	float DrawDistance = 1500000.f;
 
+	/** AI-piloted Stalkers this ship's hangar keeps in the fight (on top of the parked ones players can take). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
+	int32 AIPilots = 3;
+
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	EMetalTeam GetTeam() const { return Team; }
 
@@ -254,6 +275,7 @@ private:
 	void HandleInteriorShown();
 	void ApplyTeamColors();
 	void CreatePortals();
+	void TickTurrets(float DeltaSeconds);
 	void FlashComponent(UPrimitiveComponent* Component);
 	void DestroySubsystem(UMetalShipSubsystemComponent* Subsystem);
 	void DestroyShip();
@@ -267,6 +289,19 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<UPrimitiveComponent>, float> HitFlash;
+
+	struct FTurret
+	{
+		/** Mount on the hull (component space) and the gun's offset on top of it. */
+		FTransform Mount;
+		float Yaw = 0.f;
+		float Pitch = 0.f;
+		float NextFireTime = 0.f;
+		TWeakObjectPtr<AActor> Target;
+	};
+	TArray<FTurret> Turrets;
+	FTransform TurretGunOffset;
+	float NextTurretThinkTime = 0.f;
 
 	TWeakObjectPtr<AMetalHangar> Hangar;
 	TWeakObjectPtr<AMetalPortal> OuterPortal;

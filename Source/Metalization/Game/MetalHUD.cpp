@@ -7,6 +7,7 @@
 #include "MetalCapitalShip.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
+#include "EngineUtils.h"
 #include "MetalStalker.h"
 #include "MetalWeaponData.h"
 #include "Engine/Canvas.h"
@@ -104,6 +105,7 @@ void AMetalHUD::DrawHUD()
 		// Flying: airspeed and the boost meter.
 		if (const AMetalStalker* Flyer = Cast<AMetalStalker>(Bot))
 		{
+			DrawLeadReticle(Flyer, UI);
 			const int32 Speed = FMath::RoundToInt(Flyer->GetVelocity().Size() / 100.f);
 			DrawTextShadowed(FString::Printf(TEXT("SPEED %d m/s%s"), Speed, Flyer->IsBoosting() ? TEXT("   BOOST") : TEXT("")), BarX, BarY - 64.f * UI, FLinearColor::White, Small, UI * 1.3f);
 			const float Boost = Flyer->GetBoostFraction();
@@ -324,5 +326,54 @@ void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* 
 		{
 			DrawMarker(Enemy->GetOuterPortal()->GetActorLocation(), TEXT("ENEMY HANGAR"), FLinearColor(1.f, 0.6f, 0.3f), UI, false);
 		}
+	}
+}
+
+void AMetalHUD::DrawLeadReticle(const AMetalStalker* Flyer, float UI)
+{
+	const FMetalWeaponSlot* Slot = Flyer->GetCurrentWeapon();
+	if (Slot == nullptr || Slot->Data == nullptr || Slot->Data->FireMode != EMetalFireMode::Projectile)
+	{
+		return;
+	}
+	const float ShotSpeed = FMath::Max(1000.f, Slot->Data->ProjectileSpeed);
+	const FVector2D Center(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
+	const AMetalStalker* Best = nullptr;
+	FVector BestLead = FVector::ZeroVector;
+	float BestScreenDistance = 300.f * UI;
+	for (TActorIterator<AMetalStalker> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsAlive() || It->IsParked() || !Flyer->IsHostileTo(*It) || FVector::DistSquared(It->GetActorLocation(), Flyer->GetActorLocation()) > FMath::Square(200000.f))
+		{
+			continue;
+		}
+		const FVector Lead = It->GetActorLocation() + It->GetVelocity() * (FVector::Dist(It->GetActorLocation(), Flyer->GetActorLocation()) / ShotSpeed);
+		const FVector Screen = Project(Lead);
+		const float ScreenDistance = FVector2D::Distance(FVector2D(Screen.X, Screen.Y), Center);
+		if (Screen.Z > 0.f && ScreenDistance < BestScreenDistance)
+		{
+			Best = *It;
+			BestLead = Lead;
+			BestScreenDistance = ScreenDistance;
+		}
+	}
+	if (Best == nullptr)
+	{
+		return;
+	}
+	// A ring on the lead point, tied back to the target.
+	const FVector Lead = Project(BestLead);
+	const FVector Target = Project(Best->GetActorLocation());
+	const FLinearColor Color(1.f, 0.85f, 0.2f, 0.9f);
+	const float R = 11.f * UI;
+	for (int32 Segment = 0; Segment < 12; ++Segment)
+	{
+		const float A0 = Segment * UE_TWO_PI / 12.f;
+		const float A1 = (Segment + 1) * UE_TWO_PI / 12.f;
+		DrawLine(Lead.X + R * FMath::Cos(A0), Lead.Y + R * FMath::Sin(A0), Lead.X + R * FMath::Cos(A1), Lead.Y + R * FMath::Sin(A1), Color, 2.f);
+	}
+	if (Target.Z > 0.f)
+	{
+		DrawLine(Target.X, Target.Y, Lead.X, Lead.Y, FLinearColor(Color.R, Color.G, Color.B, 0.35f), 1.f);
 	}
 }

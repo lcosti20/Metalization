@@ -5,6 +5,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
+#include "MetalFlyerAIController.h"
 #include "MetalHangar.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
@@ -68,6 +69,8 @@ namespace
 				{16.0f, EStep::Stop}, {16.5f, EStep::GoNearEnemyMouth}, {16.7f, EStep::AimEnemyMouth}, {16.9f, EStep::Run},
 				{23.5f, EStep::Stop}, {24.2f, EStep::AimEnemyLifeSupport}, {24.5f, EStep::Fire}, {30.5f, EStep::StopFire},
 				{31.0f, EStep::WreckEnemyShip}}},
+			// AI-only battle: the player stays aboard while both squadrons and the turrets fight it out.
+			{TEXT("dogfight"), {}},
 			// No inputs: exterior screenshots with -MetalCam.
 			{TEXT("ships"), {}},
 		};
@@ -422,6 +425,11 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
 				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()));
+			}
+			else if (const AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(It->GetController()))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d hp=%.0f speed=%.0f loc=%s %s"), *It->GetName(), static_cast<int32>(It->GetTeam()), It->GetHealth(),
+					It->GetVelocity().Size(), *It->GetActorLocation().ToCompactString(), *Pilot->DescribeState());
 			}
 			else if (It->IsA<AMetalStalker>() && !It->IsPlayerControlled())
 			{

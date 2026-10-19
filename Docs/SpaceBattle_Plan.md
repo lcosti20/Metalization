@@ -143,7 +143,20 @@ Built in Phase 5 (`MetalSpaceBattleGameMode.*`, `MetalHUD.cpp`):
   - Within 2.5 km: blinking markers on the enemy's live subsystems, including LIFE SUPPORT once you're in their hangar.
   - Speed, boost and the PILOT prompt came in Phase 1.
 - **Lead reticle:** deferred to Phase 6, when there are moving enemy pilots to lead.
-- `AMetalFlyerAIController`: dogfight (pursue, lead, burst, boost-dodge when hit), attack run on subsystems, defend, return to hangar (stretch). AI pilots spawn already in Stalkers. Turret AI leads the nearest hostile flyer.
+### AI (built in Phase 6)
+- **`AMetalFlyerAIController`** (`MetalFlyerAIController.*`): each pilot is a Fighter or a Raider (`PilotRole`). Each falls back on the other job when its own has no target.
+  - **Fighters** defend their own ship from enemy flyers within 800 m of it, then hunt within 3 km, and turn on whoever shoots them.
+  - **Raiders** attack the enemy ship in order: shield generators, then engines and comms, then life support (flying in through the enemy hangar mouth), then the hull.
+  - **Attack pattern:** hover and circle. The pilot holds an orbit point on its own side of the target at a 25-35° elevation, swaying sideways and vertically.
+    - Dogfight standoff is 40 m (`PreferredRange`), subsystem standoff 220 m (`StrafeRange`).
+    - It fires bursts (archetype burst and pause) when its guns are within 8° of the lead point, the target is inside 450 m (`FireRange`), and nothing else is in the line of fire.
+  - **Movement:** steering, not a navmesh. It flies at the point, sweeps 1.2 s ahead to slide off hulls (biased upward), boosts on long legs, and dodge-rolls when hit (every 2.5-4.5 s at most).
+  - **Portals as navigation links:** a target in another "space" (open space, or a ship's interior within 600 m of its `InteriorLocation`) means flying through a portal first. The pilot lines up 60 m in front of the mouth, then flies straight through. From an interior it leaves by the inner portal; from space it enters by the target ship's outer portal.
+- **AI squadrons:** `AMetalCapitalShip::AIPilots` (Heroes 2, Villains 3, because the player is the Heroes' third). The hangar launches them hovering above the pads, staggered 1.5 s apart, and alternates Fighter and Raider. Destroyed pilots relaunch after the hangar's respawn delay. Parked pad Stalkers stay free for players: an ally Stalker can only be linked while nobody is flying it.
+- **Turrets:** `AMetalCapitalShip` now aims and fires its turrets (`TurretWeapon` = `WD_TurretFlak`, 1.2 km range, 70°/s, 2.5° extra spread).
+  - Each gun picks the nearest piloted enemy Stalker above its horizon with a clear line of sight, swivels its gun instance to the lead point, and fires when within 6°.
+  - Shots carry the ship as owner, so neither the ship nor its team's robots take damage from them.
+- **Lead reticle:** while piloting, a ring marks where to shoot the enemy flyer nearest the crosshair, with a faint line back to the target.
 
 ## 8. Phases
 
@@ -202,4 +215,13 @@ Built in Phase 5 (`MetalSpaceBattleGameMode.*`, `MetalHUD.cpp`):
     - Fly in through the Villain portal (the one turned 180°) and shoot their life support (3000 → 2208).
     - A dev step then wrecks the rest of their ship: tickets 150 → 0 and the VICTORY screen.
   - `hangar`, `combat` and `flight` still pass.
-- Phase 6: next (AI pilots and turrets, portal navigation links, lead reticle).
+- **Phase 6: done (2026-10-19).**
+  - Built: `AMetalFlyerAIController`, the hangar AI squadrons, ship turrets plus `WD_TurretFlak`, and the lead reticle.
+  - Stalker AI aim error went from 3° to 1.5°, and its preferred range from 25 m to 40 m.
+  - New `smoke_test.ps1 -Scenario dogfight` (90 s, AI only, fixed cameras):
+    - Both squadrons launch and fly out through both ships' portals (7 crossings).
+    - Fighters dogfight and pilots die: Heroes lost 3 tickets.
+    - Raiders circle-strafe the enemy shield generators: Villain shield 2500 → 2128, Hero's 2500 → 2356. Flak is visible around the ships.
+  - `hangar`, `battle`, `flight` and `combat` still pass with the AI squadrons in the air.
+  - **Balance is a first pass.** In 90 s the 3-pilot Villains had the upper hand, and no subsystem fell, so a full battle would take a long time.
+- Phase 7: next (polish and shipping).

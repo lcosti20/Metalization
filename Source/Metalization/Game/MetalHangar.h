@@ -75,6 +75,8 @@ public:
 	FTransform GetMouthTransform() const;
 	int32 GetPadCount() const { return Pads.Num(); }
 	AMetalBotCharacter* GetParkedRobot(int32 PadIndex) const;
+	/** AI-piloted robots currently out (alive) from this hangar. */
+	int32 GetActivePilots() const;
 
 	UMetalShipSubsystemComponent* GetLifeSupport() const { return LifeSupport; }
 
@@ -104,6 +106,15 @@ private:
 
 	void BuildPads();
 	void SpawnRobot(FPad& Pad);
+	void LaunchPilot(int32 Slot);
+
+	/** The AI squadron: one entry per pilot slot, respawned like the pads. */
+	struct FPilotSlot
+	{
+		TWeakObjectPtr<AMetalBotCharacter> Robot;
+		float RespawnAt = 0.f;
+	};
+	TArray<FPilotSlot> PilotSlots;
 
 	TArray<FPad> Pads;
 	TWeakObjectPtr<AMetalCapitalShip> OwningShip;

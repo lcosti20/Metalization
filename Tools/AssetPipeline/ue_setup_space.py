@@ -224,7 +224,8 @@ def make_ship_data(archetypes):
          team_colors={unreal.MetalTeam.HEROES: colors((0.16, 0.2, 0.36), (0.45, 0.52, 0.72)),
                       unreal.MetalTeam.VILLAINS: colors((0.36, 0.17, 0.13), (0.72, 0.5, 0.42))},
          interior=load(INTERIOR_PATH), hangar_robot=archetypes["stalker"], hangar_respawn_delay=20.0,
-         hangar_mouth_size=unreal.Vector2D(8000.0, 3000.0), portal_material=make_portal_material())
+         hangar_mouth_size=unreal.Vector2D(8000.0, 3000.0), portal_material=make_portal_material(),
+         turret_weapon=load(f"{DATA}/WD_TurretFlak"), turret_range=120000.0, turret_turn_rate=70.0, turret_aim_error=2.5)
     eal.save_loaded_asset(data)
     log("ship data: " + path)
     return data
@@ -238,10 +239,12 @@ def build_space(ship_data):
 
     # Broadside to broadside, hangar mouths (starboard) facing each other across 1.6 km.
     # Interiors float 20 km up and 10 km apart: beyond each other's and the ships' draw distances.
-    for label, team, y, yaw, interior in (("Ship_Heroes", unreal.MetalTeam.HEROES, -80000, 0.0, (0, 0, 2000000)),
-                                          ("Ship_Villains", unreal.MetalTeam.VILLAINS, 80000, 180.0, (1000000, 0, 2000000))):
+    # The player is the Heroes' third pilot, so their squadron has one AI pilot fewer.
+    for label, team, y, yaw, interior, pilots in (("Ship_Heroes", unreal.MetalTeam.HEROES, -80000, 0.0, (0, 0, 2000000), 2),
+                                                  ("Ship_Villains", unreal.MetalTeam.VILLAINS, 80000, 180.0, (1000000, 0, 2000000), 3)):
         ship = spawn(unreal.MetalCapitalShip, (0, y, 0), yaw, label, "Ships")
-        setp(ship, ship_data=ship_data, team=team, interior_location=unreal.Vector(*interior), draw_distance=SPACE_DRAW)
+        setp(ship, ship_data=ship_data, team=team, interior_location=unreal.Vector(*interior), draw_distance=SPACE_DRAW,
+             ai_pilots=pilots)
 
     # High sun along the ships' length: decks and both broadsides catch light; a blue fill lifts the shadows.
     sun = spawn(unreal.DirectionalLight, (0, 0, 50000), label="Sun", folder="Lighting", pitch=-50.0, yaw=20.0)

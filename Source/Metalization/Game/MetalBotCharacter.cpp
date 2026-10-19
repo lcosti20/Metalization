@@ -2,6 +2,8 @@
 
 #include "MetalGameMode.h"
 #include "MetalBotAIController.h"
+#include "MetalCapitalShip.h"
+#include "MetalFlyerAIController.h"
 #include "MetalBotAnimInstance.h"
 #include "MetalBotArchetype.h"
 #include "MetalFX.h"
@@ -279,7 +281,8 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 	}
 	if (Team == Hacker->GetTeam())
 	{
-		return Archetype->bAllyHackable;
+		// Only idle ones (parked, or left hovering): never one an AI pilot is flying.
+		return Archetype->bAllyHackable && GetController() == nullptr;
 	}
 	return Archetype->bHackable && Hacker->IsHostileTo(this);
 }
@@ -776,6 +779,11 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	{
 		return 0.f; // no friendly fire
 	}
+	// Shots from a capital ship's turrets carry the ship as their owner.
+	if (const AMetalCapitalShip* Ship = Cast<AMetalCapitalShip>(DamageCauser ? DamageCauser->GetOwner() : nullptr); Ship && Ship->GetTeam() == Team)
+	{
+		return 0.f;
+	}
 
 	float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	const int32 Zone = FindHitZone(DamageEvent);
@@ -807,6 +815,10 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(GetController()))
 	{
 		AI->NotifyDamaged(Attacker);
+	}
+	if (AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(GetController()))
+	{
+		Pilot->NotifyDamaged(Attacker);
 	}
 	if (AMetalPlayerController* PC = Cast<AMetalPlayerController>(GetController()))
 	{

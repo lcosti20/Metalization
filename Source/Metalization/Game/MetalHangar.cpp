@@ -2,6 +2,7 @@
 
 #include "MetalBotArchetype.h"
 #include "MetalCapitalShip.h"
+#include "MetalFlyerAIController.h"
 #include "MetalStalker.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
@@ -101,6 +102,12 @@ void AMetalHangar::InitForShip(AMetalCapitalShip* Ship)
 	{
 		SpawnRobot(Pad);
 	}
+	// Pilots launch a couple of seconds in, staggered, so they don't all leave as one clump.
+	PilotSlots.SetNum(Ship ? FMath::Max(0, Ship->AIPilots) : 0);
+	for (int32 Slot = 0; Slot < PilotSlots.Num(); ++Slot)
+	{
+		PilotSlots[Slot].RespawnAt = GetWorld()->GetTimeSeconds() + 2.f + Slot * 1.5f;
+	}
 	UE_LOG(LogMetal, Display, TEXT("%s: team %d, %d robots parked at %s"), *GetName(), static_cast<int32>(Team), Pads.Num(), *GetActorLocation().ToCompactString());
 }
 
@@ -122,6 +129,55 @@ float AMetalHangar::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 FTransform AMetalHangar::GetMouthTransform() const
 {
 	return Shell->DoesSocketExist(TEXT("hangar_portal")) ? Shell->GetSocketTransform(TEXT("hangar_portal")) : GetActorTransform();
+}
+
+int32 AMetalHangar::GetActivePilots() const
+{
+	int32 Count = 0;
+	for (const FPilotSlot& Slot : PilotSlots)
+	{
+		Count += Slot.Robot.IsValid() && Slot.Robot->IsAlive() ? 1 : 0;
+	}
+	return Count;
+}
+
+void AMetalHangar::LaunchPilot(int32 Slot)
+{
+	FPilotSlot& Pilot = PilotSlots[Slot];
+	Pilot.RespawnAt = -1.f;
+	if (RobotArchetype == nullptr || RobotClass == nullptr || Pads.Num() == 0)
+	{
+		return;
+	}
+	// Spawn hovering 15 m above a pad (clear of the parked robot), already flying.
+	const FTransform World = Pads[Slot % Pads.Num()].Transform * GetActorTransform();
+	const FVector Location = World.GetLocation() + FVector(0.f, 0.f, 1500.f + 400.f * (Slot / Pads.Num()));
+	const FRotator Facing(0.f, World.Rotator().Yaw, 0.f);
+	FActorSpawnParameters Params;
+	Params.OverrideLevel = GetLevel();
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	Params.bDeferConstruction = true;
+	AMetalBotCharacter* Robot = GetWorld()->SpawnActor<AMetalBotCharacter>(RobotClass, Location, Facing, Params);
+	if (Robot == nullptr)
+	{
+		return;
+	}
+	Robot->Archetype = RobotArchetype;
+	Robot->bOverrideTeam = true;
+	Robot->TeamOverride = Team;
+	if (AMetalStalker* Stalker = Cast<AMetalStalker>(Robot))
+	{
+		Stalker->bStartParked = false;
+	}
+	Robot->FinishSpawning(FTransform(Facing, Location));
+	Robot->AIControllerClass = AMetalFlyerAIController::StaticClass();
+	Robot->SpawnDefaultController();
+	if (AMetalFlyerAIController* Brain = Cast<AMetalFlyerAIController>(Robot->GetController()))
+	{
+		// Alternate jobs: odd slots raid the enemy ship, even slots fly cover.
+		Brain->PilotRole = Slot % 2 == 1 ? EMetalPilotRole::Raider : EMetalPilotRole::Fighter;
+	}
+	Pilot.Robot = Robot;
 }
 
 AMetalBotCharacter* AMetalHangar::GetParkedRobot(int32 PadIndex) const
@@ -172,6 +228,22 @@ void AMetalHangar::Tick(float DeltaSeconds)
 		return;
 	}
 	NextCheckTime = Now + CheckInterval;
+	for (int32 Slot = 0; Slot < PilotSlots.Num(); ++Slot)
+	{
+		FPilotSlot& Pilot = PilotSlots[Slot];
+		if (Pilot.Robot.IsValid() && Pilot.Robot->IsAlive())
+		{
+			continue;
+		}
+		if (Pilot.RespawnAt < 0.f)
+		{
+			Pilot.RespawnAt = Now + RespawnDelay;
+		}
+		else if (Now >= Pilot.RespawnAt)
+		{
+			LaunchPilot(Slot);
+		}
+	}
 	for (FPad& Pad : Pads)
 	{
 		const AMetalBotCharacter* Robot = Pad.Robot.Get();

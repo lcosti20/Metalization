@@ -4,6 +4,9 @@
 #include "MetalFX.h"
 #include "MetalHangar.h"
 #include "MetalPortal.h"
+#include "MetalProjectile.h"
+#include "MetalStalker.h"
+#include "MetalWeaponData.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/Level.h"
@@ -111,6 +114,8 @@ void AMetalCapitalShip::ApplyShipData()
 	TurretGuns->SetStaticMesh(ShipData->TurretGunMesh);
 	const UStaticMeshSocket* GunSocket = ShipData->TurretBaseMesh ? ShipData->TurretBaseMesh->FindSocket(TEXT("gun")) : nullptr;
 	const FTransform GunOffset = GunSocket ? FTransform(GunSocket->RelativeRotation, GunSocket->RelativeLocation) : FTransform::Identity;
+	TurretGunOffset = GunOffset;
+	Turrets.Reset();
 	for (int32 Index = 1; ShipData->HullMesh && Index <= MaxTurrets; ++Index)
 	{
 		const UStaticMeshSocket* Socket = ShipData->HullMesh->FindSocket(*FString::Printf(TEXT("turret_%02d"), Index));
@@ -121,6 +126,7 @@ void AMetalCapitalShip::ApplyShipData()
 		const FTransform Mount(Socket->RelativeRotation, Socket->RelativeLocation);
 		TurretBases->AddInstance(Mount);
 		TurretGuns->AddInstance(GunOffset * Mount);
+		Turrets.AddDefaulted_GetRef().Mount = Mount;
 	}
 }
 
@@ -316,6 +322,10 @@ float AMetalCapitalShip::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 	{
 		return 0.f; // no friendly fire
 	}
+	if (const AMetalCapitalShip* Ship = Cast<AMetalCapitalShip>(DamageCauser ? DamageCauser->GetOwner() : nullptr); Ship && Ship->Team == Team)
+	{
+		return 0.f; // our own turrets
+	}
 	const float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
 	UPrimitiveComponent* HitComponent = nullptr;
@@ -423,9 +433,110 @@ void AMetalCapitalShip::OnShipDestroyed_Implementation()
 {
 }
 
+void AMetalCapitalShip::TickTurrets(float DeltaSeconds)
+{
+	const UMetalWeaponData* Weapon = ShipData ? ShipData->TurretWeapon.Get() : nullptr;
+	if (Weapon == nullptr || bShipDestroyed || Turrets.Num() == 0)
+	{
+		return;
+	}
+	UWorld* World = GetWorld();
+	const float Now = World->GetTimeSeconds();
+	const FTransform HullToWorld = Hull->GetComponentTransform();
+
+	// Pick targets a few times a second: the nearest enemy flyer each gun can see.
+	if (Now >= NextTurretThinkTime)
+	{
+		NextTurretThinkTime = Now + 0.3f;
+		TArray<AMetalStalker*> Enemies;
+		for (TActorIterator<AMetalStalker> It(World); It; ++It)
+		{
+			if (It->IsAlive() && !It->IsParked() && It->GetController() && It->GetTeam() != Team && It->GetTeam() != EMetalTeam::Neutral
+				&& FVector::DistSquared(It->GetActorLocation(), GetActorLocation()) < FMath::Square(ShipData->TurretRange + 30000.f))
+			{
+				Enemies.Add(*It);
+			}
+		}
+		for (FTurret& Turret : Turrets)
+		{
+			const FVector Gun = (TurretGunOffset * Turret.Mount * HullToWorld).GetLocation();
+			const FVector Up = (Turret.Mount * HullToWorld).GetRotation().GetUpVector();
+			AMetalStalker* Best = nullptr;
+			float BestDistance = ShipData->TurretRange;
+			for (AMetalStalker* Enemy : Enemies)
+			{
+				const FVector ToEnemy = Enemy->GetActorLocation() - Gun;
+				const float Distance = ToEnemy.Size();
+				// Above the turret's horizon, in range, and not behind our own hull.
+				if (Distance >= BestDistance || FVector::DotProduct(ToEnemy / Distance, Up) < -0.05f)
+				{
+					continue;
+				}
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalTurretSight), false, Enemy);
+				FHitResult Hit;
+				if (World->LineTraceSingleByChannel(Hit, Gun + Up * 600.f, Enemy->GetActorLocation(), ECC_Visibility, Params))
+				{
+					continue;
+				}
+				Best = Enemy;
+				BestDistance = Distance;
+			}
+			Turret.Target = Best;
+		}
+	}
+
+	for (int32 Index = 0; Index < Turrets.Num(); ++Index)
+	{
+		FTurret& Turret = Turrets[Index];
+		const FTransform MountWorld = Turret.Mount * HullToWorld;
+		float DesiredYaw = 0.f;
+		float DesiredPitch = 0.f;
+		FVector AimWorld = FVector::ZeroVector;
+		const AActor* Target = Turret.Target.Get();
+		if (Target)
+		{
+			const FVector Gun = (TurretGunOffset * MountWorld).GetLocation();
+			const float Flight = FVector::Dist(Gun, Target->GetActorLocation()) / FMath::Max(1000.f, Weapon->ProjectileSpeed);
+			AimWorld = Target->GetActorLocation() + Target->GetVelocity() * Flight;
+			const FVector Local = MountWorld.InverseTransformVectorNoScale(AimWorld - Gun);
+			DesiredYaw = FMath::RadiansToDegrees(FMath::Atan2(Local.Y, Local.X));
+			DesiredPitch = FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan2(Local.Z, FVector2D(Local.X, Local.Y).Size())), -5.f, 85.f);
+		}
+		const float Step = ShipData->TurretTurnRate * DeltaSeconds;
+		Turret.Yaw += FMath::Clamp(FRotator::NormalizeAxis(DesiredYaw - Turret.Yaw), -Step, Step);
+		Turret.Pitch += FMath::Clamp(DesiredPitch - Turret.Pitch, -Step, Step);
+		const FTransform Aim(FRotator(Turret.Pitch, Turret.Yaw, 0.f));
+		const FTransform GunLocal = Aim * TurretGunOffset * Turret.Mount;
+		TurretGuns->UpdateInstanceTransform(Index, GunLocal, false, Index == Turrets.Num() - 1);
+
+		// Fire once the barrels are on the lead point.
+		if (Target && Now >= Turret.NextFireTime)
+		{
+			const FTransform GunWorld = GunLocal * HullToWorld;
+			const FVector Barrel = GunWorld.GetRotation().GetForwardVector();
+			const FVector Muzzle = GunWorld.GetLocation() + Barrel * 2400.f;
+			if (FVector::DotProduct(Barrel, (AimWorld - Muzzle).GetSafeNormal()) > FMath::Cos(FMath::DegreesToRadians(6.f)))
+			{
+				const FMetalWeaponLevel& Stats = Weapon->GetLevel(0);
+				Turret.NextFireTime = Now + Stats.FireInterval * FMath::FRandRange(0.85f, 1.15f);
+				FActorSpawnParameters Params;
+				Params.Owner = this;
+				Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				const FVector Direction = FMath::VRandCone(Barrel, FMath::DegreesToRadians(Weapon->SpreadDegrees + ShipData->TurretAimError));
+				if (AMetalProjectile* Shot = World->SpawnActor<AMetalProjectile>(Muzzle, Direction.Rotation(), Params))
+				{
+					Shot->Launch(Weapon, Stats.Damage, Direction * Weapon->ProjectileSpeed);
+				}
+				AMetalFX::SpawnBurst(World, Muzzle, Weapon->TracerColor, 150.f, 0.08f);
+			}
+		}
+	}
+}
+
 void AMetalCapitalShip::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	TickTurrets(DeltaSeconds);
 
 	for (auto It = HitFlash.CreateIterator(); It; ++It)
 	{

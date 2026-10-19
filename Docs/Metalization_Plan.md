@@ -88,7 +88,7 @@ To replace a graybox with authored art, model it in `Metalization_Graybox.blend`
 | AI | `AMetalBotAIController` | Patrol → Investigate → Combat (strafe at preferred range, burst fire) → Retreat. Plus Stunned, Disabled-weapon melee, squad alerts. Runtime navmesh |
 | Mission | `AMetalMission`, `AMetalTriggerZone`, `AMetalControlConsole`, `AMetalGate`, `AMetalPickup` | Ordered objectives (eliminate tagged / reach zone / activate console / hijack tagged) with dialogue lines. Checkpoints. Villain-only consoles for possession puzzles |
 | Flow / UI | `AMetalGameMode`, `AMetalHUD` | Respawn at checkpoint keeping inventory. Dialogue queue, banners, objective, health, ammo, tether timer, hack prompt, hit markers |
-| Capital ships | `AMetalCapitalShip`, `UMetalCapitalShipData`, `AMetalHangar`, `AMetalPortal`, `AMetalSpaceBattleGameMode` | Modular hull with destructible subsystems and shields. Each ship streams its own instance of the interior map far above the battle, and the hangar parks team-coloured Stalkers. A two-way portal links the hangar mouth to the hull's mouth: you see through it and fly through it. See `Docs/SpaceBattle_Plan.md` |
+| Capital ships | `AMetalCapitalShip`, `UMetalCapitalShipData`, `AMetalHangar`, `AMetalPortal`, `AMetalSpaceBattleGameMode`, `AMetalFlyerAIController` | Modular hull with destructible subsystems and shields. Each ship streams its own instance of the interior map far above the battle, and the hangar parks team-coloured Stalkers. A two-way portal links the hangar mouth to the hull's mouth: you see through it and fly through it. See `Docs/SpaceBattle_Plan.md` |
 | Flying robots | `AMetalStalker`, `UMetalFlightMovementComponent` | Hover-gunship flight, boost, dodge roll, four arm guns that can be shot off one by one. Friendly Stalkers can be piloted with the Hack Tether with no time limit. See `Docs/SpaceBattle_Plan.md` |
 | Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena|flight -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
 
@@ -135,6 +135,8 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario arena    # free roam in MZ_Arena
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario flight   # pilot a Stalker in MZ_FlightTest
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario hangar   # spawn aboard, pilot a Stalker out through the hangar portal and back
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle   # board the enemy hangar, shoot life support, win
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario dogfight # 90 s AI-only battle (pilots + turrets)
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships    # exterior shots of MZ_SpaceBattle
 ```
 

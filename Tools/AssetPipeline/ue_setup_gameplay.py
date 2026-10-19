@@ -117,6 +117,11 @@ def make_weapons():
         display_name="Arm Cannons", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
         spread_degrees=0.4, projectile_speed=30000.0, muzzle_offset=290.0, projectile_scale=4.0,
         tracer_color=color(0.35, 1.0, 0.45), levels=[level({}, 12.0, 0.08)])
+    # Capital ship flak turrets: slower, bigger slugs, fired by AMetalCapitalShip (no holder mesh).
+    w["TurretFlak"] = setp(data_asset("WD_TurretFlak", unreal.MetalWeaponData),
+        display_name="Turret Flak", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
+        spread_degrees=1.0, projectile_speed=18000.0, projectile_scale=6.0, tracer_color=color(1.0, 0.55, 0.15),
+        levels=[level({}, 10.0, 0.9)])
     w["Claw"] = setp(data_asset("WD_Claw", unreal.MetalWeaponData),
         display_name="Bare Servos", fire_mode=unreal.MetalFireMode.MELEE, automatic=True, infinite_ammo=True,
         range=130.0, tracer_color=color(1.0, 0.6, 0.2), levels=[level({}, 14.0, 0.8)])
@@ -229,7 +234,7 @@ def make_archetypes(manifest, w):
                  x_spread_degrees=28.0, boost_sweep_degrees=40.0, parked_fold_degrees=55.0),
          hit_zones=[zone("Gun" + name, bone, 60.0, 1.0, durability=90.0, muzzle=gun) for name, bone, gun in sides],
          starting_weapons=[w["StalkerCannons"]], muzzle_bones=["gun_upper_L", "gun_lower_R", "gun_upper_R", "gun_lower_L"],
-         sight_range=8000.0, preferred_range=2500.0, aim_error_degrees=3.0,
+         sight_range=8000.0, preferred_range=4000.0, aim_error_degrees=1.5,
          camera_distance=1500.0, camera_offset=unreal.Vector(0.0, 0.0, 330.0))
 
     setp(archetypes["guide"], display_name="Guide", capsule_half_height=48.0)
