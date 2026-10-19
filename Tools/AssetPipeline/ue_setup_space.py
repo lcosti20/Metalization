@@ -10,7 +10,7 @@ Creates:
                                                          across 1.6 km of asteroid field
 
 Interior layout (cm, level origin = floor at the middle of the hangar mouth, which faces +Y):
-    hangar      y 0 .. -10200  (from SM_Hangar_Shell; pads at y = -5500)
+    hangar      y 0 .. -10200  (from SM_Hangar_Shell; pads at y = -5500; life-support core at x -4300, y -9300)
     corridor    y -10200 .. -12200, 8 x 6 m, through the shell's back door
     spawn room  y -12200 .. -14600, 24 x 8 m high, four player starts in line with the corridor
 
@@ -129,7 +129,7 @@ def build_interior(archetypes):
     hangar = spawn(unreal.MetalHangar, (0, 0, 0), 0.0, "Hangar", "Hangar")
     setp(hangar, shell_mesh=load(f"{SHIPS}/SM_Hangar_Shell"), pad_mesh=load(f"{SHIPS}/SM_Hangar_Pad"),
          robot_archetype=archetypes["stalker"], team=unreal.MetalTeam.HEROES, respawn_delay=20.0,
-         interior_draw_distance=INTERIOR_DRAW)
+         interior_draw_distance=INTERIOR_DRAW, life_support_material=load(f"{ROOT}/Materials/MI_Env_Glow"))
     mesh("BlastDoor", load(f"{SHIPS}/SM_Hangar_BlastDoor"), (0, -10200, 0), 90.0, "Hangar")
     for i, (x, y) in enumerate([(x, y) for y in (-2500, -7500) for x in (-3000, 0, 3000)]):
         point_light(f"HangarLight_{i}", (x, y, 3700), 15000.0, 9000.0)
@@ -219,6 +219,7 @@ def make_ship_data(archetypes):
          shield_generator_mesh=load(f"{SHIPS}/SM_CapShip_ShieldGen"), comms_mesh=load(f"{SHIPS}/SM_CapShip_Comms"),
          turret_base_mesh=load(f"{SHIPS}/SM_CapShip_TurretBase"), turret_gun_mesh=load(f"{SHIPS}/SM_CapShip_TurretGun"),
          hull_health=20000.0, shield_generator_health=2500.0, engines_health=4000.0, comms_health=2000.0,
+         life_support_health=3000.0,
          shielded_hull_damage_scale=0.25,
          team_colors={unreal.MetalTeam.HEROES: colors((0.16, 0.2, 0.36), (0.45, 0.52, 0.72)),
                       unreal.MetalTeam.VILLAINS: colors((0.36, 0.17, 0.13), (0.72, 0.5, 0.42))},

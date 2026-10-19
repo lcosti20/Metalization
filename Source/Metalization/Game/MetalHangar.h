@@ -1,6 +1,8 @@
 // The hangar inside a capital ship's interior level. It owns the hangar shell mesh and the parking
 // pads (one per pad_N socket on the shell), parks a robot (a Stalker) on each pad in its ship's team
 // colours, and replaces destroyed ones after a delay. Robots that are still out flying keep their pad.
+// It also holds the ship's life-support core: a subsystem that enemies reach by flying in through the
+// hangar mouth, so its damage goes through the owning ship like any other subsystem.
 //
 // The owning AMetalCapitalShip finds the hangar when its interior streams in and calls InitForShip.
 // Opened on its own (the interior map as the persistent level) the hangar uses its own settings.
@@ -14,6 +16,8 @@
 
 class AMetalBotCharacter;
 class AMetalCapitalShip;
+class UMaterialInterface;
+class UMetalShipSubsystemComponent;
 class UInstancedStaticMeshComponent;
 class UMetalBotArchetype;
 class UStaticMesh;
@@ -47,6 +51,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
 	TObjectPtr<UStaticMesh> PadMesh;
 
+	/** Life-support core: a glowing column against the hangar's back wall. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
+	TObjectPtr<UMaterialInterface> LifeSupportMaterial;
+
+	/** Base of the core, relative to the hangar (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
+	FVector LifeSupportLocation = FVector(-4300.f, -9300.f, 0.f);
+
+	/** Core diameter and height (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
+	FVector2D LifeSupportSize = FVector2D(1200.f, 2600.f);
+
 	/** The interior stops drawing beyond this (cm) so it never shows up as a speck in the sky over the battle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
 	float InteriorDrawDistance = 500000.f;
@@ -60,6 +76,9 @@ public:
 	int32 GetPadCount() const { return Pads.Num(); }
 	AMetalBotCharacter* GetParkedRobot(int32 PadIndex) const;
 
+	UMetalShipSubsystemComponent* GetLifeSupport() const { return LifeSupport; }
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -71,6 +90,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UInstancedStaticMeshComponent> PadMeshes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<UMetalShipSubsystemComponent> LifeSupport;
 
 private:
 	struct FPad

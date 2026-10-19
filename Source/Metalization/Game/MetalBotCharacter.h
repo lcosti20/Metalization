@@ -88,6 +88,8 @@ public:
 	EMetalTeam GetTeam() const { return Team; }
 
 	virtual void SetTeam(EMetalTeam NewTeam);
+	/** Team from the archetype or the per-instance override, ignoring any hijack. */
+	EMetalTeam GetBaseTeam() const;
 	bool IsHostileTo(const AMetalBotCharacter* Other) const;
 
 	UFUNCTION(BlueprintPure, Category="Metalization")
@@ -198,8 +200,6 @@ protected:
 	void RefreshMaterials();
 	void SetMaterialScalar(FName Parameter, float Value);
 	virtual void ConfigureRotationForController();
-	/** Team from the archetype or the per-instance override, ignoring any hijack. */
-	EMetalTeam GetBaseTeam() const;
 	int32 FindHitZone(const FDamageEvent& DamageEvent) const;
 	void DisableWeapon();
 	void BreakZone(const FMetalHitZone& Zone);

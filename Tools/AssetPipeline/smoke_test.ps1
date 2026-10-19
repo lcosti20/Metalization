@@ -7,13 +7,14 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario arena # free roam in MZ_Arena
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario flight # pilot a Stalker in MZ_FlightTest
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario hangar # spawn aboard a capital ship, pilot a parked Stalker
+    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle # board the enemy hangar, shoot life support, win
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships  # exterior views of MZ_SpaceBattle
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
 Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
 #>
 param(
-    [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "ships")]
+    [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "ships")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe"
 )
@@ -25,10 +26,11 @@ $setups = @{
     "arena"  = @("-MetalShots=0.8,1.7,2.5,2.65,2.8,3.3,4.6,6.9,7.8,9", "-MetalQuitAt=10")
     "flight" = @("-MetalShots=1.4,2.2,3.5,6,9,10.8,11.4,12.5,14", "-MetalQuitAt=15")
     "hangar" = @("-MetalShots=10.6,13.2,15.2,17,20,25,28.5,31.5", "-MetalQuitAt=33")
+    "battle" = @("-MetalShots=16.2,17.5,24,27,31.5,33.5", "-MetalQuitAt=35")
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }
-$maps = @{ "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
+$maps = @{ "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
 $log = "$Project\Saved\smoke_$Scenario.log".Replace("\", "/")
 Remove-Item -Recurse -Force "$Project\Saved\Screenshots" -ErrorAction SilentlyContinue

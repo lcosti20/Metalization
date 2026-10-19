@@ -4,7 +4,7 @@
 //   -MetalCam=X,Y,Z,Pitch,Yaw    view from a fixed camera instead of the player
 //                                (separate several with ";" to use one camera per screenshot)
 //   -MetalShots=2,5.5,9          take screenshots at these times (Saved/Screenshots)
-//   -MetalAutopilot[=combat|gate|boss|arena|flight|hangar|ships]  run a scripted smoke test (see Scenarios() in the .cpp)
+//   -MetalAutopilot[=combat|gate|boss|arena|flight|hangar|battle|ships]  run a scripted smoke test (see Scenarios() in the .cpp)
 //   -MetalObjective=N            start the mission at objective N
 //   -MetalQuitAt=12              exit the game
 

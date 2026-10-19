@@ -125,9 +125,24 @@ Built in Phase 4 (`Source/Metalization/Game/MetalPortal.*`).
 
 ## 7. Battle mode
 
-- `AMetalSpaceBattleGameMode`: two teams with reinforcement tickets, lost per death and per destroyed subsystem. Win by destroying the enemy ship or draining its tickets.
-- The player spawns on foot in their ship's spawn room, walks to the hangar, hacks a Stalker.
-- HUD: ship and subsystem health, tickets, speed/boost, lead reticle, hack prompt on parked Stalkers, arrow to the home hangar.
+Built in Phase 5 (`MetalSpaceBattleGameMode.*`, `MetalHUD.cpp`):
+- **Tickets:** 150 per team, all tunable on the game mode. A team loses:
+  - 1 per combatant death: a robot on foot, or a Stalker with an AI pilot aboard. A player who loses their Stalker wakes up in their body, and empty parked Stalkers are just hardware.
+  - 20 per shield generator, engines or comms destroyed.
+  - 30 for life support, then 1 every 4 s while it stays down.
+- **Win/lose:** a team is beaten when its tickets hit zero or its ship is destroyed (which takes its remaining tickets). The stats screen then shows VICTORY or DEFEAT (`CompleteMission` takes a banner now), and there are no respawns after that.
+- **Life support is in the hangar, not a sabotage console.** Disconnecting always takes the player back to their own body, so nobody can walk aboard the enemy ship. Instead each `AMetalHangar` has a glowing life-support core against its back wall. It's registered with its ship as a subsystem (`RegisterSubsystem`, damage goes through `ApplySubsystemDamage`), so you board the enemy by flying a Stalker in through their hangar mouth.
+- **Subsystem effects:**
+  - Shields: hull damage drops to 25% while either generator stands.
+  - Engines: the hangar's replacement Stalkers take twice as long (`OnSubsystemDestroyed`, an example of the extension point).
+  - Comms: only the ticket penalty for now.
+  - A notice announces each kill or loss.
+- **HUD:**
+  - Across the top: both teams' tickets, hull bars (blue while shielded) and one pip per subsystem.
+  - In space: a HANGAR marker for your hull mouth, pinned to the screen edge with an arrow when off screen, and an ENEMY HANGAR marker.
+  - Within 2.5 km: blinking markers on the enemy's live subsystems, including LIFE SUPPORT once you're in their hangar.
+  - Speed, boost and the PILOT prompt came in Phase 1.
+- **Lead reticle:** deferred to Phase 6, when there are moving enemy pilots to lead.
 - `AMetalFlyerAIController`: dogfight (pursue, lead, burst, boost-dodge when hit), attack run on subsystems, defend, return to hangar (stretch). AI pilots spawn already in Stalkers. Turret AI leads the nearest hostile flyer.
 
 ## 8. Phases
@@ -180,4 +195,11 @@ Built in Phase 4 (`Source/Metalization/Game/MetalPortal.*`).
   - Screenshots show both windows: space and the enemy ship through the hangar mouth, and the lit hangar with its parked Stalkers through the hull mouth.
   - `flight` and `combat` still pass.
   - The Villain side (its hull end is turned 180° from its interior end) was confirmed by hand in the editor.
-- Phase 5: next (battle mode: tickets, win/lose, subsystem penalties, battle HUD, life-support sabotage).
+- **Phase 5: done (2026-10-19).**
+  - Built: tickets, penalties, the life-support bleed, win/lose, the in-hangar life-support core, and the battle HUD and markers.
+  - New `smoke_test.ps1 -Scenario battle`:
+    - Fly out through our portal. A dev shortcut then jumps the Stalker across the 1.5 km gap to 250 m off the enemy hull mouth.
+    - Fly in through the Villain portal (the one turned 180°) and shoot their life support (3000 → 2208).
+    - A dev step then wrecks the rest of their ship: tickets 150 → 0 and the VICTORY screen.
+  - `hangar`, `combat` and `flight` still pass.
+- Phase 6: next (AI pilots and turrets, portal navigation links, lead reticle).

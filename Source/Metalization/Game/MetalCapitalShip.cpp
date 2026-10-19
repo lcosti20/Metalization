@@ -17,6 +17,7 @@
 
 FOnMetalShipEvent AMetalCapitalShip::OnAnyInteriorReady;
 FOnMetalShipEvent AMetalCapitalShip::OnAnyShipDestroyed;
+FOnMetalSubsystemEvent AMetalCapitalShip::OnAnySubsystemDestroyed;
 
 namespace
 {
@@ -331,12 +332,7 @@ float AMetalCapitalShip::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 	// Subsystems soak their own hits; everything else is hull, shrugged off while the shields hold.
 	if (UMetalShipSubsystemComponent* Subsystem = Cast<UMetalShipSubsystemComponent>(HitComponent); Subsystem && !Subsystem->IsDestroyed())
 	{
-		FlashComponent(Subsystem);
-		if (Subsystem->ApplyDamage(Damage))
-		{
-			DestroySubsystem(Subsystem);
-		}
-		return Damage;
+		return ApplySubsystemDamage(Subsystem, Damage, nullptr, nullptr);
 	}
 	const float HullDamage = Damage * (IsShielded() && ShipData ? ShipData->ShieldedHullDamageScale : 1.f);
 	HullHealth = FMath::Max(0.f, HullHealth - HullDamage);
@@ -348,9 +344,36 @@ float AMetalCapitalShip::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 	return HullDamage;
 }
 
+void AMetalCapitalShip::RegisterSubsystem(UMetalShipSubsystemComponent* Subsystem, float Health)
+{
+	if (Subsystem)
+	{
+		Subsystem->ResetHealth(Health);
+		Subsystems.AddUnique(Subsystem);
+	}
+}
+
+float AMetalCapitalShip::ApplySubsystemDamage(UMetalShipSubsystemComponent* Subsystem, float Damage, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (bShipDestroyed || Subsystem == nullptr || Subsystem->IsDestroyed() || Damage <= 0.f)
+	{
+		return 0.f;
+	}
+	if (const AMetalBotCharacter* Attacker = FindAttacker(EventInstigator, DamageCauser); Attacker && Attacker->GetTeam() == Team)
+	{
+		return 0.f;
+	}
+	FlashComponent(Subsystem);
+	if (Subsystem->ApplyDamage(Damage))
+	{
+		DestroySubsystem(Subsystem);
+	}
+	return Damage;
+}
+
 void AMetalCapitalShip::FlashComponent(UPrimitiveComponent* Component)
 {
-	if (Component && Component->GetOwner() == this)
+	if (Component && (Component->GetOwner() == this || Subsystems.Contains(Component)))
 	{
 		HitFlash.Add(Component, 1.f);
 	}
@@ -371,10 +394,16 @@ void AMetalCapitalShip::DestroySubsystem(UMetalShipSubsystemComponent* Subsystem
 	AMetalFX::SpawnBurst(GetWorld(), Subsystem->Bounds.Origin, Fire, Subsystem->Bounds.SphereRadius * 1.2f, 1.2f);
 	UE_LOG(LogMetal, Display, TEXT("%s lost subsystem %s"), *GetName(), *Subsystem->GetName());
 	OnSubsystemDestroyed(Subsystem);
+	OnAnySubsystemDestroyed.Broadcast(this, Subsystem);
 }
 
 void AMetalCapitalShip::OnSubsystemDestroyed_Implementation(UMetalShipSubsystemComponent* Subsystem)
 {
+	// Without engines the hangar crews work slower: replacement robots take twice as long.
+	if (AMetalHangar* InteriorHangar = Hangar.Get(); InteriorHangar && Subsystem->Type == EMetalShipSubsystem::Engines)
+	{
+		InteriorHangar->RespawnDelay *= 2.f;
+	}
 }
 
 void AMetalCapitalShip::DestroyShip()

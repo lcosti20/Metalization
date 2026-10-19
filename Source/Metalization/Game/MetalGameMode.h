@@ -31,8 +31,9 @@ public:
 	void ShowBanner(const FText& Text, float Duration);
 
 	void SetCheckpoint(const FTransform& Transform);
-	void PlayerDied(AMetalPlayerController* Controller, AMetalBotCharacter* Body);
-	void CompleteMission();
+	virtual void PlayerDied(AMetalPlayerController* Controller, AMetalBotCharacter* Body);
+	/** Ends the mission with the stats screen; EndBanner replaces "MISSION COMPLETE" (e.g. "VICTORY"). */
+	void CompleteMission(const FText& EndBanner = FText::GetEmpty());
 	void RestartMission();
 
 	bool IsMissionComplete() const { return bMissionComplete; }

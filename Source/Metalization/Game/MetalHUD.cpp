@@ -4,6 +4,9 @@
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalPlayerController.h"
+#include "MetalCapitalShip.h"
+#include "MetalPortal.h"
+#include "MetalSpaceBattleGameMode.h"
 #include "MetalStalker.h"
 #include "MetalWeaponData.h"
 #include "Engine/Canvas.h"
@@ -168,6 +171,11 @@ void AMetalHUD::DrawHUD()
 		}
 	}
 
+	if (AMetalSpaceBattleGameMode* Battle = Cast<AMetalSpaceBattleGameMode>(GameMode); Battle && !Battle->IsMissionComplete())
+	{
+		DrawSpaceBattle(Battle, PC ? PC->GetPawn() : nullptr, UI);
+	}
+
 	if (GameMode)
 	{
 		// Objective (top-left).
@@ -202,6 +210,119 @@ void AMetalHUD::DrawHUD()
 			const FString Stats = FString::Printf(TEXT("Time %d:%02d    Enemies destroyed %d"), FMath::FloorToInt(Time / 60.f), FMath::FloorToInt(FMath::Fmod(Time, 60.f)), GameMode->GetKills());
 			DrawTextShadowed(Stats, W * 0.5f, H * 0.48f, FLinearColor::White, Medium, UI * 1.2f, true);
 			DrawTextShadowed(TEXT("Press ENTER to play again"), W * 0.5f, H * 0.54f, FLinearColor(1.f, 1.f, 1.f, 0.7f), Medium, UI, true);
+		}
+	}
+}
+
+void AMetalHUD::DrawMarker(const FVector& World, const FString& Label, const FLinearColor& Color, float UI, bool bEdgeArrow)
+{
+	const float W = Canvas->ClipX;
+	const float H = Canvas->ClipY;
+	const FVector Screen = Project(World);
+	const float Margin = 50.f * UI;
+	const bool bOnScreen = Screen.Z > 0.f && Screen.X > Margin && Screen.X < W - Margin && Screen.Y > Margin && Screen.Y < H - Margin;
+	if (bOnScreen)
+	{
+		const float S = 9.f * UI;
+		DrawLine(Screen.X, Screen.Y - S, Screen.X + S, Screen.Y, Color, 2.f);
+		DrawLine(Screen.X + S, Screen.Y, Screen.X, Screen.Y + S, Color, 2.f);
+		DrawLine(Screen.X, Screen.Y + S, Screen.X - S, Screen.Y, Color, 2.f);
+		DrawLine(Screen.X - S, Screen.Y, Screen.X, Screen.Y - S, Color, 2.f);
+		DrawTextShadowed(Label, Screen.X, Screen.Y + 12.f * UI, Color, GEngine->GetSmallFont(), UI * 1.1f, true);
+		return;
+	}
+	if (!bEdgeArrow)
+	{
+		return;
+	}
+	// Off screen (or behind): an arrow on the edge pointing the way to turn.
+	FVector2D Dir(Screen.X - W * 0.5f, Screen.Y - H * 0.5f);
+	if (Screen.Z <= 0.f)
+	{
+		Dir = -Dir;
+	}
+	Dir = Dir.GetSafeNormal();
+	if (Dir.IsNearlyZero())
+	{
+		Dir = FVector2D(0.f, 1.f);
+	}
+	const float Scale = FMath::Min((W * 0.5f - Margin) / FMath::Max(FMath::Abs(Dir.X), KINDA_SMALL_NUMBER), (H * 0.5f - Margin) / FMath::Max(FMath::Abs(Dir.Y), KINDA_SMALL_NUMBER));
+	const FVector2D Tip = FVector2D(W * 0.5f, H * 0.5f) + Dir * Scale;
+	const FVector2D Side(-Dir.Y, Dir.X);
+	const FVector2D Back = Tip - Dir * 18.f * UI;
+	DrawLine(Tip.X, Tip.Y, Back.X + Side.X * 10.f * UI, Back.Y + Side.Y * 10.f * UI, Color, 3.f);
+	DrawLine(Tip.X, Tip.Y, Back.X - Side.X * 10.f * UI, Back.Y - Side.Y * 10.f * UI, Color, 3.f);
+	const FVector2D TextAt = Tip - Dir * 40.f * UI;
+	DrawTextShadowed(Label, TextAt.X, TextAt.Y - 8.f * UI, Color, GEngine->GetSmallFont(), UI * 1.1f, true);
+}
+
+void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* Viewer, float UI)
+{
+	const float W = Canvas->ClipX;
+	UFont* Large = GEngine->GetLargeFont();
+	const EMetalTeam Mine = Battle->PlayerTeam;
+	const EMetalTeam Theirs = Mine == EMetalTeam::Heroes ? EMetalTeam::Villains : EMetalTeam::Heroes;
+	const FLinearColor TeamColors[] = {FLinearColor(0.35f, 0.6f, 1.f), FLinearColor(1.f, 0.4f, 0.3f)};
+	const float Now = GetWorld()->GetTimeSeconds();
+
+	// Each side: tickets in big numbers, the hull bar under them (blue while shielded), then one pip per
+	// subsystem in GetSubsystems() order: shield generators, engines, comms, life support.
+	auto DrawSide = [&](EMetalTeam Team, float CenterX, const TCHAR* Name)
+	{
+		const FLinearColor Color = TeamColors[Team == EMetalTeam::Heroes ? 0 : 1];
+		DrawTextShadowed(FString::Printf(TEXT("%s  %d"), Name, Battle->GetTickets(Team)), CenterX, 18.f * UI, Color, Large, UI * 0.9f, true);
+		const AMetalCapitalShip* Ship = Battle->GetShip(Team);
+		if (Ship == nullptr)
+		{
+			return;
+		}
+		const float BarW = 240.f * UI;
+		const float Hull = Ship->GetHullHealth() / FMath::Max(1.f, Ship->GetMaxHullHealth());
+		DrawBar(CenterX - BarW * 0.5f, 56.f * UI, BarW, 8.f * UI, Hull, Ship->IsShielded() ? FLinearColor(0.4f, 0.8f, 1.f) : FLinearColor(1.f, 0.6f, 0.2f));
+		const TArray<TObjectPtr<UMetalShipSubsystemComponent>>& Parts = Ship->GetSubsystems();
+		const float Pip = 14.f * UI;
+		const float Gap = 6.f * UI;
+		float X = CenterX - (Parts.Num() * (Pip + Gap) - Gap) * 0.5f;
+		for (const UMetalShipSubsystemComponent* Part : Parts)
+		{
+			const float Fraction = Part->GetHealth() / FMath::Max(1.f, Part->GetMaxHealth());
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, 72.f * UI, Pip, Pip);
+			DrawRect(Part->IsDestroyed() ? FLinearColor(0.25f, 0.05f, 0.05f) : FLinearColor::LerpUsingHSV(FLinearColor(1.f, 0.2f, 0.1f), FLinearColor(0.3f, 1.f, 0.4f), Fraction),
+				X + 2.f, 72.f * UI + 2.f, Pip - 4.f, Pip - 4.f);
+			X += Pip + Gap;
+		}
+	};
+	DrawSide(Mine, W * 0.5f - 200.f * UI, Mine == EMetalTeam::Heroes ? TEXT("HEROES") : TEXT("VILLAINS"));
+	DrawSide(Theirs, W * 0.5f + 200.f * UI, Theirs == EMetalTeam::Heroes ? TEXT("HEROES") : TEXT("VILLAINS"));
+
+	if (Viewer == nullptr)
+	{
+		return;
+	}
+	// Out in space: the way home, and the enemy's targets. Aboard: the life-support core, once in sight.
+	const AMetalCapitalShip* Home = Battle->GetShip(Mine);
+	const AMetalCapitalShip* Enemy = Battle->GetShip(Theirs);
+	const bool bInSpace = FMath::Abs(Viewer->GetActorLocation().Z) < 1000000.f;
+	if (bInSpace && Home && Home->GetOuterPortal())
+	{
+		DrawMarker(Home->GetOuterPortal()->GetActorLocation(), TEXT("HANGAR"), FLinearColor(0.3f, 0.9f, 1.f), UI, true);
+	}
+	if (Enemy)
+	{
+		static const TMap<EMetalShipSubsystem, const TCHAR*> Labels = {{EMetalShipSubsystem::ShieldGenerator, TEXT("SHIELD")},
+			{EMetalShipSubsystem::Engines, TEXT("ENGINES")}, {EMetalShipSubsystem::Comms, TEXT("COMMS")}, {EMetalShipSubsystem::LifeSupport, TEXT("LIFE SUPPORT")}};
+		const float Blink = FMath::Fmod(Now, 0.6f) < 0.3f ? 1.f : 0.6f;
+		for (const UMetalShipSubsystemComponent* Part : Enemy->GetSubsystems())
+		{
+			const FVector Where = Part->Bounds.Origin;
+			if (!Part->IsDestroyed() && FVector::DistSquared(Where, Viewer->GetActorLocation()) < FMath::Square(250000.f))
+			{
+				DrawMarker(Where, Labels.FindRef(Part->Type), FLinearColor(1.f, 0.35f, 0.25f, Blink), UI, false);
+			}
+		}
+		if (bInSpace && Enemy->GetOuterPortal())
+		{
+			DrawMarker(Enemy->GetOuterPortal()->GetActorLocation(), TEXT("ENEMY HANGAR"), FLinearColor(1.f, 0.6f, 0.3f), UI, false);
 		}
 	}
 }

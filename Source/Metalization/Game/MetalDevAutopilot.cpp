@@ -5,12 +5,16 @@
 #include "MetalBotCharacter.h"
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
+#include "MetalHangar.h"
 #include "MetalPortal.h"
+#include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "GameFramework/DamageType.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -19,7 +23,8 @@
 namespace
 {
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
-		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth };
+		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
+		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip };
 
 	struct FAutopilotStep
 	{
@@ -55,6 +60,14 @@ namespace
 				{15.6f, EStep::Boost}, {16.8f, EStep::StopBoost}, {17.6f, EStep::Stop}, {18.0f, EStep::AimEnemyShield},
 				{18.2f, EStep::Fire}, {22.0f, EStep::StopFire}, {22.2f, EStep::AimHomeMouth}, {22.8f, EStep::Run},
 				{29.5f, EStep::Stop}, {30.5f, EStep::Tether}}},
+			// Board the enemy: out through our portal, then (dev shortcut across the 1.5 km gap) to just off the
+			// enemy's hull mouth, fly in for real and shoot their life support in the hangar. Then wreck the rest
+			// of their ship directly to check the ticket penalties and the victory screen.
+			{TEXT("battle"), {{0.5f, EStep::Run}, {10.5f, EStep::Stop}, {10.7f, EStep::AimLinkable}, {11.3f, EStep::Tether},
+				{12.2f, EStep::Climb}, {12.6f, EStep::StopClimb}, {12.7f, EStep::AimHomeMouth}, {13.4f, EStep::Run},
+				{16.0f, EStep::Stop}, {16.5f, EStep::GoNearEnemyMouth}, {16.7f, EStep::AimEnemyMouth}, {16.9f, EStep::Run},
+				{23.5f, EStep::Stop}, {24.2f, EStep::AimEnemyLifeSupport}, {24.5f, EStep::Fire}, {30.5f, EStep::StopFire},
+				{31.0f, EStep::WreckEnemyShip}}},
 			// No inputs: exterior screenshots with -MetalCam.
 			{TEXT("ships"), {}},
 		};
@@ -227,7 +240,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	static const TCHAR* Names[] = {TEXT("aim at enemy"), TEXT("aim at hackable"), TEXT("aim at boss"), TEXT("aim at gate guard"), TEXT("fire"), TEXT("stop fire"), TEXT("tether"), TEXT("go to console"), TEXT("interact"),
 		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
 		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
-		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth")};
+		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
+		TEXT("aim at enemy life support"), TEXT("wreck enemy ship")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -262,6 +276,31 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			const AMetalPortal* Mouth = Inner->GetSideDistance(Me->GetActorLocation()) > 0.f && FVector::Dist(Inner->GetActorLocation(), Me->GetActorLocation()) < 50000.f
 				? Inner : HomeShip->GetOuterPortal();
 			AimComponent = Mouth ? Mouth->GetRootComponent() : nullptr;
+		}
+		break;
+	case EStep::GoNearEnemyMouth:
+		if (const AMetalPortal* Mouth = EnemyShip ? EnemyShip->GetOuterPortal() : nullptr)
+		{
+			// 250 m straight out from the enemy's hull mouth, facing it.
+			const FVector Out = Mouth->GetActorForwardVector();
+			Me->TeleportTo(Mouth->GetActorLocation() + Out * 25000.f, (-Out).Rotation());
+			PC->SetControlRotation((-Out).Rotation());
+		}
+		break;
+	case EStep::AimEnemyMouth:
+		AimComponent = EnemyShip && EnemyShip->GetOuterPortal() ? EnemyShip->GetOuterPortal()->GetRootComponent() : nullptr;
+		break;
+	case EStep::AimEnemyLifeSupport:
+		AimComponent = EnemyShip && EnemyShip->GetHangar() ? EnemyShip->GetHangar()->GetLifeSupport() : nullptr;
+		break;
+	case EStep::WreckEnemyShip:
+		if (AMetalCapitalShip* Ship = const_cast<AMetalCapitalShip*>(EnemyShip))
+		{
+			for (UMetalShipSubsystemComponent* Part : Ship->GetSubsystems())
+			{
+				Ship->ApplySubsystemDamage(Part, 1.e7f, PC, Me);
+			}
+			UGameplayStatics::ApplyDamage(Ship, 1.e8f, PC, Me, UDamageType::StaticClass());
 		}
 		break;
 	case EStep::AimEnemyGun:
@@ -374,7 +413,9 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 			{
 				Parts += FString::Printf(TEXT(" %s=%.0f"), *Part->GetName(), Part->GetHealth());
 			}
-			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d hull=%.0f shielded=%d%s"), *It->GetName(), static_cast<int32>(It->GetTeam()), It->GetHullHealth(), It->IsShielded(), *Parts);
+			const AMetalSpaceBattleGameMode* Battle = GetWorld()->GetAuthGameMode<AMetalSpaceBattleGameMode>();
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d tickets=%d hull=%.0f shielded=%d%s"), *It->GetName(), static_cast<int32>(It->GetTeam()),
+				Battle ? Battle->GetTickets(It->GetTeam()) : -1, It->GetHullHealth(), It->IsShielded(), *Parts);
 		}
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 		{

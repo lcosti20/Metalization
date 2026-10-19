@@ -88,6 +88,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interior")
 	TSoftObjectPtr<UWorld> Interior;
 
+	/** The life-support core in the interior hangar (it's shot by Stalkers that fly in through the enemy's hangar mouth). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
+	float LifeSupportHealth = 3000.f;
+
 	/** Robot parked on each hangar pad. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interior")
 	TObjectPtr<UMetalBotArchetype> HangarRobot;
@@ -134,6 +138,7 @@ private:
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetalShipEvent, AMetalCapitalShip* /*Ship*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMetalSubsystemEvent, AMetalCapitalShip* /*Ship*/, UMetalShipSubsystemComponent* /*Subsystem*/);
 
 UCLASS(Blueprintable)
 class AMetalCapitalShip : public AActor
@@ -146,6 +151,7 @@ public:
 	/** Fired when any ship's interior has streamed in (the game mode waits for these before spawning players). */
 	static FOnMetalShipEvent OnAnyInteriorReady;
 	static FOnMetalShipEvent OnAnyShipDestroyed;
+	static FOnMetalSubsystemEvent OnAnySubsystemDestroyed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Metalization")
 	TObjectPtr<UMetalCapitalShipData> ShipData;
@@ -187,6 +193,10 @@ public:
 	bool IsInteriorReady() const { return bInteriorReady; }
 
 	const TArray<TObjectPtr<UMetalShipSubsystemComponent>>& GetSubsystems() const { return Subsystems; }
+	/** Adds a subsystem that lives outside the ship actor (the interior's life support) and resets its health. */
+	void RegisterSubsystem(UMetalShipSubsystemComponent* Subsystem, float Health);
+	/** Damages one subsystem (no friendly fire). Returns the damage dealt. */
+	float ApplySubsystemDamage(UMetalShipSubsystemComponent* Subsystem, float Damage, AController* EventInstigator, AActor* DamageCauser);
 	AMetalHangar* GetHangar() const { return Hangar.Get(); }
 	/** The two ends of the hangar portal: on the hull, and at the interior hangar's mouth. */
 	AMetalPortal* GetOuterPortal() const { return OuterPortal.Get(); }

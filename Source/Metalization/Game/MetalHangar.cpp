@@ -4,7 +4,9 @@
 #include "MetalCapitalShip.h"
 #include "MetalStalker.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 
@@ -27,6 +29,12 @@ AMetalHangar::AMetalHangar()
 	PadMeshes = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Pads"));
 	PadMeshes->SetupAttachment(Shell);
 	PadMeshes->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+
+	LifeSupport = CreateDefaultSubobject<UMetalShipSubsystemComponent>(TEXT("LifeSupport"));
+	LifeSupport->SetupAttachment(Shell);
+	LifeSupport->Type = EMetalShipSubsystem::LifeSupport;
+	LifeSupport->SetStaticMesh(ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("/Engine/BasicShapes/Cylinder.Cylinder")).Object);
+	LifeSupport->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 }
 
 void AMetalHangar::OnConstruction(const FTransform& Transform)
@@ -41,6 +49,14 @@ void AMetalHangar::BuildPads()
 	PadMeshes->SetStaticMesh(PadMesh);
 	Shell->SetCullDistance(InteriorDrawDistance);
 	PadMeshes->SetCullDistance(InteriorDrawDistance);
+	// The engine cylinder is 1 m across and tall, centred on its pivot.
+	LifeSupport->SetRelativeLocation(LifeSupportLocation + FVector(0.f, 0.f, LifeSupportSize.Y * 0.5f));
+	LifeSupport->SetRelativeScale3D(FVector(LifeSupportSize.X / 100.f, LifeSupportSize.X / 100.f, LifeSupportSize.Y / 100.f));
+	LifeSupport->SetCullDistance(InteriorDrawDistance);
+	if (LifeSupportMaterial)
+	{
+		LifeSupport->SetMaterial(0, LifeSupportMaterial);
+	}
 	PadMeshes->ClearInstances();
 	Pads.Reset();
 	for (int32 Index = 1; ShellMesh && Index <= MaxPads; ++Index)
@@ -77,6 +93,7 @@ void AMetalHangar::InitForShip(AMetalCapitalShip* Ship)
 		{
 			RobotArchetype = Data->HangarRobot ? Data->HangarRobot.Get() : RobotArchetype.Get();
 			RespawnDelay = Data->HangarRespawnDelay;
+			Ship->RegisterSubsystem(LifeSupport, Data->LifeSupportHealth);
 		}
 	}
 	bActive = true;
@@ -85,6 +102,21 @@ void AMetalHangar::InitForShip(AMetalCapitalShip* Ship)
 		SpawnRobot(Pad);
 	}
 	UE_LOG(LogMetal, Display, TEXT("%s: team %d, %d robots parked at %s"), *GetName(), static_cast<int32>(Team), Pads.Num(), *GetActorLocation().ToCompactString());
+}
+
+float AMetalHangar::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// Only the core can be hurt; it belongs to the ship, which applies the damage.
+	AMetalCapitalShip* Ship = OwningShip.Get();
+	if (Ship == nullptr || !DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		return 0.f;
+	}
+	if (static_cast<const FPointDamageEvent&>(DamageEvent).HitInfo.GetComponent() != LifeSupport)
+	{
+		return 0.f;
+	}
+	return Ship->ApplySubsystemDamage(LifeSupport, DamageAmount, EventInstigator, DamageCauser);
 }
 
 FTransform AMetalHangar::GetMouthTransform() const
