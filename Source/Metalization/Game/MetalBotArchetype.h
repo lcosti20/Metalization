@@ -40,6 +40,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	float MeshScale = 1.f;
 
+	/** Extra offset of the mesh from the bottom of the capsule (actor space), for bodies not centred on their origin. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	FVector MeshOffset = FVector::ZeroVector;
+
+	/** Team paint keyed by team. Robots without an entry keep their imported colours. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
+	TMap<EMetalTeam, FMetalTeamColors> TeamColors;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	FMetalBotRig Rig;
 
@@ -118,6 +126,14 @@ public:
 	/** Seconds the player can control this robot with the Hack Tether. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
 	float PossessionDuration = 30.f;
+
+	/** Robots of the player's own team can be linked (parked Stalkers): no time limit, no self-destruct. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
+	bool bAllyHackable = false;
+
+	/** Used by flying robots (AMetalStalker) only. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Flight")
+	FMetalFlightTuning Flight;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Camera")
 	float CameraDistance = 300.f;

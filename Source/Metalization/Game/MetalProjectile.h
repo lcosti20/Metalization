@@ -46,5 +46,6 @@ private:
 	float StunDuration = 0.f;
 	float FuseTime = 0.f;
 	FLinearColor Color = FLinearColor::White;
+	float Scale = 1.f;
 	bool bDetonated = false;
 };

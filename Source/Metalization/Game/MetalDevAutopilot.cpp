@@ -1,12 +1,22 @@
 #include "MetalDevAutopilot.h"
 
 #include "MetalBotAIController.h"
+#include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
+#include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
+#include "MetalFlyerAIController.h"
+#include "MetalHangar.h"
+#include "MetalPauseMenu.h"
+#include "MetalPortal.h"
+#include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
+#include "MetalStalker.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "GameFramework/DamageType.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -14,7 +24,10 @@
 
 namespace
 {
-	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight };
+	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
+		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
+		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
+		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue };
 
 	struct FAutopilotStep
 	{
@@ -36,6 +49,36 @@ namespace
 			// Free-roam movement in the arena: run, double-jump flip, turn, then shoot (action camera).
 			{TEXT("arena"), {{1.0f, EStep::Run}, {2.0f, EStep::Jump}, {2.35f, EStep::Jump}, {3.6f, EStep::TurnLeft}, {4.4f, EStep::Jump},
 				{5.4f, EStep::TurnRight}, {6.4f, EStep::Stop}, {7.0f, EStep::AimEnemy}, {7.2f, EStep::Fire}, {8.5f, EStep::StopFire}}},
+			// Stalker flight (MZ_FlightTest): link to a parked Stalker, lift off, cruise, boost, shoot a gun
+			// arm off an enemy Stalker and then finish it, dodge both ways, disconnect back to the body.
+			{TEXT("flight"), {{1.0f, EStep::AimLinkable}, {1.6f, EStep::Tether}, {2.4f, EStep::Climb}, {3.0f, EStep::StopClimb},
+				{3.0f, EStep::Run}, {4.4f, EStep::Boost}, {5.2f, EStep::StopBoost}, {6.0f, EStep::Stop}, {7.4f, EStep::AimEnemy},
+				{7.6f, EStep::AimEnemyGun}, {7.7f, EStep::Fire}, {9.4f, EStep::AimEnemy}, {11.0f, EStep::StopFire}, {11.2f, EStep::DodgeLeft}, {12.2f, EStep::DodgeRight}, {13.2f, EStep::Tether}}},
+			// Capital ship interior (MZ_SpaceBattle): spawn aboard, run down the corridor into the hangar,
+			// link to a parked Stalker and lift off.
+			// Fly out through the hangar portal into space, boost toward the enemy ship and shoot a shield
+			// generator, then turn round, fly back in through the hull's portal and disconnect.
+			{TEXT("hangar"), {{0.5f, EStep::Run}, {10.5f, EStep::Stop}, {10.7f, EStep::AimLinkable}, {11.3f, EStep::Tether},
+				{12.2f, EStep::Climb}, {12.6f, EStep::StopClimb}, {12.7f, EStep::AimHomeMouth}, {13.4f, EStep::Run},
+				{15.6f, EStep::Boost}, {16.8f, EStep::StopBoost}, {17.6f, EStep::Stop}, {18.0f, EStep::AimEnemyShield},
+				{18.2f, EStep::Fire}, {22.0f, EStep::StopFire}, {22.2f, EStep::AimHomeMouth}, {22.8f, EStep::Run},
+				{29.5f, EStep::Stop}, {30.5f, EStep::Tether}}},
+			// Board the enemy: out through our portal, then (dev shortcut across the 1.5 km gap) to just off the
+			// enemy's hull mouth, fly in for real and shoot their life support in the hangar. Then wreck the rest
+			// of their ship directly to check the ticket penalties and the victory screen.
+			{TEXT("battle"), {{0.5f, EStep::Run}, {10.5f, EStep::Stop}, {10.7f, EStep::AimLinkable}, {11.3f, EStep::Tether},
+				{12.2f, EStep::Climb}, {12.6f, EStep::StopClimb}, {12.7f, EStep::AimHomeMouth}, {13.4f, EStep::Run},
+				{16.0f, EStep::Stop}, {16.5f, EStep::GoNearEnemyMouth}, {16.7f, EStep::AimEnemyMouth}, {16.9f, EStep::Run},
+				{23.5f, EStep::Stop}, {24.2f, EStep::AimEnemyLifeSupport}, {24.5f, EStep::Fire}, {30.5f, EStep::StopFire},
+				{31.0f, EStep::WreckEnemyShip}}},
+			// Pause menu: open it, into Level Select and Back out, then pick -MetalMenuLevel. The scenario runs
+			// again in the new level, where picking it again is skipped and Continue resumes the game.
+			{TEXT("menu"), {{0.8f, EStep::OpenPauseMenu}, {1.6f, EStep::MenuLevelSelect}, {2.4f, EStep::MenuBack}, {3.2f, EStep::MenuLevelSelect},
+				{3.6f, EStep::MenuPickLevel}, {4.4f, EStep::MenuContinue}}},
+			// AI-only battle: the player stays aboard while both squadrons and the turrets fight it out.
+			{TEXT("dogfight"), {}},
+			// No inputs: exterior screenshots with -MetalCam.
+			{TEXT("ships"), {}},
 		};
 		return Map;
 	}
@@ -56,6 +99,8 @@ namespace
 AMetalDevAutopilot::AMetalDevAutopilot()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	// Keeps driving (and timing) scenarios while the game is paused behind the pause menu.
+	PrimaryActorTick.bTickEvenWhenPaused = true;
 }
 
 void AMetalDevAutopilot::SpawnIfRequested(UWorld* World)
@@ -73,7 +118,7 @@ void AMetalDevAutopilot::BeginPlay()
 {
 	Super::BeginPlay();
 	const TCHAR* Cmd = FCommandLine::Get();
-	StartTime = GetWorld()->GetTimeSeconds();
+	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
 	bAutopilot = FParse::Param(Cmd, TEXT("MetalAutopilot")) || FParse::Value(Cmd, TEXT("MetalAutopilot="), Scenario);
 	if (bAutopilot && !Scenarios().Contains(Scenario))
@@ -85,17 +130,6 @@ void AMetalDevAutopilot::BeginPlay()
 		ShotTimes = ParseFloats(Value);
 	}
 	FParse::Value(Cmd, TEXT("MetalQuitAt="), QuitAt);
-
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (FParse::Value(Cmd, TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
-	{
-		const TArray<float> V = ParseFloats(Value);
-		if (V.Num() >= 4)
-		{
-			PC->GetPawn()->TeleportTo(FVector(V[0], V[1], V[2]), FRotator(0.f, V[3], 0.f));
-			PC->SetControlRotation(FRotator(0.f, V[3], 0.f));
-		}
-	}
 	if (FParse::Value(Cmd, TEXT("MetalCam="), Value, false))
 	{
 		TArray<FString> Entries;
@@ -110,7 +144,27 @@ void AMetalDevAutopilot::BeginPlay()
 		}
 		ViewFromCamera(0);
 	}
-	UE_LOG(LogMetal, Display, TEXT("[Autopilot] active (scenario=%s shots=%d quit=%.1f)"), bAutopilot ? *Scenario : TEXT("none"), ShotTimes.Num(), QuitAt);
+	UE_LOG(LogMetal, Display, TEXT("[Autopilot] active in %s (scenario=%s shots=%d quit=%.1f)"), *UGameplayStatics::GetCurrentLevelName(this),
+		bAutopilot ? *Scenario : TEXT("none"), ShotTimes.Num(), QuitAt);
+}
+
+void AMetalDevAutopilot::Start()
+{
+	bStarted = true;
+	StartTime = GetWorld()->GetUnpausedTimeSeconds();
+	FString Value;
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
+	{
+		const TArray<float> V = ParseFloats(Value);
+		if (V.Num() >= 4)
+		{
+			PC->GetPawn()->TeleportTo(FVector(V[0], V[1], V[2]), FRotator(0.f, V[3], 0.f));
+			PC->SetControlRotation(FRotator(0.f, V[3], 0.f));
+		}
+	}
+	// Possessing the freshly spawned body took the view back from the fixed camera.
+	ViewFromCamera(0);
 }
 
 void AMetalDevAutopilot::ViewFromCamera(int32 Index)
@@ -131,7 +185,7 @@ AMetalBotCharacter* AMetalDevAutopilot::FindNearest(bool bHackableOnly, FName Ta
 	float BestDistance = TNumericLimits<float>::Max();
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); Me && It; ++It)
 	{
-		if (!It->IsAlive() || !Me->IsHostileTo(*It) || (bHackableOnly && !It->CanBeHacked()) || (!Tag.IsNone() && !It->ActorHasTag(Tag)))
+		if (!It->IsAlive() || !Me->IsHostileTo(*It) || (bHackableOnly && !It->CanBeHackedBy(Me)) || (!Tag.IsNone() && !It->ActorHasTag(Tag)))
 		{
 			continue;
 		}
@@ -140,6 +194,27 @@ AMetalBotCharacter* AMetalDevAutopilot::FindNearest(bool bHackableOnly, FName Ta
 		{
 			Best = *It;
 			BestDistance = Distance;
+		}
+	}
+	return Best;
+}
+
+AMetalBotCharacter* AMetalDevAutopilot::FindNearestLinkable() const
+{
+	const AMetalPlayerController* PC = Cast<AMetalPlayerController>(GetWorld()->GetFirstPlayerController());
+	const AMetalBotCharacter* Me = PC ? PC->GetPlayerBody() : nullptr;
+	AMetalBotCharacter* Best = nullptr;
+	float BestDistance = TNumericLimits<float>::Max();
+	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); Me && It; ++It)
+	{
+		if (It->GetTeam() == Me->GetTeam() && It->CanBeHackedBy(Me))
+		{
+			const float Distance = FVector::Dist(It->GetActorLocation(), Me->GetActorLocation());
+			if (Distance < BestDistance)
+			{
+				Best = *It;
+				BestDistance = Distance;
+			}
 		}
 	}
 	return Best;
@@ -166,8 +241,20 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		return;
 	}
 	const EStep Action = Scenarios()[Scenario][Step].Action;
+	AimBone = NAME_None;
+	AimComponent.Reset();
+	const AMetalCapitalShip* EnemyShip = nullptr;
+	const AMetalCapitalShip* HomeShip = nullptr;
+	for (TActorIterator<AMetalCapitalShip> It(GetWorld()); It; ++It)
+	{
+		(It->GetTeam() != Me->GetTeam() ? EnemyShip : HomeShip) = *It;
+	}
 	static const TCHAR* Names[] = {TEXT("aim at enemy"), TEXT("aim at hackable"), TEXT("aim at boss"), TEXT("aim at gate guard"), TEXT("fire"), TEXT("stop fire"), TEXT("tether"), TEXT("go to console"), TEXT("interact"),
-		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right")};
+		TEXT("run"), TEXT("stop"), TEXT("jump"), TEXT("turn left"), TEXT("turn right"),
+		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
+		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
+		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
+		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -184,6 +271,81 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::Jump:        Me->StopJumping(); Me->Jump(); break;
 	case EStep::TurnLeft:    PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, -90.f, 0.f)); break;
 	case EStep::TurnRight:   PC->SetControlRotation(PC->GetControlRotation() + FRotator(0.f, 90.f, 0.f)); break;
+	case EStep::AimLinkable: AimTarget = FindNearestLinkable(); break;
+	case EStep::AimEnemyShield:
+		for (UMetalShipSubsystemComponent* Part : EnemyShip ? EnemyShip->GetSubsystems() : TArray<TObjectPtr<UMetalShipSubsystemComponent>>())
+		{
+			if (Part->Type == EMetalShipSubsystem::ShieldGenerator && !Part->IsDestroyed())
+			{
+				AimComponent = Part;
+				break;
+			}
+		}
+		break;
+	case EStep::AimHomeMouth:
+		// Whichever end of our hangar portal is on our side: the hangar mouth from inside, the hull's from outside.
+		if (const AMetalPortal* Inner = HomeShip ? HomeShip->GetInnerPortal() : nullptr)
+		{
+			const AMetalPortal* Mouth = Inner->GetSideDistance(Me->GetActorLocation()) > 0.f && FVector::Dist(Inner->GetActorLocation(), Me->GetActorLocation()) < 50000.f
+				? Inner : HomeShip->GetOuterPortal();
+			AimComponent = Mouth ? Mouth->GetRootComponent() : nullptr;
+		}
+		break;
+	case EStep::OpenPauseMenu: PC->OpenPauseMenu(); break;
+	case EStep::MenuLevelSelect: if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Level Select")); } break;
+	case EStep::MenuBack:      if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Back")); } break;
+	case EStep::MenuContinue:  if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->ShowMainPanel(); Menu->PressButton(TEXT("Continue")); } break;
+	case EStep::MenuPickLevel:
+		if (UMetalPauseMenu* Menu = PC->GetPauseMenu())
+		{
+			FString Level = TEXT("Arena");
+			FParse::Value(FCommandLine::Get(), TEXT("MetalMenuLevel="), Level);
+			// Already here (the scenario's second run): don't travel again.
+			if (Menu->HasButton(Level + TEXT("  (current)")))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot] menu: already in %s"), *Level);
+			}
+			else
+			{
+				Menu->PressButton(Level);
+			}
+		}
+		break;
+	case EStep::GoNearEnemyMouth:
+		if (const AMetalPortal* Mouth = EnemyShip ? EnemyShip->GetOuterPortal() : nullptr)
+		{
+			// 250 m straight out from the enemy's hull mouth, facing it.
+			const FVector Out = Mouth->GetActorForwardVector();
+			Me->TeleportTo(Mouth->GetActorLocation() + Out * 25000.f, (-Out).Rotation());
+			PC->SetControlRotation((-Out).Rotation());
+		}
+		break;
+	case EStep::AimEnemyMouth:
+		AimComponent = EnemyShip && EnemyShip->GetOuterPortal() ? EnemyShip->GetOuterPortal()->GetRootComponent() : nullptr;
+		break;
+	case EStep::AimEnemyLifeSupport:
+		AimComponent = EnemyShip && EnemyShip->GetHangar() ? EnemyShip->GetHangar()->GetLifeSupport() : nullptr;
+		break;
+	case EStep::WreckEnemyShip:
+		if (AMetalCapitalShip* Ship = const_cast<AMetalCapitalShip*>(EnemyShip))
+		{
+			for (UMetalShipSubsystemComponent* Part : Ship->GetSubsystems())
+			{
+				Ship->ApplySubsystemDamage(Part, 1.e7f, PC, Me);
+			}
+			UGameplayStatics::ApplyDamage(Ship, 1.e8f, PC, Me, UDamageType::StaticClass());
+		}
+		break;
+	case EStep::AimEnemyGun:
+		AimTarget = FindNearest(false, NAME_None);
+		AimBone = AimTarget.IsValid() && AimTarget->Archetype && AimTarget->Archetype->MuzzleBones.Num() > 0 ? AimTarget->Archetype->MuzzleBones[0] : NAME_None;
+		break;
+	case EStep::Climb:       bClimbing = true; break;
+	case EStep::StopClimb:   bClimbing = false; break;
+	case EStep::Boost:       if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->SetBoostHeld(true); } break;
+	case EStep::StopBoost:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->SetBoostHeld(false); } break;
+	case EStep::DodgeLeft:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(-1.f); } break;
+	case EStep::DodgeRight:  if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(1.f); } break;
 	case EStep::GoToConsole:
 		for (TActorIterator<AMetalControlConsole> It(GetWorld()); It; ++It)
 		{
@@ -197,7 +359,17 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 void AMetalDevAutopilot::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	const float T = GetWorld()->GetTimeSeconds() - StartTime;
+	if (!bStarted)
+	{
+		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+		if ((PC && PC->GetPawn()) || GetWorld()->GetUnpausedTimeSeconds() > 15.f)
+		{
+			Start();
+		}
+		return;
+	}
+	// Unpaused time: the same as game time, except it keeps running while the pause menu is up.
+	const float T = GetWorld()->GetUnpausedTimeSeconds() - StartTime;
 
 	if (bAutopilot)
 	{
@@ -206,21 +378,45 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			RunStep(NextStep++);
 		}
-		if (AimTarget.IsValid())
+		if (const USceneComponent* Component = AimComponent.Get())
 		{
-			AimAt(AimTarget.Get());
+			FVector ViewLocation;
+			FRotator ViewRotation;
+			GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+			const FVector Point = Component->IsA<UPrimitiveComponent>() ? FVector(Component->Bounds.Origin) : Component->GetComponentLocation();
+			GetWorld()->GetFirstPlayerController()->SetControlRotation((Point - ViewLocation).Rotation());
+		}
+		else if (AMetalBotCharacter* Target = AimTarget.Get())
+		{
+			if (!AimBone.IsNone() && Target->GetMesh()->GetBoneIndex(AimBone) != INDEX_NONE)
+			{
+				FVector ViewLocation;
+				FRotator ViewRotation;
+				GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+				GetWorld()->GetFirstPlayerController()->SetControlRotation((Target->GetMesh()->GetBoneLocation(AimBone) - ViewLocation).Rotation());
+			}
+			else
+			{
+				AimAt(Target);
+			}
 		}
 		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (APawn* Pawn = PC ? PC->GetPawn() : nullptr; Pawn && bRunning)
 		{
 			Pawn->AddMovementInput(FRotator(0.f, PC->GetControlRotation().Yaw, 0.f).Vector());
 		}
+		if (AMetalStalker* Flyer = PC ? Cast<AMetalStalker>(PC->GetPawn()) : nullptr; Flyer && bClimbing)
+		{
+			Flyer->AddVerticalInput(1.f);
+		}
 	}
 
 	if (ShotTimes.IsValidIndex(ShotIndex) && T >= ShotTimes[ShotIndex])
 	{
-		FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("MetalShot_%02d.png"), ShotIndex), true, false);
-		UE_LOG(LogMetal, Display, TEXT("[Autopilot] screenshot %d at %.1fs"), ShotIndex, T);
+		// Numbered for the whole process, so a scenario that changes level doesn't overwrite its first shots.
+		static int32 ShotNumber = 0;
+		FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("MetalShot_%02d.png"), ShotNumber), true, false);
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot] screenshot %d at %.1fs"), ShotNumber++, T);
 		ShotIndex++;
 		// Switch after the capture has been taken at the end of this frame.
 		CameraSwitchTime = T + 0.3f;
@@ -240,12 +436,37 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 			const FMetalWeaponSlot* Slot = Me->GetCurrentWeapon();
 			UE_LOG(LogMetal, Display, TEXT("[Autopilot] t=%.1f pawn=%s hp=%.0f loc=%s hijacked=%d clip=%d"),
 				T, *Me->GetName(), Me->GetHealth(), *Me->GetActorLocation().ToCompactString(), Me->IsHijacked(), Slot ? Slot->Clip : -1);
+			if (const AMetalStalker* Flyer = Cast<AMetalStalker>(Me))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    flight speed=%.0f boost=%.2f boosting=%d guns=%d"),
+					Flyer->GetVelocity().Size(), Flyer->GetBoostFraction(), Flyer->IsBoosting(), Flyer->GetWorkingMuzzleCount());
+			}
+		}
+		for (TActorIterator<AMetalCapitalShip> It(GetWorld()); It; ++It)
+		{
+			FString Parts;
+			for (const UMetalShipSubsystemComponent* Part : It->GetSubsystems())
+			{
+				Parts += FString::Printf(TEXT(" %s=%.0f"), *Part->GetName(), Part->GetHealth());
+			}
+			const AMetalSpaceBattleGameMode* Battle = GetWorld()->GetAuthGameMode<AMetalSpaceBattleGameMode>();
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d tickets=%d hull=%.0f shielded=%d%s"), *It->GetName(), static_cast<int32>(It->GetTeam()),
+				Battle ? Battle->GetTickets(It->GetTeam()) : -1, It->GetHullHealth(), It->IsShielded(), *Parts);
 		}
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 		{
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
 				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()));
+			}
+			else if (const AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(It->GetController()))
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s team=%d hp=%.0f speed=%.0f loc=%s %s"), *It->GetName(), static_cast<int32>(It->GetTeam()), It->GetHealth(),
+					It->GetVelocity().Size(), *It->GetActorLocation().ToCompactString(), *Pilot->DescribeState());
+			}
+			else if (It->IsA<AMetalStalker>() && !It->IsPlayerControlled())
+			{
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f team=%d guns=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(It->GetTeam()), It->GetWorkingMuzzleCount());
 			}
 		}
 	}

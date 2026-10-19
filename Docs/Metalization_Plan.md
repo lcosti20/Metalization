@@ -47,9 +47,9 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
 | Stage | Script | Output |
 |---|---|---|
 | 1 | `blender_export.py` (Blender 5.2, headless) | `Saved/AssetPipeline/`: FBX per character, part, and weapon-on-holder; `manifest.json` |
-| 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props}` |
+| 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props,Ships}` |
 | 3 | `ue_setup_gameplay.py` | `/Game/Metalization/Data` (weapons, archetypes), `/Game/Metalization/Maps/MZ_Outpost_Demo` and `MZ_Arena` |
-| 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks (`PASSED` / list of problems) |
+| 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks, plus ship collision, sockets and portal sizes (`PASSED` / list of problems) |
 
 Before stage 2, the runner deletes the generated `Characters`, `Weapons`, `Props`, `Textures` and `Materials/Instances` folders. Reimporting over an existing mesh keeps its old material slots, and deleting assets from the commandlet leaves the files on disk.
 
@@ -68,6 +68,7 @@ The source of truth for every model. Layout the exporter expects:
 |---|---|
 | `Characters/Heroes/<Name>`, `Characters/Villains/<Name>` | Armature `hero_<id>_ARM` / `villain_<id>_ARM`. First sub-collection = body, then optional parts (the player's and Shooter's spare hand, backpacks, the Guide's tether...) |
 | `Weapons/<Weapon>`, `Grenades/<Grenade>` | Armature `weapon_<id>_ARM` whose root bone is the grip. Names map to IDs in `blender_export.py` (`WEAPON_COLLECTIONS`, `GRENADE_COLLECTIONS`) |
+| `Ships/<Group>/<Part>` | One static mesh per part collection (`SM_<Part>` in `/Game/Metalization/Ships`): render meshes, `UCX_*` collision, a `PIVOT_*` empty, and `SOCKET_<name>` empties (+X forward). `*_Preview` collections are display-only. See `Docs/SpaceBattle_Plan.md` §2 |
 
 Bodies are one bevelled box per bone, rigidly skinned to it. Gameplay depends on the bone names (`bip_head`, `bip_pelvis`, `bip_hip_L/R`, `bip_upperArm/lowerArm_L/R`, `weapon_bone`, `minigun_R/L`, `ankle_1_L/R`, `hip_L/R`), so keep them when replacing art. Materials are flat colours: Heroes in blues/greens, Villains in reds/oranges, a lighter accent on head/hands/feet, a glowing visor on the front of the player's head, and one colour per weapon family.
 
@@ -87,7 +88,9 @@ To replace a graybox with authored art, model it in `Metalization_Graybox.blend`
 | AI | `AMetalBotAIController` | Patrol → Investigate → Combat (strafe at preferred range, burst fire) → Retreat. Plus Stunned, Disabled-weapon melee, squad alerts. Runtime navmesh |
 | Mission | `AMetalMission`, `AMetalTriggerZone`, `AMetalControlConsole`, `AMetalGate`, `AMetalPickup` | Ordered objectives (eliminate tagged / reach zone / activate console / hijack tagged) with dialogue lines. Checkpoints. Villain-only consoles for possession puzzles |
 | Flow / UI | `AMetalGameMode`, `AMetalHUD` | Respawn at checkpoint keeping inventory. Dialogue queue, banners, objective, health, ammo, tether timer, hack prompt, hit markers |
-| Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
+| Capital ships | `AMetalCapitalShip`, `UMetalCapitalShipData`, `AMetalHangar`, `AMetalPortal`, `AMetalSpaceBattleGameMode`, `AMetalFlyerAIController` | Modular hull with destructible subsystems and shields. Each ship streams its own instance of the interior map far above the battle, and the hangar parks team-coloured Stalkers. A two-way portal links the hangar mouth to the hull's mouth: you see through it and fly through it. See `Docs/SpaceBattle_Plan.md` |
+| Flying robots | `AMetalStalker`, `UMetalFlightMovementComponent` | Hover-gunship flight, boost, dodge roll, four arm guns that can be shot off one by one. Friendly Stalkers can be piloted with the Hack Tether with no time limit. See `Docs/SpaceBattle_Plan.md` |
+| Testing | `AMetalDevAutopilot` (non-shipping) | `-MetalAutopilot=combat|gate|boss|arena|flight -MetalObjective=N -MetalShots=… -MetalCam=… -MetalTeleport=… -MetalQuitAt=…` for scripted smoke tests and screenshots |
 
 Input is Enhanced Input, built in code (`AMetalPlayerController::CreateInputObjects`), for keyboard/mouse and gamepad.
 
@@ -121,7 +124,8 @@ Open `/Game/Metalization/Maps/MZ_Outpost_Demo` (the project's default map) and p
 | EMP grenade | G | RB |
 | Hack Tether (hack / disconnect) | F | LB |
 | Use console | E | B |
-| Replay after mission | Enter | Start |
+| Replay after mission | Enter | Pause menu > Level Select |
+| Pause menu | Esc or P (Esc also ends Play-In-Editor, so use P there) | Start |
 
 ### Testing without playing
 
@@ -130,9 +134,18 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario gate     # possession puzzle
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario boss     # hijack the Brute
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario arena    # free roam in MZ_Arena
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario flight   # pilot a Stalker in MZ_FlightTest
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario hangar   # spawn aboard, pilot a Stalker out through the hangar portal and back
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle   # board the enemy hangar, shoot life support, win
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario dogfight # 90 s AI-only battle (pilots + turrets)
+powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships    # exterior shots of MZ_SpaceBattle
 ```
 
 Each run launches the standalone game, drives the player with `AMetalDevAutopilot`, prints a state trace, and saves screenshots to `Saved/Screenshots/WindowsEditor`. `-MetalObjective=N` starts the mission at a later objective, which is also handy in the editor's *Standalone Game* launch options. The `combat` hijack occasionally misses when the target Shooter walks behind a crate; rerun it once before suspecting a regression.
+
+To check a packaged build, package Development with `RunUAT.bat BuildCookRun -project=<uproject> -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory=<project folder>`, then add `-Packaged` to any `smoke_test.ps1` run. That runs `Windows\Metalization.exe`, with screenshots in `Windows\Metalization\Saved\Screenshots\Windows`.
+- Every game map is listed in `MapsToCook` in `DefaultGame.ini`; add new maps there or they won't be packaged.
+- Assets loaded only by path from C++ live in the always-cooked `Data` and `Materials` folders.
 
 ### Verified by automated runs
 - All 27 characters import at correct scale with every material slot assigned (`ue_validate.py`: PASSED).
@@ -166,6 +179,49 @@ A recreation of the first progress update video described in `Docs/example_video
 Regenerate only this map with `$env:MZ_LEVELS="arena"` before running `ue_setup_gameplay.py` (or `outpost` for the mission only). Test it with `smoke_test.ps1 -Scenario arena`: the run takes screenshots of running, the flip, turning, landing and shooting.
 
 The Player archetype changes apply to both maps: the double jump, plus speed 600 and stride 200. The stride was 95, which made the legs cycle about 5× a second at full speed, the main source of the "janky" run.
+
+## 5c. Stalker flight sandbox: `MZ_FlightTest`
+
+Phase 1 of the space battle plan (`Docs/SpaceBattle_Plan.md`). Walk up to one of the three parked blue Stalkers, aim at it and press **[F]** to pilot it.
+- Fly with WASD and the mouse, climb and dive with Space/Ctrl.
+- Boost with Shift, dodge-roll with Q/E, and fire all four arm guns with LMB.
+- Press [F] again to return to your body.
+
+The range has towers and an arch to weave through, five hovering red Stalkers to shoot (their arms come off one at a time), and a Shooter squad on the ground. Regenerate it with `$env:MZ_LEVELS="flight"`.
+
+## 5d. Space battle: `MZ_SpaceBattle`
+
+Two 600 m capital ships (blue Heroes, red Villains) face each other broadside across 1.6 km of asteroids. The full design and build notes are in `Docs/SpaceBattle_Plan.md`.
+
+1. You spawn on foot in the Heroes ship's spawn room. Walk forward down the corridor into the hangar.
+2. Aim at a parked Stalker and press **[F]** to pilot it. Friendly links have no time limit.
+3. Fly out through the hangar mouth. It's a two-way portal that comes out at the hull's hangar mouth, still at speed.
+4. Knock out the enemy's shield generators (the hull only takes 25% damage while either stands), then their engines and comms.
+5. Fly in through their hangar mouth and destroy the life-support core at the back of their hangar.
+
+**Tickets:** each team starts with 150. A team loses tickets for:
+- each combatant death (robots on foot, AI-piloted Stalkers)
+- each destroyed subsystem
+- a steady bleed while life support is down
+
+A team loses when its tickets run out or its ship is destroyed, and the game shows VICTORY or DEFEAT.
+
+**AI:** each hangar keeps an AI squadron in the air (2 Heroes and 3 Villains). Fighters defend their ship and dogfight; raiders attack the enemy ship's subsystems. Ship turrets fire flak at enemy flyers.
+
+**HUD:** tickets, hull and subsystem status at the top. In space there's a HANGAR marker (an edge arrow when off screen) and enemy subsystem markers. While flying, a lead ring marks where to shoot the nearest enemy flyer.
+
+Controls while flying are in §5c. Regenerate the maps (and `DA_Ship_Capital`, `M_Portal`) with `$env:MZ_LEVELS="space"`. The interior `MZ_CapitalShip_Interior` can also be opened on its own: its hangar parks Hero Stalkers by itself.
+
+## 5e. Pause menu and level switching
+
+Esc, P or Start pauses the game and opens the menu (`UMetalPauseMenu`, built in C++ like the HUD, no widget assets):
+- **Continue** resumes the game.
+- **Level Select** lists the levels, with "(current)" on the one you're in, plus **Back**. Picking a level loads it.
+- **Quit** exits the game (in the editor it ends the Play session).
+
+Mouse, keyboard (arrows + Enter) and gamepad (stick or d-pad + A) all work. Esc, P, Start or B backs out one step.
+
+The list comes from **Project Settings > Game > Metalization Levels** (`UMetalLevelSettings`, saved in `Config/DefaultGame.ini`). A map added there must also be in the packaging `MapsToCook` list, or it won't exist in packaged builds. `smoke_test.ps1 -Scenario menu` clicks through every button, switches from the Outpost to the Arena, and continues there.
 
 ## 6. Roadmap
 

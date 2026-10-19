@@ -4,6 +4,8 @@
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalFX.h"
+#include "MetalPauseMenu.h"
+#include "MetalStalker.h"
 #include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -41,9 +43,10 @@ void AMetalPlayerController::CreateInputObjects()
 	// Built in code so the demo has no input assets to keep in sync; designers can replace this
 	// with an Input Mapping Context asset later without touching the handlers.
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Metalization"));
-	auto Map = [this](UInputAction* Action, FKey Key, bool bNegate = false, bool bSwizzle = false, float Scale = 1.f)
+	UInputMappingContext* TargetContext = MappingContext;
+	auto Map = [this, &TargetContext](UInputAction* Action, FKey Key, bool bNegate = false, bool bSwizzle = false, float Scale = 1.f)
 	{
-		FEnhancedActionKeyMapping& Mapping = MappingContext->MapKey(Action, Key);
+		FEnhancedActionKeyMapping& Mapping = TargetContext->MapKey(Action, Key);
 		if (bSwizzle)
 		{
 			Mapping.Modifiers.Add(NewObject<UInputModifierSwizzleAxis>(this));
@@ -59,9 +62,9 @@ void AMetalPlayerController::CreateInputObjects()
 			Mapping.Modifiers.Add(Scalar);
 		}
 	};
-	auto NegateY = [this](UInputAction* Action, FKey Key, float Scale)
+	auto NegateY = [this, &TargetContext](UInputAction* Action, FKey Key, float Scale)
 	{
-		FEnhancedActionKeyMapping& Mapping = MappingContext->MapKey(Action, Key);
+		FEnhancedActionKeyMapping& Mapping = TargetContext->MapKey(Action, Key);
 		UInputModifierNegate* Negate = NewObject<UInputModifierNegate>(this);
 		Negate->bX = false;
 		Negate->bZ = false;
@@ -101,7 +104,10 @@ void AMetalPlayerController::CreateInputObjects()
 	Map(MakeAction(TEXT("Interact"), Bool), EKeys::E);
 	Map(Actions[TEXT("Interact")], EKeys::Gamepad_FaceButton_Right);
 	Map(MakeAction(TEXT("Confirm"), Bool), EKeys::Enter);
-	Map(Actions[TEXT("Confirm")], EKeys::Gamepad_Special_Right);
+	// Escape ends Play-In-Editor sessions, so P opens the menu too.
+	Map(MakeAction(TEXT("Pause"), Bool), EKeys::Escape);
+	Map(Actions[TEXT("Pause")], EKeys::P);
+	Map(Actions[TEXT("Pause")], EKeys::Gamepad_Special_Right);
 	Map(MakeAction(TEXT("CycleWeapon"), Axis1D), EKeys::MouseWheelAxis);
 	Map(MakeAction(TEXT("NextWeapon"), Bool), EKeys::Gamepad_FaceButton_Top);
 	const FKey NumberKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six};
@@ -109,6 +115,37 @@ void AMetalPlayerController::CreateInputObjects()
 	{
 		Map(MakeAction(*FString::Printf(TEXT("Weapon%d"), Index + 1), Bool), NumberKeys[Index]);
 	}
+
+	// Flying (Stalkers): Space/Ctrl climb and dive instead of jumping, Shift boosts, Q/E dodge-roll.
+	FlightContext = NewObject<UInputMappingContext>(this, TEXT("IMC_MetalizationFlight"));
+	TargetContext = FlightContext;
+	Map(MoveAction, EKeys::W, false, true);
+	Map(MoveAction, EKeys::S, true, true);
+	Map(MoveAction, EKeys::A, true);
+	Map(MoveAction, EKeys::D);
+	Map(MoveAction, EKeys::Gamepad_Left2D);
+	NegateY(LookAction, EKeys::Mouse2D, 1.f);
+	NegateY(LookAction, EKeys::Gamepad_Right2D, 2.5f);
+	Map(Actions[TEXT("Fire")], EKeys::LeftMouseButton);
+	Map(Actions[TEXT("Fire")], EKeys::Gamepad_RightTrigger);
+	Map(Actions[TEXT("Aim")], EKeys::RightMouseButton);
+	Map(Actions[TEXT("Aim")], EKeys::Gamepad_LeftTrigger);
+	Map(Actions[TEXT("Tether")], EKeys::F);
+	Map(Actions[TEXT("Tether")], EKeys::Gamepad_LeftShoulder);
+	UInputAction* AscendAction = MakeAction(TEXT("Ascend"), Axis1D);
+	Map(AscendAction, EKeys::SpaceBar);
+	Map(AscendAction, EKeys::LeftControl, true);
+	Map(AscendAction, EKeys::Gamepad_FaceButton_Bottom);
+	Map(AscendAction, EKeys::Gamepad_FaceButton_Right, true);
+	Map(MakeAction(TEXT("Boost"), Bool), EKeys::LeftShift);
+	Map(Actions[TEXT("Boost")], EKeys::Gamepad_LeftThumbstick);
+	Map(MakeAction(TEXT("DodgeLeft"), Bool), EKeys::Q);
+	Map(Actions[TEXT("DodgeLeft")], EKeys::Gamepad_DPad_Left);
+	Map(MakeAction(TEXT("DodgeRight"), Bool), EKeys::E);
+	Map(Actions[TEXT("DodgeRight")], EKeys::Gamepad_DPad_Right);
+	Map(Actions[TEXT("Pause")], EKeys::Escape);
+	Map(Actions[TEXT("Pause")], EKeys::P);
+	Map(Actions[TEXT("Pause")], EKeys::Gamepad_Special_Right);
 }
 
 void AMetalPlayerController::SetupInputComponent()
@@ -135,28 +172,26 @@ void AMetalPlayerController::SetupInputComponent()
 	Input->BindAction(Actions[TEXT("Tether")], ETriggerEvent::Started, this, &AMetalPlayerController::TetherPressed);
 	Input->BindAction(Actions[TEXT("Interact")], ETriggerEvent::Started, this, &AMetalPlayerController::InteractPressed);
 	Input->BindAction(Actions[TEXT("Confirm")], ETriggerEvent::Started, this, &AMetalPlayerController::ConfirmPressed);
+	Input->BindAction(Actions[TEXT("Pause")], ETriggerEvent::Started, this, &AMetalPlayerController::PausePressed);
 	Input->BindAction(Actions[TEXT("CycleWeapon")], ETriggerEvent::Triggered, this, &AMetalPlayerController::CycleWeaponAxis);
 	Input->BindAction(Actions[TEXT("NextWeapon")], ETriggerEvent::Started, this, &AMetalPlayerController::NextWeapon);
 	for (int32 Index = 0; Index < 6; ++Index)
 	{
 		Input->BindAction(Actions[*FString::Printf(TEXT("Weapon%d"), Index + 1)], ETriggerEvent::Started, this, &AMetalPlayerController::SelectWeapon, Index);
 	}
+	Input->BindAction(Actions[TEXT("Ascend")], ETriggerEvent::Triggered, this, &AMetalPlayerController::AscendAxis);
+	Input->BindAction(Actions[TEXT("Boost")], ETriggerEvent::Started, this, &AMetalPlayerController::BoostPressed);
+	Input->BindAction(Actions[TEXT("Boost")], ETriggerEvent::Completed, this, &AMetalPlayerController::BoostReleased);
+	Input->BindAction(Actions[TEXT("DodgeLeft")], ETriggerEvent::Started, this, &AMetalPlayerController::DodgePressed, -1.f);
+	Input->BindAction(Actions[TEXT("DodgeRight")], ETriggerEvent::Started, this, &AMetalPlayerController::DodgePressed, 1.f);
 }
 
 void AMetalPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-	{
-		Subsystem->AddMappingContext(MappingContext, 0);
-	}
+	UpdateMappingContext();
 	SetInputMode(FInputModeGameOnly());
 	bShowMouseCursor = false;
-	if (PlayerCameraManager)
-	{
-		PlayerCameraManager->ViewPitchMin = -70.f;
-		PlayerCameraManager->ViewPitchMax = 60.f;
-	}
 	BotDiedHandle = AMetalBotCharacter::OnAnyBotDied.AddUObject(this, &AMetalPlayerController::OnBotDied);
 }
 
@@ -169,6 +204,28 @@ void AMetalPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 AMetalBotCharacter* AMetalPlayerController::GetBot() const
 {
 	return Cast<AMetalBotCharacter>(GetPawn());
+}
+
+AMetalStalker* AMetalPlayerController::GetFlyer() const
+{
+	return Cast<AMetalStalker>(GetPawn());
+}
+
+void AMetalPlayerController::UpdateMappingContext()
+{
+	const bool bFlying = GetFlyer() != nullptr;
+	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (Subsystem && MappingContext && FlightContext)
+	{
+		Subsystem->RemoveMappingContext(bFlying ? MappingContext : FlightContext);
+		Subsystem->AddMappingContext(bFlying ? FlightContext : MappingContext, 0);
+	}
+	if (PlayerCameraManager)
+	{
+		// Flyers aim almost straight up and down.
+		PlayerCameraManager->ViewPitchMin = bFlying ? -85.f : -70.f;
+		PlayerCameraManager->ViewPitchMax = bFlying ? 85.f : 60.f;
+	}
 }
 
 bool AMetalPlayerController::CanAct() const
@@ -184,6 +241,14 @@ void AMetalPlayerController::Move(const FInputActionValue& Value)
 		return;
 	}
 	const FVector2D Axis = Value.Get<FVector2D>();
+	if (AMetalStalker* Flyer = GetFlyer())
+	{
+		// Forward follows the full aim (pitch up and push forward to climb); strafing stays level.
+		const FRotator View = GetControlRotation();
+		Flyer->AddMovementInput(View.Vector(), Axis.Y);
+		Flyer->AddMovementInput(FRotationMatrix(FRotator(0.f, View.Yaw, 0.f)).GetUnitAxis(EAxis::Y), Axis.X);
+		return;
+	}
 	const FRotator Yaw(0.f, GetControlRotation().Yaw, 0.f);
 	GetPawn()->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), Axis.Y);
 	GetPawn()->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), Axis.X);
@@ -299,6 +364,87 @@ void AMetalPlayerController::InteractPressed()
 	}
 }
 
+void AMetalPlayerController::AscendAxis(const FInputActionValue& Value)
+{
+	if (AMetalStalker* Flyer = GetFlyer(); Flyer && CanAct())
+	{
+		Flyer->AddVerticalInput(Value.Get<float>());
+	}
+}
+
+void AMetalPlayerController::BoostPressed()
+{
+	if (AMetalStalker* Flyer = GetFlyer(); Flyer && CanAct())
+	{
+		Flyer->SetBoostHeld(true);
+	}
+}
+
+void AMetalPlayerController::BoostReleased()
+{
+	if (AMetalStalker* Flyer = GetFlyer())
+	{
+		Flyer->SetBoostHeld(false);
+	}
+}
+
+void AMetalPlayerController::DodgePressed(float Direction)
+{
+	if (AMetalStalker* Flyer = GetFlyer(); Flyer && CanAct())
+	{
+		Flyer->Dodge(Direction);
+	}
+}
+
+void AMetalPlayerController::PausePressed()
+{
+	// While the menu is up it has the input; it handles its own back/close keys.
+	if (PauseMenu == nullptr)
+	{
+		OpenPauseMenu();
+	}
+}
+
+void AMetalPlayerController::OpenPauseMenu()
+{
+	if (PauseMenu)
+	{
+		return;
+	}
+	// Button releases won't arrive while the menu has the input: let go of everything now.
+	if (AMetalBotCharacter* Bot = GetBot())
+	{
+		Bot->StopFire();
+		Bot->SetAiming(false);
+	}
+	if (AMetalStalker* Flyer = GetFlyer())
+	{
+		Flyer->SetBoostHeld(false);
+	}
+	PauseMenu = CreateWidget<UMetalPauseMenu>(this, UMetalPauseMenu::StaticClass());
+	PauseMenu->AddToViewport(100);
+	SetPause(true);
+	FInputModeUIOnly Mode;
+	Mode.SetWidgetToFocus(PauseMenu->TakeWidget());
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(Mode);
+	bShowMouseCursor = true;
+	PauseMenu->ShowMainPanel();
+}
+
+void AMetalPlayerController::ClosePauseMenu()
+{
+	if (PauseMenu == nullptr)
+	{
+		return;
+	}
+	PauseMenu->RemoveFromParent();
+	PauseMenu = nullptr;
+	SetPause(false);
+	SetInputMode(FInputModeGameOnly());
+	bShowMouseCursor = false;
+}
+
 void AMetalPlayerController::ConfirmPressed()
 {
 	if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
@@ -317,6 +463,7 @@ void AMetalPlayerController::ConfirmPressed()
 void AMetalPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+	UpdateMappingContext();
 	if (!bSwitchingBodies)
 	{
 		// A fresh spawn (start of level or respawn) is always the player's own body.
@@ -361,7 +508,7 @@ AMetalBotCharacter* AMetalPlayerController::FindHackCandidate() const
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 	{
 		AMetalBotCharacter* Candidate = *It;
-		if (!Candidate->CanBeHacked() || FVector::Dist(Candidate->GetActorLocation(), Body->GetActorLocation()) > TetherRange)
+		if (!Candidate->CanBeHackedBy(Body) || FVector::Dist(Candidate->GetActorLocation(), Body->GetActorLocation()) > TetherRange)
 		{
 			continue;
 		}
@@ -394,7 +541,7 @@ void AMetalPlayerController::TetherPressed()
 	}
 	else if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>(); GameMode && GetPawn() == PlayerBody.Get())
 	{
-		GameMode->ShowMessage(FText::GetEmpty(), NSLOCTEXT("Metalization", "NoTetherTarget", "Hack Tether: no enemy robot in range."), 1.5f);
+		GameMode->ShowMessage(FText::GetEmpty(), NSLOCTEXT("Metalization", "NoTetherTarget", "Hack Tether: no robot in range."), 1.5f);
 	}
 }
 
@@ -410,11 +557,17 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 		OldBrain->UnPossess();
 		OldBrain->Destroy();
 	}
+	// Our own side's robots stay on our side; only enemies are turned (and burnt out afterwards).
+	const bool bAlly = Target->GetTeam() == Body->GetTeam();
 
 	Body->StopFire();
 	Body->SetAiming(false);
 	Body->SetDormant(true);
-	Target->SetHijacked(true);
+	Target->SetDormant(false);
+	if (!bAlly)
+	{
+		Target->SetHijacked(true);
+	}
 	Target->GetCharacterMovement()->StopMovementImmediately();
 
 	bSwitchingBodies = true;
@@ -423,14 +576,21 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	SetControlRotation(FRotator(0.f, Target->GetActorRotation().Yaw, 0.f));
 
 	Host = Target;
-	PossessionDuration = Target->GetPossessionDuration();
+	bAllyLink = bAlly;
+	PossessionDuration = bAlly ? 0.f : Target->GetPossessionDuration();
 	PossessionEndTime = GetWorld()->GetTimeSeconds() + PossessionDuration;
-	TetherBeam = AMetalFX::SpawnBeam(GetWorld(), Body->GetMuzzleLocation(), Target->GetActorLocation(), TetherColor, 1.5f, 0.f);
+	if (!bAlly)
+	{
+		// A friendly link can take the pilot far from their body (out of the hangar), so only hijacks draw a beam.
+		TetherBeam = AMetalFX::SpawnBeam(GetWorld(), Body->GetMuzzleLocation(), Target->GetActorLocation(), TetherColor, 1.5f, 0.f);
+	}
 	AMetalFX::SpawnBurst(GetWorld(), Target->GetActorLocation(), TetherColor, 90.f, 0.4f);
 
 	if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
 	{
-		GameMode->ShowMessage(FText::GetEmpty(), FText::Format(NSLOCTEXT("Metalization", "Hijacked", "HACK TETHER LINKED: {0}.  [F] to disconnect"), Target->GetDisplayName()), 3.f);
+		const FText Format = bAlly ? NSLOCTEXT("Metalization", "Linked", "LINKED: {0}.  [F] to disconnect")
+			: NSLOCTEXT("Metalization", "Hijacked", "HACK TETHER LINKED: {0}.  [F] to disconnect");
+		GameMode->ShowMessage(FText::GetEmpty(), FText::Format(Format, Target->GetDisplayName()), 3.f);
 	}
 }
 
@@ -438,7 +598,9 @@ void AMetalPlayerController::EndPossession()
 {
 	AMetalBotCharacter* OldHost = Host.Get();
 	AMetalBotCharacter* Body = PlayerBody.Get();
+	const bool bWasAlly = bAllyLink;
 	Host.Reset();
+	bAllyLink = false;
 	if (TetherBeam)
 	{
 		TetherBeam->Destroy();
@@ -460,8 +622,16 @@ void AMetalPlayerController::EndPossession()
 	}
 	if (OldHost && OldHost->IsAlive())
 	{
-		// The tether burns out the host's brain: it stays on our side just long enough to blow up.
-		OldHost->SelfDestruct(1.2f);
+		if (bWasAlly)
+		{
+			// Back to idle: a Stalker coasts to a hover, ready to be linked again.
+			OldHost->SetDormant(true);
+		}
+		else
+		{
+			// The tether burns out the host's brain: it stays on our side just long enough to blow up.
+			OldHost->SelfDestruct(1.2f);
+		}
 	}
 }
 
@@ -498,7 +668,7 @@ void AMetalPlayerController::Tick(float DeltaSeconds)
 		{
 			TetherBeam->SetBeamEndpoints(Body->GetMuzzleLocation(), CurrentHost->GetActorLocation());
 		}
-		if (GetWorld()->GetTimeSeconds() >= PossessionEndTime)
+		if (!bAllyLink && GetWorld()->GetTimeSeconds() >= PossessionEndTime)
 		{
 			EndPossession();
 		}

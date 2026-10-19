@@ -6,9 +6,11 @@ Run after ue_import_assets.py (see run_pipeline.ps1). Creates:
     /Game/Metalization/Data/DA_Bot_*    robot archetypes (UMetalBotArchetype), one per imported character
     /Game/Metalization/Maps/MZ_Outpost_Demo  the demo mission
     /Game/Metalization/Maps/MZ_Arena         free-roam prototype arena (ue_setup_arena.py)
+    /Game/Metalization/Maps/MZ_FlightTest    Stalker flight sandbox (ue_setup_flight.py)
+    /Game/Metalization/Maps/MZ_SpaceBattle   capital ships + MZ_CapitalShip_Interior, DA_Ship_Capital (ue_setup_space.py)
 
 The maps are regenerated from scratch every run - make manual layout changes on a copy.
-Set MZ_LEVELS=arena (or outpost) to rebuild only one of them.
+Set MZ_LEVELS to a comma-separated subset of outpost,arena,flight,space to rebuild only those.
 """
 import json
 import math
@@ -110,6 +112,16 @@ def make_weapons():
         display_name="Twin Miniguns", fire_mode=unreal.MetalFireMode.HITSCAN, automatic=True, infinite_ammo=True,
         spread_degrees=3.5, range=6000.0, muzzle_offset=0.0, tracer_color=color(1.0, 0.9, 0.2),
         levels=[level({}, 3.5, 0.08)])
+    # The Stalker's four arm guns fire in turn (MuzzleBones); slugs leave from the gun tips.
+    w["StalkerCannons"] = setp(data_asset("WD_StalkerCannons", unreal.MetalWeaponData),
+        display_name="Arm Cannons", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
+        spread_degrees=0.4, projectile_speed=30000.0, muzzle_offset=290.0, projectile_scale=4.0,
+        tracer_color=color(0.35, 1.0, 0.45), levels=[level({}, 12.0, 0.08)])
+    # Capital ship flak turrets: slower, bigger slugs, fired by AMetalCapitalShip (no holder mesh).
+    w["TurretFlak"] = setp(data_asset("WD_TurretFlak", unreal.MetalWeaponData),
+        display_name="Turret Flak", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
+        spread_degrees=1.0, projectile_speed=18000.0, projectile_scale=6.0, tracer_color=color(1.0, 0.55, 0.15),
+        levels=[level({}, 10.0, 0.9)])
     w["Claw"] = setp(data_asset("WD_Claw", unreal.MetalWeaponData),
         display_name="Bare Servos", fire_mode=unreal.MetalFireMode.MELEE, automatic=True, infinite_ammo=True,
         range=130.0, tracer_color=color(1.0, 0.6, 0.2), levels=[level({}, 14.0, 0.8)])
@@ -133,9 +145,13 @@ def rig(**overrides):
     return r
 
 
-def zone(name, bone, radius, mult, durability=0.0, disables=False):
+def zone(name, bone, radius, mult, durability=0.0, disables=False, muzzle="None"):
     return setp(unreal.MetalHitZone(), zone_name=name, bone=bone, radius=radius, damage_multiplier=mult,
-                durability=durability, disables_weapon_when_broken=disables)
+                durability=durability, disables_weapon_when_broken=disables, disables_muzzle_bone=muzzle)
+
+
+def team_colors(body, accent):
+    return setp(unreal.MetalTeamColors(), body=color(*body), accent=color(*accent))
 
 
 def make_archetypes(manifest, w):
@@ -198,6 +214,28 @@ def make_archetypes(manifest, w):
          starting_weapons=[w["TwinMiniguns"]], melee_weapon=w["Claw"], muzzle_bones=["minigun_R", "minigun_L"],
          sight_range=4500.0, preferred_range=1400.0, aim_error_degrees=5.5, burst_duration=1.6, burst_pause=2.0,
          squad_alert_radius=3000.0, camera_distance=620.0, camera_offset=unreal.Vector(0.0, 120.0, 160.0))
+
+    # Flying gunship. The capsule wraps only the 5 m body (centred on it with mesh_offset: the body box sits
+    # 0.86 m behind and 1.13 m above the model origin); the arms take hits through the physics asset and
+    # each one carries a gun that can be shot off. Friendly Stalkers can be piloted without a time limit.
+    sides = [("UpperL", "arm_upper_0_L", "gun_upper_L"), ("UpperR", "arm_upper_0_R", "gun_upper_R"),
+             ("LowerL", "arm_lower_0_L", "gun_lower_L"), ("LowerR", "arm_lower_0_R", "gun_lower_R")]
+    flight = setp(unreal.MetalFlightTuning(), max_speed=4500.0, acceleration=6000.0, braking=4000.0, grip=3.0, turn_rate=140.0,
+                  max_bank=35.0, boost_speed=10000.0, boost_acceleration=14000.0, boost_duration=3.0,
+                  boost_recharge_time=5.0, dodge_speed=4500.0, dodge_cost=0.25)
+    setp(archetypes["stalker"], display_name="Stalker", hackable=True, ally_hackable=True, possession_duration=20.0,
+         capsule_radius=140.0, capsule_half_height=170.0, mesh_offset=unreal.Vector(86.0, 0.0, 57.0),
+         max_health=400.0, walk_speed=600.0, flight=flight,
+         team_colors={unreal.MetalTeam.HEROES: team_colors((0.1575, 0.1883, 0.45), (0.4875, 0.5152, 0.75)),
+                      unreal.MetalTeam.VILLAINS: team_colors((0.45, 0.2223, 0.1575), (0.75, 0.5456, 0.4875))},
+         rig=rig(pelvis="body", head="None", aim_pitch_weight=0.0, arm_swing_degrees=0.0,
+                 flyer_arm_upper_l="arm_upper_0_L", flyer_arm_upper_r="arm_upper_0_R",
+                 flyer_arm_lower_l="arm_lower_0_L", flyer_arm_lower_r="arm_lower_0_R",
+                 x_spread_degrees=28.0, boost_sweep_degrees=40.0, parked_fold_degrees=55.0),
+         hit_zones=[zone("Gun" + name, bone, 60.0, 1.0, durability=90.0, muzzle=gun) for name, bone, gun in sides],
+         starting_weapons=[w["StalkerCannons"]], muzzle_bones=["gun_upper_L", "gun_lower_R", "gun_upper_R", "gun_lower_L"],
+         sight_range=8000.0, preferred_range=4000.0, aim_error_degrees=1.5,
+         camera_distance=1500.0, camera_offset=unreal.Vector(0.0, 0.0, 330.0))
 
     setp(archetypes["guide"], display_name="Guide", capsule_half_height=48.0)
 
@@ -551,13 +589,19 @@ def main():
     weapons = make_weapons()
     archetypes = make_archetypes(manifest, weapons)
     restore_template_game_mode()
-    levels = os.environ.get("MZ_LEVELS", "outpost,arena").split(",")
+    levels = os.environ.get("MZ_LEVELS", "outpost,arena,flight,space").split(",")
+    sys.path.insert(0, os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline"))
     if "outpost" in levels:
         build_level(archetypes, weapons, manifest)
     if "arena" in levels:
-        sys.path.insert(0, os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline"))
         import ue_setup_arena
         ue_setup_arena.build_arena(archetypes)
+    if "flight" in levels:
+        import ue_setup_flight
+        ue_setup_flight.build_flight_test(archetypes)
+    if "space" in levels:
+        import ue_setup_space
+        ue_setup_space.build_space_maps(archetypes)
     log("DONE")
 
 

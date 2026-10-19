@@ -163,13 +163,13 @@ void AMetalGameMode::Respawn(AMetalPlayerController* Controller)
 	}
 }
 
-void AMetalGameMode::CompleteMission()
+void AMetalGameMode::CompleteMission(const FText& EndBanner)
 {
 	if (!bMissionComplete)
 	{
 		bMissionComplete = true;
 		MissionEndTime = GetWorld()->GetTimeSeconds();
-		ShowBanner(NSLOCTEXT("Metalization", "MissionComplete", "MISSION COMPLETE"), 1000000.f);
+		ShowBanner(EndBanner.IsEmpty() ? NSLOCTEXT("Metalization", "MissionComplete", "MISSION COMPLETE") : EndBanner, 1000000.f);
 	}
 }
 

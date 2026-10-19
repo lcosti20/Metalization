@@ -1,6 +1,7 @@
 #include "MetalBotAnimInstance.h"
 
 #include "MetalBotCharacter.h"
+#include "MetalStalker.h"
 #include "Animation/AnimNodeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -60,8 +61,11 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	const FVector LocalVelocity = Bot->GetActorTransform().InverseTransformVectorNoScale(Bot->GetVelocity());
 	const float GroundSpeed = LocalVelocity.Size2D();
-	const bool bFalling = Bot->GetCharacterMovement() && Bot->GetCharacterMovement()->IsFalling();
-	const bool bCanMove = Bot->IsAlive() && !Bot->IsSlumped();
+	// Flyers (Stalkers) have no legs to walk or fall with; their arms get the flight poses instead.
+	const AMetalStalker* Flyer = Cast<AMetalStalker>(Bot);
+	const bool bFlyer = !Rig.FlyerArmUpperL.IsNone();
+	const bool bFalling = !bFlyer && Bot->GetCharacterMovement() && Bot->GetCharacterMovement()->IsFalling();
+	const bool bCanMove = Bot->IsAlive() && !Bot->IsSlumped() && !bFlyer;
 
 	if (GroundSpeed > 10.f)
 	{
@@ -70,7 +74,9 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const float TargetMoveAlpha = (bCanMove && !bFalling) ? FMath::Clamp(GroundSpeed / 200.f, 0.f, 1.f) : 0.f;
 	MoveAlpha = FMath::FInterpTo(MoveAlpha, TargetMoveAlpha, DeltaSeconds, 10.f);
 	InAirAlpha = FMath::FInterpTo(InAirAlpha, bFalling && bCanMove ? 1.f : 0.f, DeltaSeconds, 8.f);
-	SlumpAlpha = FMath::FInterpTo(SlumpAlpha, Bot->IsSlumped() ? 1.f : 0.f, DeltaSeconds, 5.f);
+	SlumpAlpha = FMath::FInterpTo(SlumpAlpha, Bot->IsSlumped() && !bFlyer ? 1.f : 0.f, DeltaSeconds, 5.f);
+	BoostAlpha = FMath::FInterpTo(BoostAlpha, Flyer && Flyer->IsBoosting() ? 1.f : 0.f, DeltaSeconds, 5.f);
+	ParkedAlpha = FMath::FInterpTo(ParkedAlpha, Flyer && (Flyer->IsParked() || Flyer->IsDormant()) ? 1.f : 0.f, DeltaSeconds, 3.f);
 	StunAlpha = Bot->IsStunned() ? 1.f : FMath::FInterpTo(StunAlpha, 0.f, DeltaSeconds, 6.f);
 	Recoil = FMath::FInterpTo(Recoil, 0.f, DeltaSeconds, 14.f);
 	HitReact = FMath::FInterpTo(HitReact, 0.f, DeltaSeconds, 7.f);
@@ -102,6 +108,8 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	State.LandAlpha = LandAlpha;
 	State.FlipTuck = Bot->GetFlipTuck();
 	State.Lean = Lean;
+	State.BoostAlpha = BoostAlpha;
+	State.ParkedAlpha = ParkedAlpha;
 }
 
 FAnimInstanceProxy* UMetalBotAnimInstance::CreateAnimInstanceProxy()
@@ -266,6 +274,29 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 		Add(KneeR, SwingToward(FVector::ForwardVector, -45.f * Sag));
 		Add(Pelvis, PitchUp(-12.f * Sag) * Yaw(Twitch));
 		PelvisOffset.Z -= 6.f * Sag;
+	}
+
+	// Flying: the four gun arms open into an X (upper pair up, lower pair down), close up and sweep back
+	// under boost, kick back on each shot, and fold back flat while parked. The body bobs as it hovers.
+	if (!Rig.FlyerArmUpperL.IsNone())
+	{
+		// Character space: left arms point along -Y, right arms along +Y. Positive Raise lifts the arm,
+		// positive Sweep swings it back.
+		auto Raise = [](float Side, float Degrees) { return FQuat(FVector::ForwardVector, FMath::DegreesToRadians(Side * Degrees)); };
+		auto Sweep = [](float Side, float Degrees) { return FQuat(FVector::UpVector, FMath::DegreesToRadians(Side * Degrees)); };
+		const float Active = 1.f - S.ParkedAlpha;
+		const float Spread = Rig.XSpreadDegrees * FMath::Lerp(0.75f, 1.f, S.CombatAlpha) * (1.f - 0.6f * S.BoostAlpha) * Active;
+		const float Flex = 3.f * FMath::Sin(S.Time * 1.7f) * Active;
+		const float Back = Rig.BoostSweepDegrees * S.BoostAlpha + Rig.ParkedFoldDegrees * S.ParkedAlpha + 4.f * S.Recoil;
+		const struct { FName Bone; float Side; float Lift; } Arms[] = {
+			{Rig.FlyerArmUpperL, -1.f, 1.f}, {Rig.FlyerArmUpperR, 1.f, 1.f},
+			{Rig.FlyerArmLowerL, -1.f, -1.f}, {Rig.FlyerArmLowerR, 1.f, -1.f},
+		};
+		for (const auto& Arm : Arms)
+		{
+			Add(Find(Arm.Bone), Sweep(Arm.Side, Back) * Raise(Arm.Side, Arm.Lift * (Spread + Flex)));
+		}
+		PelvisOffset.Z += 8.f * Active * FMath::Sin(S.Time * 2.1f);
 	}
 
 	// Apply the character-space deltas while walking the hierarchy (parents always precede children).

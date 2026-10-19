@@ -8,7 +8,7 @@ MetalizationEditor target so the C++ classes the data assets use exist.
 
 Stages:
     1. blender_export.py    Art/Graybox/Metalization_Graybox.blend -> Saved/AssetPipeline (FBX, manifest.json)
-    2. ue_import_assets.py  materials, skeletal/static meshes under /Game/Metalization
+    2. ue_import_assets.py  materials, skeletal/static meshes (characters, weapons, props, ships) under /Game/Metalization
     3. ue_setup_gameplay.py weapon + robot data assets, the MZ_Outpost_Demo map and MZ_Arena (ue_setup_arena.py)
     4. ue_validate.py       sanity checks (sizes, material slots, skeletal-mesh usage flags)
 #>
@@ -51,7 +51,7 @@ if (-not $SkipImport) {
     # Everything here is regenerated from the manifest. Reimporting over an existing mesh keeps its old
     # material slots, and deleting assets from the commandlet doesn't remove the files, so clear them on disk.
     $Generated = Join-Path $Project "Content\Metalization"
-    foreach ($folder in "Characters", "Weapons", "Props", "Textures", "Materials\Instances") {
+    foreach ($folder in "Characters", "Weapons", "Props", "Ships", "Textures", "Materials\Instances") {
         $path = Join-Path $Generated $folder
         if (Test-Path $path) { Remove-Item -Recurse -Force $path }
     }

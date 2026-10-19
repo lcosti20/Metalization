@@ -36,6 +36,9 @@ struct FMetalBotAnimState
 	float FlipTuck = 0.f;
 	/** Forward lean from acceleration and speed, degrees. */
 	float Lean = 0.f;
+	/** Flying robots: arms sweep back with boost and fold while parked. */
+	float BoostAlpha = 0.f;
+	float ParkedAlpha = 0.f;
 };
 
 struct FMetalBotAnimProxy : public FAnimInstanceProxy
@@ -81,6 +84,8 @@ private:
 	float CombatAlpha = 1.f;
 	float LandAlpha = 0.f;
 	float Lean = 0.f;
+	float BoostAlpha = 0.f;
+	float ParkedAlpha = 0.f;
 	FVector MoveDirection = FVector::ForwardVector;
 	FVector HitDirection = FVector::ForwardVector;
 };

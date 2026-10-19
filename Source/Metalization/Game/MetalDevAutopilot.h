@@ -4,7 +4,8 @@
 //   -MetalCam=X,Y,Z,Pitch,Yaw    view from a fixed camera instead of the player
 //                                (separate several with ";" to use one camera per screenshot)
 //   -MetalShots=2,5.5,9          take screenshots at these times (Saved/Screenshots)
-//   -MetalAutopilot[=combat|gate|boss|arena]  run a scripted smoke test (see Scenarios() in the .cpp)
+//   -MetalAutopilot[=combat|gate|boss|arena|flight|hangar|battle|dogfight|menu|ships]  run a scripted smoke test (see Scenarios() in the .cpp)
+//   -MetalMenuLevel=Arena        Level Select entry the "menu" scenario picks (it runs again after the switch)
 //   -MetalObjective=N            start the mission at objective N
 //   -MetalQuitAt=12              exit the game
 
@@ -31,9 +32,12 @@ protected:
 
 private:
 	AMetalBotCharacter* FindNearest(bool bHackableOnly, FName Tag) const;
+	/** Closest friendly robot the player can link to (a parked Stalker). */
+	AMetalBotCharacter* FindNearestLinkable() const;
 	void AimAt(const AActor* Target) const;
 	void RunStep(int32 Step);
 	void ViewFromCamera(int32 Index);
+	void Start();
 
 	TArray<float> ShotTimes;
 	TArray<FTransform> Cameras;
@@ -43,8 +47,15 @@ private:
 	float NextLogTime = 0.f;
 	bool bAutopilot = false;
 	bool bRunning = false;
+	/** The clock starts once the player has a pawn. */
+	bool bStarted = false;
+	bool bClimbing = false;
 	FString Scenario;
 	int32 NextStep = 0;
 	int32 ShotIndex = 0;
 	TWeakObjectPtr<AMetalBotCharacter> AimTarget;
+	/** Aim at this bone of AimTarget instead of its centre. */
+	FName AimBone;
+	/** Aim at a component instead (a capital ship's subsystem). */
+	TWeakObjectPtr<USceneComponent> AimComponent;
 };
