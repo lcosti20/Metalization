@@ -62,6 +62,7 @@ void AMetalTriggerZone::OnOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 {
 	AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(OtherActor);
 	const AMetalPlayerController* PC = Bot ? Cast<AMetalPlayerController>(Bot->GetController()) : nullptr;
+	// Hijacked robots don't count: respawning puts the player's own body at the checkpoint.
 	if (!bIsCheckpoint || bTriggered || PC == nullptr || PC->GetPlayerBody() != Bot)
 	{
 		return;

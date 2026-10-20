@@ -48,8 +48,8 @@ FLinearColor AMetalPickup::GetColor() const
 void AMetalPickup::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	// Weapons and grenades show their real model; repairs and ammo use simple glowing shapes
-	// until the item_* models (only shipped as Source .mdl files) are converted.
+	// Weapons show their prop model; repairs (sphere) and ammo/grenades (cube) use simple glowing
+	// engine shapes.
 	UStaticMesh* Mesh = nullptr;
 	FVector Scale(1.f);
 	if (Type == EMetalPickupType::Weapon && Weapon && Weapon->PropMesh)

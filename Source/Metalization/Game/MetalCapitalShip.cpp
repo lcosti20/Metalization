@@ -26,6 +26,7 @@ namespace
 {
 	const FLinearColor Burnt(0.03f, 0.03f, 0.035f);
 	const FLinearColor Fire(1.f, 0.45f, 0.1f);
+	/** Highest turret_NN socket number looked for. */
 	constexpr int32 MaxTurrets = 32;
 }
 
@@ -184,6 +185,8 @@ void AMetalCapitalShip::LoadInterior()
 		UE_LOG(LogMetal, Warning, TEXT("%s has no interior level; nobody can spawn aboard."), *GetName());
 		return;
 	}
+	// Each ship loads its own instance of the interior map, offset to InteriorLocation, so two ships can
+	// share one interior asset. Actors inside are only usable once the level is shown (HandleInteriorShown).
 	bool bSuccess = false;
 	InteriorStreaming = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(this, ShipData->Interior, InteriorLocation, FRotator::ZeroRotator, bSuccess);
 	if (!bSuccess || InteriorStreaming == nullptr)
@@ -328,6 +331,8 @@ float AMetalCapitalShip::TakeDamage(float DamageAmount, FDamageEvent const& Dama
 	}
 	const float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
+	// Find which component was struck. Point damage carries the hit; radial damage lists the components
+	// it reached, and the first one is used.
 	UPrimitiveComponent* HitComponent = nullptr;
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -443,6 +448,8 @@ void AMetalCapitalShip::TickTurrets(float DeltaSeconds)
 	UWorld* World = GetWorld();
 	const float Now = World->GetTimeSeconds();
 	const FTransform HullToWorld = Hull->GetComponentTransform();
+	// Transforms compose left to right in UE (A * B applies A, then B), so a gun's world transform is
+	// Aim * TurretGunOffset * Mount * HullToWorld: aim on the base, base on the hull, hull in the world.
 
 	// Pick targets a few times a second: the nearest enemy flyer each gun can see.
 	if (Now >= NextTurretThinkTime)
@@ -498,6 +505,9 @@ void AMetalCapitalShip::TickTurrets(float DeltaSeconds)
 			const FVector Gun = (TurretGunOffset * MountWorld).GetLocation();
 			const float Flight = FVector::Dist(Gun, Target->GetActorLocation()) / FMath::Max(1000.f, Weapon->ProjectileSpeed);
 			AimWorld = Target->GetActorLocation() + Target->GetVelocity() * Flight;
+			// Convert the lead point into the mount's frame, so yaw and pitch are relative to how the turret
+			// is mounted (turrets sit on the hull's top, sides and belly). Pitch is limited to just above the
+			// mount's horizon.
 			const FVector Local = MountWorld.InverseTransformVectorNoScale(AimWorld - Gun);
 			DesiredYaw = FMath::RadiansToDegrees(FMath::Atan2(Local.Y, Local.X));
 			DesiredPitch = FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan2(Local.Z, FVector2D(Local.X, Local.Y).Size())), -5.f, 85.f);
@@ -507,6 +517,7 @@ void AMetalCapitalShip::TickTurrets(float DeltaSeconds)
 		Turret.Pitch += FMath::Clamp(DesiredPitch - Turret.Pitch, -Step, Step);
 		const FTransform Aim(FRotator(Turret.Pitch, Turret.Yaw, 0.f));
 		const FTransform GunLocal = Aim * TurretGunOffset * Turret.Mount;
+		// Only mark the render state dirty on the last instance, so the whole batch updates once per frame.
 		TurretGuns->UpdateInstanceTransform(Index, GunLocal, false, Index == Turrets.Num() - 1);
 
 		// Fire once the barrels are on the lead point.

@@ -14,6 +14,10 @@ namespace
 	const TCHAR* SpherePath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
 	const float GlowIntensity = 6.f;
 
+	/**
+	 * @param Path Object path of an engine basic shape.
+	 * @return The loaded mesh, or null.
+	 */
 	UStaticMesh* LoadMesh(const TCHAR* Path)
 	{
 		return LoadObject<UStaticMesh>(nullptr, Path);
@@ -130,6 +134,7 @@ void AMetalFX::Tick(float DeltaSeconds)
 	}
 	Age += DeltaSeconds;
 	const float Alpha = FMath::Clamp(Age / Lifetime, 0.f, 1.f);
+	// Sqrt makes the change fast at first and slow at the end (bursts pop outwards, beams thin quickly).
 	SetActorScale3D(FMath::Lerp(StartScale, EndScale, FMath::Sqrt(Alpha)));
 	if (Material)
 	{

@@ -78,6 +78,8 @@ To replace a graybox with authored art, model it in `Metalization_Graybox.blend`
 
 ## 4. Gameplay architecture (C++ in `Source/Metalization/Game/`)
 
+The summary below is the quick reference. For how each system is implemented, start at [Architecture.md](Architecture.md), which links a page per system in [`Systems/`](Systems/).
+
 | System | Classes | Notes |
 |---|---|---|
 | Robots | `AMetalBotCharacter` + `UMetalBotArchetype` (Data Asset) | One class for the player, enemies, and NPCs. Archetype sets mesh, parts, rig, stats, hit zones, weapons, AI tuning, hackability, camera |

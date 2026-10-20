@@ -13,6 +13,7 @@
 
 namespace
 {
+	/** Highest pad_N socket number looked for. */
 	constexpr int32 MaxPads = 16;
 	/** Seconds between checks for destroyed robots. */
 	constexpr float CheckInterval = 0.5f;
@@ -156,6 +157,8 @@ void AMetalHangar::LaunchPilot(int32 Slot)
 	FActorSpawnParameters Params;
 	Params.OverrideLevel = GetLevel();
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	// Deferred so archetype, team and parked state are set before BeginPlay, which reads them. Spawned into
+	// the hangar's own (streamed) level, so it belongs to the interior.
 	Params.bDeferConstruction = true;
 	AMetalBotCharacter* Robot = GetWorld()->SpawnActor<AMetalBotCharacter>(RobotClass, Location, Facing, Params);
 	if (Robot == nullptr)
@@ -228,6 +231,8 @@ void AMetalHangar::Tick(float DeltaSeconds)
 		return;
 	}
 	NextCheckTime = Now + CheckInterval;
+	// Same pattern for pilots and pads: a dead or missing robot first schedules a replacement RespawnDelay
+	// seconds out, and a later check spawns it once that time has passed.
 	for (int32 Slot = 0; Slot < PilotSlots.Num(); ++Slot)
 	{
 		FPilotSlot& Pilot = PilotSlots[Slot];

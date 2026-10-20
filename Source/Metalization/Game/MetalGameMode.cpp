@@ -54,6 +54,7 @@ void AMetalGameMode::ShowMessage(const FText& Speaker, const FText& Text, float 
 	{
 		return;
 	}
+	// Notices are short status lines and only the latest matters; dialogue must all be read, so it queues.
 	if (Speaker.IsEmpty())
 	{
 		Notice = {Speaker, Text, Duration};
@@ -133,6 +134,8 @@ void AMetalGameMode::Respawn(AMetalPlayerController* Controller)
 	{
 		return;
 	}
+	// The controller may still be possessing a host (the body died during a hijack), so destroy both the
+	// possessed pawn and the recorded player body.
 	APawn* OldBody = Controller->GetPawn();
 	Controller->UnPossess();
 	if (OldBody)

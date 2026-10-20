@@ -49,6 +49,7 @@ void AMetalHUD::DrawHUD()
 	}
 	const float W = Canvas->ClipX;
 	const float H = Canvas->ClipY;
+	// Every size below is authored for 1080p and multiplied by UI so the layout scales with resolution.
 	const float UI = FMath::Max(0.6f, H / 1080.f);
 	const float Now = GetWorld()->GetTimeSeconds();
 	UFont* Small = GEngine->GetSmallFont();
@@ -238,6 +239,7 @@ void AMetalHUD::DrawMarker(const FVector& World, const FString& Label, const FLi
 		return;
 	}
 	// Off screen (or behind): an arrow on the edge pointing the way to turn.
+	// Points behind the camera project mirrored through the screen centre, so flip the direction for them.
 	FVector2D Dir(Screen.X - W * 0.5f, Screen.Y - H * 0.5f);
 	if (Screen.Z <= 0.f)
 	{
@@ -248,6 +250,8 @@ void AMetalHUD::DrawMarker(const FVector& World, const FString& Label, const FLi
 	{
 		Dir = FVector2D(0.f, 1.f);
 	}
+	// Push the arrow out from the centre along Dir until it meets the nearer of the vertical or
+	// horizontal margin lines, so it hugs the screen edge.
 	const float Scale = FMath::Min((W * 0.5f - Margin) / FMath::Max(FMath::Abs(Dir.X), KINDA_SMALL_NUMBER), (H * 0.5f - Margin) / FMath::Max(FMath::Abs(Dir.Y), KINDA_SMALL_NUMBER));
 	const FVector2D Tip = FVector2D(W * 0.5f, H * 0.5f) + Dir * Scale;
 	const FVector2D Side(-Dir.Y, Dir.X);
@@ -304,6 +308,8 @@ void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* 
 	// Out in space: the way home, and the enemy's targets. Aboard: the life-support core, once in sight.
 	const AMetalCapitalShip* Home = Battle->GetShip(Mine);
 	const AMetalCapitalShip* Enemy = Battle->GetShip(Theirs);
+	// Ship interiors are streamed in 20 km above the battle (see AMetalCapitalShip), so anything within
+	// 10 km of the battle plane is out in space.
 	const bool bInSpace = FMath::Abs(Viewer->GetActorLocation().Z) < 1000000.f;
 	if (bInSpace && Home && Home->GetOuterPortal())
 	{
@@ -347,6 +353,8 @@ void AMetalHUD::DrawLeadReticle(const AMetalStalker* Flyer, float UI)
 		{
 			continue;
 		}
+		// First-order lead: where the target will be after the time a slug takes to cover the current
+		// distance, assuming it keeps its velocity. Good enough at dogfight ranges.
 		const FVector Lead = It->GetActorLocation() + It->GetVelocity() * (FVector::Dist(It->GetActorLocation(), Flyer->GetActorLocation()) / ShotSpeed);
 		const FVector Screen = Project(Lead);
 		const float ScreenDistance = FVector2D::Distance(FVector2D(Screen.X, Screen.Y), Center);

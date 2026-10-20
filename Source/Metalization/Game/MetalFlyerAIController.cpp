@@ -15,9 +15,11 @@ namespace
 {
 	/** Interiors are self-contained rooms this close (cm) to their ship's InteriorLocation. */
 	constexpr float InteriorRadius = 60000.f;
+	/** Average seconds between target choices (randomised by +/-20%). */
 	constexpr float ThinkInterval = 0.4f;
 	/** Portal routing: line up this far (cm) out in front of the mouth, then fly straight through. */
 	constexpr float PortalApproach = 6000.f;
+	/** Distance from the line-up point that counts as lined up. */
 	constexpr float PortalLineUpRadius = 1500.f;
 	/** How far ahead (seconds of travel) to sweep for obstacles. */
 	constexpr float LookAheadTime = 1.2f;
@@ -238,6 +240,8 @@ FVector AMetalFlyerAIController::RouteTo(const FVector& Goal, bool& bOutDirect)
 	{
 		bRouteLinedUp = true;
 	}
+	// Once lined up, aim at a point 30 m past the mouth so the pilot crosses the portal plane at speed
+	// (crossing it is what teleports the flyer, see AMetalPortal).
 	return bRouteLinedUp ? Portal->GetActorLocation() - OwnSide * 3000.f : LineUp;
 }
 
@@ -258,7 +262,8 @@ FVector AMetalFlyerAIController::AvoidObstacles(const FVector& Direction) const
 	{
 		return Direction;
 	}
-	// Slide off the surface, biased upward so pilots climb over hulls instead of hugging them.
+	// Slide off the surface, biased upward so pilots climb over hulls instead of hugging them. Hit.Time is
+	// how far along the sweep the obstacle is (0 = right here), so nearer obstacles bend the path harder.
 	const FVector Slide = FVector::VectorPlaneProject(Direction, Hit.ImpactNormal).GetSafeNormal();
 	const float Urgency = 1.f - Hit.Time;
 	return (Direction * (1.f - Urgency) + (Slide + Hit.ImpactNormal * 0.8f + FVector::UpVector * 0.4f) * Urgency).GetSafeNormal();
@@ -395,6 +400,7 @@ void AMetalFlyerAIController::Tick(float DeltaSeconds)
 	const FVector Sideways = Away.RotateAngleAxis(35.f * FMath::Sin(OrbitPhase), FVector::UpVector);
 	const float Elevation = FMath::DegreesToRadians(30.f + 5.f * FMath::Cos(OrbitPhase * 0.7f));
 	const FVector Orbit = Sideways * FMath::Cos(Elevation) + FVector::UpVector * FMath::Sin(Elevation);
+	// Far away, head straight for the target; only start orbiting once within 2.5x the standoff range.
 	const FVector MovePoint = FVector::Dist(Here, Goal) > Standoff * 2.5f ? Goal : Goal + Orbit * Standoff;
 	Me->SetAITarget(AimPoint, true);
 	Steer(MovePoint, AimPoint, DeltaSeconds, true);

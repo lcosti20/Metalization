@@ -144,6 +144,8 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 
 	if (ExplosionRadius > 0.f)
 	{
+		// Full damage inside the inner 30% of the radius, falling to 25% at the edge. Nothing is ignored, so
+		// the shooter can be caught by their own blast (AMetalBotCharacter halves self-damage).
 		TArray<AActor*> Ignore;
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, Damage * 0.25f, Location, ExplosionRadius * 0.3f, ExplosionRadius, 1.f,
 			UDamageType::StaticClass(), Ignore, this, InstigatorController, ECC_Visibility);

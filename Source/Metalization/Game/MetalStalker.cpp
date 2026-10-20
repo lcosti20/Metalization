@@ -10,6 +10,7 @@
 
 namespace
 {
+	/** Seconds a dodge barrel roll takes. */
 	constexpr float DodgeDuration = 0.45f;
 	/** Seconds after the last boost before the meter starts refilling. */
 	constexpr float BoostRechargeDelay = 0.6f;
@@ -205,7 +206,8 @@ void AMetalStalker::TickTilt(float DeltaSeconds, float Now)
 	const float PitchStep = FMath::Clamp(TargetPitch - BodyPitch, -Flight.TurnRate * DeltaSeconds, Flight.TurnRate * DeltaSeconds);
 	BodyPitch = FMath::FInterpTo(BodyPitch, BodyPitch + PitchStep, DeltaSeconds, 12.f);
 
-	// Bank into strafes and turns; with no input it eases back to level.
+	// Bank into strafes and turns; with no input it eases back to level. Sideways speed and yaw rate each
+	// contribute up to 60% of MaxBank (normalised by the top speed and turn rate), clamped to MaxBank.
 	const float Yaw = GetActorRotation().Yaw;
 	const float YawRate = DeltaSeconds > 0.f ? FRotator::NormalizeAxis(Yaw - LastYaw) / DeltaSeconds : 0.f;
 	LastYaw = Yaw;

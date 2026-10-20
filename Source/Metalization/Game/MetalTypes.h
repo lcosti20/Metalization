@@ -5,14 +5,23 @@
 #include "CoreMinimal.h"
 #include "MetalTypes.generated.h"
 
+/** Log category for all Metalization gameplay code. Defined in MetalBotCharacter.cpp. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMetal, Log, All);
 
-/** Which side of the war a robot fights for. Possessed robots temporarily switch to the player's team. */
+/**
+ * Which side of the war a robot fights for. Possessed robots temporarily switch to the player's team.
+ *
+ * @see AMetalBotCharacter::GetTeam
+ * @see AMetalBotCharacter::IsHostileTo
+ */
 UENUM(BlueprintType)
 enum class EMetalTeam : uint8
 {
+	/** The player's side. */
 	Heroes,
+	/** The enemy side. */
 	Villains,
+	/** Hostile to nobody and ignored by AI targeting. */
 	Neutral
 };
 
@@ -22,6 +31,9 @@ enum class EMetalTeam : uint8
  * archetype describes its own rig instead of relying on a shared skeleton.
  *
  * All rotations are in character space: X forward, Y right, Z up.
+ *
+ * @see UMetalBotAnimInstance, which reads this struct every frame to pose the bones.
+ * @see UMetalBotArchetype::Rig
  */
 USTRUCT(BlueprintType)
 struct FMetalBotRig
@@ -130,7 +142,11 @@ struct FMetalBotRig
 	float ParkedFoldDegrees = 55.f;
 };
 
-/** Flight handling for robots that fly instead of walk (Stalkers). Speeds in cm/s. */
+/**
+ * Flight handling for robots that fly instead of walk (Stalkers). Speeds in cm/s.
+ *
+ * @see AMetalStalker, which applies these values to its flying CharacterMovementComponent.
+ */
 USTRUCT(BlueprintType)
 struct FMetalFlightTuning
 {
@@ -181,7 +197,11 @@ struct FMetalFlightTuning
 	float DodgeCost = 0.25f;
 };
 
-/** Per-team paint for robots that fight on both sides (Stalkers): applied to the Body / Accent material slots. */
+/**
+ * Per-team paint for robots that fight on both sides (Stalkers): applied to the Body / Accent material slots.
+ *
+ * @see UMetalBotArchetype::TeamColors
+ */
 USTRUCT(BlueprintType)
 struct FMetalTeamColors
 {
@@ -194,12 +214,18 @@ struct FMetalTeamColors
 	FLinearColor Accent = FLinearColor::White;
 };
 
-/** A region of a robot that reacts differently to damage (weak points, destructible weapon arms). */
+/**
+ * A region of a robot that reacts differently to damage (weak points, destructible weapon arms).
+ * A hit counts against the zone whose bone lies closest to the impact point, within Radius.
+ *
+ * @see AMetalBotCharacter::TakeDamage
+ */
 USTRUCT(BlueprintType)
 struct FMetalHitZone
 {
 	GENERATED_BODY()
 
+	/** Identifier used in logs and to look the zone up (e.g. "WeaponArm"). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Hit Zone")
 	FName ZoneName = NAME_None;
 
@@ -211,6 +237,7 @@ struct FMetalHitZone
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Hit Zone")
 	float Radius = 20.f;
 
+	/** Scales damage landing in this zone (above 1 for weak points). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Hit Zone")
 	float DamageMultiplier = 1.f;
 

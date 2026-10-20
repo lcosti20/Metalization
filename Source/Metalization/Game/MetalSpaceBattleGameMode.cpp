@@ -187,6 +187,7 @@ AActor* AMetalSpaceBattleGameMode::ChoosePlayerStart_Implementation(AController*
 	{
 		// A random start aboard our ship, preferring one nobody is standing on.
 		TArray<APlayerStart*> Starts = Ship->GetSpawnPoints();
+		// Fisher-Yates shuffle, then take the first start with no pawn within 1.5 m.
 		for (int32 Index = 0; Index < Starts.Num(); ++Index)
 		{
 			Starts.Swap(Index, FMath::RandRange(Index, Starts.Num() - 1));

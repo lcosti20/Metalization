@@ -24,18 +24,25 @@
 
 namespace
 {
+	/** One scripted action. Keep the order in sync with the Names table in RunStep(), which logs them. */
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue };
 
+	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
 	{
 		float Time;
 		EStep Action;
 	};
 
-	// Scripted smoke tests of the core loops, selected with -MetalAutopilot=<name>.
+	/**
+	 * Scripted smoke tests of the core loops, selected with -MetalAutopilot=<name>.
+	 * Tools/AssetPipeline/smoke_test.ps1 launches the game with these and checks the log.
+	 *
+	 * @return Scenario name to its time-ordered steps.
+	 */
 	const TMap<FString, TArray<FAutopilotStep>>& Scenarios()
 	{
 		static const TMap<FString, TArray<FAutopilotStep>> Map = {
@@ -83,6 +90,10 @@ namespace
 		return Map;
 	}
 
+	/**
+	 * @param Csv Comma-separated numbers ("1,2.5,3").
+	 * @return The parsed values, in order.
+	 */
 	TArray<float> ParseFloats(const FString& Csv)
 	{
 		TArray<FString> Parts;

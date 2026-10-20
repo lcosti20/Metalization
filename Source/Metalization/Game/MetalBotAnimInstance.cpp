@@ -7,19 +7,32 @@
 
 namespace MetalBotAnim
 {
-	/** Rotation that turns a downward-hanging limb towards Direction by Degrees (character space). */
+	/**
+	 * Rotation that turns a downward-hanging limb towards Direction by Degrees (character space).
+	 *
+	 * @param Direction Way to swing the limb (e.g. forward for a leg stepping forward).
+	 * @param Degrees   Swing angle; negative swings the opposite way.
+	 * @return Rotation about the axis perpendicular to straight-down and Direction.
+	 */
 	FQuat SwingToward(const FVector& Direction, float Degrees)
 	{
 		const FVector Axis = FVector::CrossProduct(FVector::DownVector, Direction).GetSafeNormal();
 		return Axis.IsNearlyZero() ? FQuat::Identity : FQuat(Axis, FMath::DegreesToRadians(Degrees));
 	}
 
-	/** Positive degrees tilt the forward axis upwards. */
+	/**
+	 * @param Degrees Pitch angle; positive tilts the forward axis upwards.
+	 * @return Rotation about the character's Y axis.
+	 */
 	FQuat PitchUp(float Degrees)
 	{
 		return FQuat(FVector(0.f, -1.f, 0.f), FMath::DegreesToRadians(Degrees));
 	}
 
+	/**
+	 * @param Degrees Turn angle around the up axis.
+	 * @return Rotation about the character's Z axis.
+	 */
 	FQuat Yaw(float Degrees)
 	{
 		return FQuat(FVector::UpVector, FMath::DegreesToRadians(Degrees));
@@ -86,6 +99,8 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	// Running freely the robot leans into its stride.
 	Lean = FMath::FInterpTo(Lean, 9.f * MoveAlpha * (1.f - CombatAlpha), DeltaSeconds, 6.f);
 
+	// Advance the gait by distance rather than time, so the feet don't slide at any speed: one full
+	// phase (0..1) is one stride of two steps.
 	const float Stride = FMath::Max(10.f, Rig.StrideLength * Scale);
 	GaitPhase = FMath::Fmod(GaitPhase + GroundSpeed * DeltaSeconds / Stride, 1.f);
 
@@ -300,6 +315,11 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	}
 
 	// Apply the character-space deltas while walking the hierarchy (parents always precede children).
+	// Each bone is first moved to component space (its local transform times its parent's, already
+	// posed). The delta was authored in character space (X forward), but the mesh is rotated relative to
+	// the capsule, so it is conjugated into component space (ToComponent * Delta * MeshToCharacter) and
+	// pre-multiplied onto the bone's rotation. The result is converted back to a parent-relative
+	// transform, which is what the compact pose stores.
 	const FQuat ToComponent = S.MeshToCharacter.Inverse();
 	TArray<FTransform> ComponentSpace;
 	ComponentSpace.SetNum(Pose.GetNumBones());

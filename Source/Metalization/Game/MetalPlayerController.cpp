@@ -18,6 +18,7 @@
 
 namespace
 {
+	/** Colour of the tether beam and link burst. */
 	const FLinearColor TetherColor(0.2f, 0.9f, 1.f);
 }
 
@@ -44,6 +45,9 @@ void AMetalPlayerController::CreateInputObjects()
 	// with an Input Mapping Context asset later without touching the handlers.
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Metalization"));
 	UInputMappingContext* TargetContext = MappingContext;
+	// Map(Action, Key, bNegate, bSwizzle, Scale) adds Key to whichever context TargetContext points at.
+	// Keyboard movement builds a 2D axis from four buttons: W/S are swizzled onto Y (forward), and S/A
+	// are negated. Look inverts mouse/stick Y (NegateY) so pushing up looks up.
 	auto Map = [this, &TargetContext](UInputAction* Action, FKey Key, bool bNegate = false, bool bSwizzle = false, float Scale = 1.f)
 	{
 		FEnhancedActionKeyMapping& Mapping = TargetContext->MapKey(Action, Key);
@@ -552,6 +556,8 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	{
 		return;
 	}
+	// The target's AI is destroyed rather than kept: when the link ends the host either blows up (enemy)
+	// or idles unpossessed (ally), and an idle ally must have no controller to be linkable again.
 	if (AController* OldBrain = Target->GetController())
 	{
 		OldBrain->UnPossess();
@@ -570,6 +576,8 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	}
 	Target->GetCharacterMovement()->StopMovementImmediately();
 
+	// Possess() unpossesses the body first; bSwitchingBodies keeps OnPossess from treating Target as a
+	// fresh spawn of the player's own body.
 	bSwitchingBodies = true;
 	Possess(Target);
 	bSwitchingBodies = false;
@@ -682,6 +690,7 @@ void AMetalPlayerController::Tick(float DeltaSeconds)
 
 	HackCandidate = FindHackCandidate();
 
+	// Nearest console in reach that hasn't been used yet; drives the HUD prompt and InteractPressed.
 	NearbyConsole.Reset();
 	if (const APawn* MyPawn = GetPawn())
 	{

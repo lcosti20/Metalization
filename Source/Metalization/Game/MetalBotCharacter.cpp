@@ -279,6 +279,8 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 	{
 		return false;
 	}
+	// Two rules: same-team robots need bAllyHackable (an open-ended "link", e.g. boarding a parked
+	// Stalker), enemy robots need bHackable (a timed hijack that ends in self-destruct).
 	if (Team == Hacker->GetTeam())
 	{
 		// Only idle ones (parked, or left hovering): never one an AI pilot is flying.
@@ -347,6 +349,8 @@ bool AMetalBotCharacter::GiveWeapon(UMetalWeaponData* Weapon, bool bEquip)
 	{
 		return false;
 	}
+	// Already owned: upgrade one level (capped at the max) and refill. A pickup only counts as used if it
+	// actually upgraded the weapon or added ammo, so full-and-maxed players leave it on the ground.
 	for (int32 Index = 0; Index < Weapons.Num(); ++Index)
 	{
 		FMetalWeaponSlot& Slot = Weapons[Index];
@@ -360,6 +364,7 @@ bool AMetalBotCharacter::GiveWeapon(UMetalWeaponData* Weapon, bool bEquip)
 			Slot.Reserve = Stats.MaxReserveAmmo;
 			if (bEquip || Index == CurrentWeapon)
 			{
+				// Clear first so EquipWeapon doesn't early-out, which refreshes the mesh for the new level.
 				CurrentWeapon = INDEX_NONE;
 				EquipWeapon(Index);
 			}
@@ -482,6 +487,7 @@ FVector AMetalBotCharacter::GetEyesLocation() const
 
 FVector AMetalBotCharacter::GetMuzzleLocation() const
 {
+	// Robots with built-in guns alternate between them; MuzzleCycle is advanced by FireOnce().
 	if (Archetype && Archetype->MuzzleBones.Num() > 0)
 	{
 		const FName Bone = Archetype->MuzzleBones[MuzzleCycle % Archetype->MuzzleBones.Num()];
@@ -527,7 +533,10 @@ FVector AMetalBotCharacter::GetAimPoint() const
 		FRotator ViewRotation;
 		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
 		const FVector Direction = ViewRotation.Vector();
-		// Start the trace level with the robot so walls between the camera and the robot are ignored.
+		// Trace along the crosshair to find what the player is pointing at; the shot itself then flies from
+		// the muzzle to that point. Projecting the robot onto the view ray gives the distance along it at
+		// which the robot stands, so the trace starts level with the robot and walls between the camera
+		// and the robot are ignored.
 		const FVector Start = ViewLocation + Direction * FVector::DotProduct(GetActorLocation() - ViewLocation, Direction);
 		const FVector End = ViewLocation + Direction * 30000.f;
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalAim), false, this);
@@ -601,6 +610,8 @@ void AMetalBotCharacter::FireOnce()
 	const FVector Muzzle = GetMuzzleLocation();
 	MuzzleCycle++;
 	FVector AimDirection = (GetAimPoint() - Muzzle).GetSafeNormal();
+	// The aim point can be behind the muzzle (target right next to the robot, or the camera looking past
+	// the body); shooting backwards through the robot looks wrong, so fall back to straight ahead.
 	if (FVector::DotProduct(AimDirection, GetAimForward()) < 0.2f)
 	{
 		AimDirection = GetAimForward();
@@ -608,6 +619,8 @@ void AMetalBotCharacter::FireOnce()
 	const float AIError = (!IsPlayerControlled() && Archetype) ? Archetype->AimErrorDegrees : 0.f;
 	const float Cone = FMath::DegreesToRadians(Data->SpreadDegrees + AIError);
 
+	// One iteration per pellet, each randomised inside the spread cone. Hitscan weapons trace and damage
+	// immediately; projectile and thrown weapons spawn an AMetalProjectile that deals damage on impact.
 	bool bHitRobot = false;
 	for (int32 Pellet = 0; Pellet < FMath::Max(1, Data->Pellets); ++Pellet)
 	{
@@ -737,6 +750,9 @@ int32 AMetalBotCharacter::FindHitZone(const FDamageEvent& DamageEvent) const
 			}
 		}
 	}
+	// Otherwise the shot hit the capsule. Treat the shot as a ray and pick the zone whose bone passes
+	// closest to it, within the zone's (scaled) radius. Projectile hits have no TraceStart, so back the
+	// ray up a little from the impact point instead.
 	const FVector RayStart = Hit.TraceStart.IsZero() ? FVector(Hit.ImpactPoint) - Point.ShotDirection * 50.f : FVector(Hit.TraceStart);
 	const float Scale = GetMesh()->GetRelativeScale3D().X;
 
@@ -766,6 +782,8 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		return 0.f;
 	}
 
+	// Work out which robot is responsible: the causer itself (hitscan, melee), the instigator of a
+	// projectile, or the pawn of the instigating controller (radial damage).
 	AMetalBotCharacter* Attacker = Cast<AMetalBotCharacter>(DamageCauser);
 	if (Attacker == nullptr && DamageCauser)
 	{
@@ -791,6 +809,7 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	{
 		const FMetalHitZone& HitZone = Archetype->HitZones[Zone];
 		Damage *= HitZone.DamageMultiplier;
+		// Break the zone only on the hit that pushes it past its durability, not on every hit after.
 		const bool bWasIntact = HitZone.Durability <= 0.f || ZoneDamage[Zone] < HitZone.Durability;
 		ZoneDamage[Zone] += Damage;
 		if (bWasIntact && HitZone.Durability > 0.f && ZoneDamage[Zone] >= HitZone.Durability)
@@ -800,6 +819,7 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	}
 	if (Attacker == this)
 	{
+		// Splash from your own grenades and rockets still hurts, but only half as much.
 		Damage *= 0.5f;
 	}
 
@@ -963,6 +983,7 @@ void AMetalBotCharacter::TickFlip(float Now)
 		}
 		else
 		{
+			// One full forward somersault, eased in and out; the tuck peaks halfway through the flip.
 			Angle = 360.f * FMath::InterpEaseInOut(0.f, 1.f, T, 1.6f);
 			FlipTuck = FMath::Sin(T * UE_PI);
 		}
@@ -972,6 +993,8 @@ void AMetalBotCharacter::TickFlip(float Now)
 		return;
 	}
 	// Spin the whole body (and everything attached to it) forward around the capsule centre.
+	// The mesh sits at MeshBaseLocation below the capsule centre, so rotating that offset as well as the
+	// rotation keeps the pivot at the centre instead of at the robot's feet.
 	const FQuat Flip(FVector::RightVector, FMath::DegreesToRadians(Angle));
 	const FQuat Turn = MeshTilt * Flip;
 	GetMesh()->SetRelativeLocationAndRotation(Turn.RotateVector(MeshBaseLocation), Turn * MeshBaseRotation);
@@ -1042,6 +1065,8 @@ void AMetalBotCharacter::ApplyTeamColors()
 		{
 			continue;
 		}
+		// Paintable material slots are the ones whose names end in "_Body" or "_Accent". RefreshMaterials()
+		// has already replaced them with dynamic instances, so the tint can be set in place.
 		const TArray<FName> SlotNames = Component->GetMaterialSlotNames();
 		for (int32 Index = 0; Index < SlotNames.Num(); ++Index)
 		{

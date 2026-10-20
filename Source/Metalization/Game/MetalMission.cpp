@@ -66,6 +66,7 @@ void AMetalMission::ActivateObjective(int32 Index)
 
 bool AMetalMission::IsObjectiveComplete(const FMetalObjective& Objective) const
 {
+	// "PlayerBody" here is whatever the player currently controls, so hijacked robots count for zones.
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	const AMetalBotCharacter* PlayerBody = PC ? Cast<AMetalBotCharacter>(PC->GetPawn()) : nullptr;
 

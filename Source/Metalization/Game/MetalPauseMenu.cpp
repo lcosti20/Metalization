@@ -23,6 +23,10 @@ namespace
 	const FLinearColor Idle(0.08f, 0.09f, 0.11f, 0.92f);
 	const FLinearColor Dim(1.f, 1.f, 1.f, 0.85f);
 
+	/**
+	 * @param Color Fill colour.
+	 * @return A rounded-rectangle brush with 6 px corners.
+	 */
 	FSlateBrush RoundedBrush(const FLinearColor& Color)
 	{
 		FSlateBrush Brush;
@@ -33,6 +37,10 @@ namespace
 		return Brush;
 	}
 
+	/**
+	 * @param bHighlighted Selected (amber) or idle (dark).
+	 * @return Button style with the same look for normal and hovered, so only focus decides the highlight.
+	 */
 	FButtonStyle MenuStyle(bool bHighlighted)
 	{
 		FButtonStyle Style;
@@ -45,6 +53,10 @@ namespace
 		return Style;
 	}
 
+	/**
+	 * @param Text Text block to change.
+	 * @param Size New font size, keeping the rest of its font.
+	 */
 	void SetFontSize(UTextBlock* Text, int32 Size)
 	{
 		FSlateFontInfo Font = Text->GetFont();
@@ -52,6 +64,10 @@ namespace
 		Text->SetFont(Font);
 	}
 
+	/**
+	 * @param Key Key that was pressed.
+	 * @return True for the keys that back out of the menu: Escape, P, gamepad Start and B.
+	 */
 	bool IsBackKey(const FKey& Key)
 	{
 		return Key == EKeys::Escape || Key == EKeys::P || Key == EKeys::Gamepad_Special_Right || Key == EKeys::Gamepad_FaceButton_Right;
@@ -153,6 +169,8 @@ void UMetalPauseMenu::BuildTree()
 	Switcher = WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass(), TEXT("Panels"));
 	Stack->AddChildToVerticalBox(Switcher);
 
+	// Button actions are lambdas stored on the buttons; they capture the menu weakly so a press after the
+	// menu is gone (e.g. mid level travel) does nothing.
 	AMetalPlayerController* PC = GetOwningPlayer<AMetalPlayerController>();
 	TWeakObjectPtr<UMetalPauseMenu> WeakThis(this);
 

@@ -150,6 +150,8 @@ void AMetalPortal::UpdateWindow()
 	{
 		return;
 	}
+	// Rendering a second view is expensive, so only capture when the viewer is on our side of the plane,
+	// within CaptureDistance, and the surface was drawn recently (i.e. is actually on screen).
 	const FVector ViewLocation = Camera->GetCameraLocation();
 	const bool bActive = GetSideDistance(ViewLocation) > 0.f
 		&& FVector::DistSquared(ViewLocation, GetActorLocation()) < FMath::Square(CaptureDistance)
@@ -160,6 +162,8 @@ void AMetalPortal::UpdateWindow()
 		return;
 	}
 	EnsureRenderTarget();
+	// Put the capture where the viewer's camera would be if it stood at the far end, with the same FOV.
+	// The surface samples the result in screen space, so the two images line up exactly.
 	Capture->SetWorldTransform(MapToLinked(FTransform(Camera->GetCameraRotation(), ViewLocation)));
 	Capture->FOVAngle = Camera->GetFOVAngle();
 }
@@ -196,6 +200,9 @@ void AMetalPortal::UpdateTransit()
 		const float* LastPtr = LastSide.Find(Actor);
 		const float Last = LastPtr ? *LastPtr : -1.f;
 		LastSide.Add(Actor, Side);
+		// A crossing is a sign change from our side (positive) to the far side between two ticks, inside the
+		// opening. Actors seen for the first time count as already on the far side, so nothing teleports
+		// just for appearing near the portal.
 		if (Last > 0.f && Side <= 0.f && IsWithinOpening(Location, 100.f))
 		{
 			SendThrough(Actor);
@@ -227,6 +234,7 @@ void AMetalPortal::SendThrough(AActor* Actor)
 		return;
 	}
 
+	// Rotation from this end's frame to the far end's; applied to velocity and the view direction.
 	const FQuat Turn = Other->GetActorQuat() * GetActorQuat().Inverse();
 	const FTransform Arrival = MapToLinked(Pawn->GetActorTransform());
 	const FVector Velocity = Pawn->GetVelocity();

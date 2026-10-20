@@ -9,8 +9,11 @@
 
 namespace
 {
+	/** Seconds between Sense() calls. */
 	constexpr float SenseInterval = 0.2f;
+	/** Enemies closer than this are noticed even outside the sight cone. */
 	constexpr float ProximityAwareness = 500.f;
+	/** Distance in cm at which a disarmed robot starts swinging. */
 	constexpr float MeleeReach = 170.f;
 }
 
@@ -171,6 +174,8 @@ void AMetalBotAIController::Sense()
 			BestDistance = Distance;
 		}
 	}
+	// Only switch targets when not already fighting, or when the current target is a powered-down body
+	// (the player's own body while they drive another robot) and a live threat is in view.
 	const AMetalBotCharacter* Current = Target.Get();
 	const bool bCurrentIsHarmless = Current && Current->IsDormant() && Best && !Best->IsDormant();
 	if (Best && (State != EMetalAIState::Combat || Current == nullptr || bCurrentIsHarmless))
@@ -291,6 +296,7 @@ void AMetalBotAIController::TickCombat(float Now)
 		return;
 	}
 
+	// Lost sight: hold fire, give it a moment, then go to where the enemy was seen. After 12 s, give up.
 	if (!bTargetVisible)
 	{
 		Bot->StopFire();
@@ -329,6 +335,8 @@ void AMetalBotAIController::TickCombat(float Now)
 		NextMoveTime = Now + FMath::FRandRange(1.8f, 3.5f);
 		const FVector Away = (Bot->GetActorLocation() - Enemy->GetActorLocation()).GetSafeNormal2D();
 		const FVector Side = FVector::CrossProduct(Away, FVector::UpVector) * (FMath::RandBool() ? 1.f : -1.f);
+		// Aim for a point at the preferred range, offset sideways by half that range so the robot circles
+		// the target instead of backing straight off; the clamp keeps it from drifting beyond the range.
 		const FVector Desired = Enemy->GetActorLocation() + (Away * Archetype->PreferredRange + Side * Archetype->PreferredRange * 0.5f).GetClampedToMaxSize(Archetype->PreferredRange);
 		MoveToRandomPointNear(Desired, 250.f, true);
 	}
