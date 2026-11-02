@@ -10,9 +10,12 @@ namespace
 {
 	/** Loaded on first use and rooted (it is tiny and used for the whole session). */
 	UMetalSoundLibrary* Library = nullptr;
+	/** Only try to load DA_Sounds once, so a missing library warns once instead of every sound. */
 	bool bTriedLoad = false;
+	/** Falloff shared by every positional sound. Created with the library. */
 	USoundAttenuation* Attenuation = nullptr;
 
+	/** @return The sound library, loading it (and creating Attenuation) on first use; null if it doesn't exist. */
 	UMetalSoundLibrary* GetLibrary()
 	{
 		if (!bTriedLoad)
@@ -41,6 +44,13 @@ namespace
 		return Library;
 	}
 
+	/**
+	 * Looks a sound up by name and applies its volume scale from the library.
+	 *
+	 * @param Name        Library name ("laser", "footstep"...).
+	 * @param InOutVolume Requested volume, multiplied by the library's scale for this sound.
+	 * @return The sound, or null if the library or the entry is missing.
+	 */
 	USoundBase* Find(FName Name, float& InOutVolume)
 	{
 		const UMetalSoundLibrary* Lib = GetLibrary();
@@ -56,6 +66,10 @@ namespace
 		return Sound ? Sound->Get() : nullptr;
 	}
 
+	/**
+	 * @param Jitter Maximum pitch change either way (0.1 = +/-10%).
+	 * @return A random pitch multiplier, so repeated sounds don't sound identical.
+	 */
 	float Pitch(float Jitter)
 	{
 		return Jitter > 0.f ? FMath::FRandRange(1.f - Jitter, 1.f + Jitter) : 1.f;

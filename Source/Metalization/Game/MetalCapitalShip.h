@@ -55,15 +55,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> HullMesh;
 
+	/** Mounted on the hull's "engines" socket. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> EnginesMesh;
 
+	/** Mounted on both the "shieldgen_L" and "shieldgen_R" sockets. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> ShieldGeneratorMesh;
 
+	/** Mounted on the hull's "comms" socket. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> CommsMesh;
 
+	/** One instance per "turret_NN" socket. Its "gun" socket places TurretGunMesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Meshes")
 	TObjectPtr<UStaticMesh> TurretBaseMesh;
 
@@ -91,12 +95,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	float HullHealth = 20000.f;
 
+	/** Health of each of the two shield generators. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	float ShieldGeneratorHealth = 2500.f;
 
+	/** Health of the engines. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	float EnginesHealth = 4000.f;
 
+	/** Health of the comms array. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	float CommsHealth = 2000.f;
 
@@ -175,7 +182,9 @@ public:
 	bool ApplyDamage(float Amount);
 
 private:
+	/** Health when undamaged (from the ship data). */
 	float MaxHealth = 1000.f;
+	/** Current health; the part is destroyed at 0. */
 	float Health = 1000.f;
 };
 
@@ -354,15 +363,19 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UStaticMeshComponent> Hull;
 
+	/** Engines subsystem, on the hull's "engines" socket. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UMetalShipSubsystemComponent> Engines;
 
+	/** Left shield generator. The hull takes reduced damage while either generator stands. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UMetalShipSubsystemComponent> ShieldGeneratorL;
 
+	/** Right shield generator. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UMetalShipSubsystemComponent> ShieldGeneratorR;
 
+	/** Comms array subsystem. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UMetalShipSubsystemComponent> Comms;
 
@@ -370,6 +383,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UInstancedStaticMeshComponent> TurretBases;
 
+	/** Gun instances, one per turret, at the same indices as TurretBases. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UInstancedStaticMeshComponent> TurretGuns;
 
@@ -420,9 +434,11 @@ private:
 	 */
 	AMetalBotCharacter* FindAttacker(AController* EventInstigator, AActor* DamageCauser) const;
 
+	/** Every subsystem on the hull, for damage routing and the HUD. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMetalShipSubsystemComponent>> Subsystems;
 
+	/** The streamed interior level instance, or null before LoadInterior(). */
 	UPROPERTY(Transient)
 	TObjectPtr<ULevelStreamingDynamic> InteriorStreaming;
 
@@ -438,21 +454,33 @@ private:
 		/** Current gun aim relative to the mount, degrees. */
 		float Yaw = 0.f;
 		float Pitch = 0.f;
+		/** World time this turret may fire again. */
 		float NextFireTime = 0.f;
+		/** Enemy flyer being tracked, if any. */
 		TWeakObjectPtr<AActor> Target;
 	};
+	/** One entry per turret instance. */
 	TArray<FTurret> Turrets;
 	/** The turret base mesh's "gun" socket: where the gun sits on the base. */
 	FTransform TurretGunOffset;
+	/** World time the turrets next re-pick their targets. */
 	float NextTurretThinkTime = 0.f;
 
+	/** Hangar found in the streamed interior. */
 	TWeakObjectPtr<AMetalHangar> Hangar;
+	/** Portal end on the hull's hangar_portal socket. */
 	TWeakObjectPtr<AMetalPortal> OuterPortal;
+	/** Portal end at the hangar mouth, linked to OuterPortal. */
 	TWeakObjectPtr<AMetalPortal> InnerPortal;
+	/** Hull health when undamaged (from the ship data). */
 	float MaxHullHealth = 20000.f;
+	/** Current hull health. The ship is destroyed at 0. */
 	float HullHealth = 20000.f;
+	/** DestroyShip() has run. */
 	bool bShipDestroyed = false;
+	/** The interior has streamed in, the portals exist and OnAnyInteriorReady has fired. */
 	bool bInteriorReady = false;
+	/** World time the hull was destroyed, or -1. Paces the wreck explosions. */
 	float DestroyedTime = -1.f;
 	/** Explosions played so far while the wreck breaks up. */
 	int32 WreckBursts = 0;

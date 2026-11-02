@@ -5,8 +5,9 @@
 // possesses the robot. When the link ends - by choice, timeout, or the host being destroyed -
 // control returns to the player's body and the host reboots back onto its own side.
 //
-// Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer and no
-// self-destruct, the player flies them until they disconnect. Flyers use their own input context.
+// Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer, the player
+// flies them until they disconnect, and the robot then goes idle, ready to be linked again. Flyers use
+// their own input context.
 
 #pragma once
 
@@ -58,7 +59,7 @@ public:
 	/** @return Total length of the current hijack in seconds (0 for an open-ended ally link). */
 	float GetPossessionDuration() const { return PossessionDuration; }
 
-	/** Linked to a friendly robot: no time limit, no self-destruct. */
+	/** @return True when linked to a friendly robot: no time limit, and the robot goes idle when the link ends. */
 	bool IsAllyLink() const { return bAllyLink; }
 
 	/** Hijack the robot under the crosshair, or disconnect from the current host. */
@@ -67,7 +68,7 @@ public:
 	/** Use the nearby console, if any. */
 	void Interact() { InteractPressed(); }
 
-	/** Pauses the game and shows the pause menu (Continue / Level Select / Quit). */
+	/** Pauses the game and shows the pause menu (Continue, Restart Mission, Level Select, Controls, Title Screen, Quit). */
 	void OpenPauseMenu();
 
 	/** Hides the pause menu and resumes. */
@@ -273,23 +274,36 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AMetalFX> TetherBeam;
 
+	/** The open pause menu, or null. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMetalPauseMenu> PauseMenu;
 
+	/** The player's own robot, also while another robot is being driven. */
 	TWeakObjectPtr<AMetalBotCharacter> PlayerBody;
+	/** Robot currently hijacked with the Hack Tether, or null. */
 	TWeakObjectPtr<AMetalBotCharacter> Host;
+	/** Robot the tether would take right now, refreshed every tick. */
 	TWeakObjectPtr<AMetalBotCharacter> HackCandidate;
+	/** Console in reach of the possessed robot, for the HUD prompt. */
 	TWeakObjectPtr<AMetalControlConsole> NearbyConsole;
+	/** World time the hijack runs out and control returns to the player's body. */
 	float PossessionEndTime = 0.f;
+	/** Length of the current hijack in seconds; 0 for an untimed ally link. */
 	float PossessionDuration = 0.f;
+	/** World time a shot last hit an enemy (hit marker). */
 	float LastHitConfirmTime = -100.f;
+	/** World time the possessed robot last took damage (damage vignette). */
 	float LastDamageTime = -100.f;
+	/** Shots fired, for the results accuracy. */
 	int32 ShotsFired = 0;
+	/** Shots that hit an enemy. */
 	int32 ShotsHit = 0;
 	/** Set around Possess() calls made by the tether, so OnPossess doesn't mistake the host for the body. */
 	bool bSwitchingBodies = false;
+	/** The current host is a friendly robot (parked flyer): no timer, and it goes dormant instead of rebooting. */
 	bool bAllyLink = false;
 	/** Tilt the camera down on the next tick after a fresh spawn. */
 	bool bApplySpawnPitch = false;
+	/** Subscription to AMetalBotCharacter::OnAnyBotDied. */
 	FDelegateHandle BotDiedHandle;
 };

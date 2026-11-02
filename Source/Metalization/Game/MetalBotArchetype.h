@@ -28,12 +28,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
 	FName ArchetypeId;
 
+	/** Name shown on the HUD (target info, hijack prompt). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
 	FText DisplayName;
 
+	/** Side the robot fights for when placed in a level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Identity")
 	EMetalTeam Team = EMetalTeam::Villains;
 
+	/** Body mesh. Its skeleton must contain the bones named in Rig. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	TObjectPtr<USkeletalMesh> Mesh;
 
@@ -45,6 +48,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	TObjectPtr<USkeletalMesh> UnarmedPart;
 
+	/** Uniform scale applied to the body mesh and its parts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	float MeshScale = 1.f;
 
@@ -56,21 +60,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	TMap<EMetalTeam, FMetalTeamColors> TeamColors;
 
+	/** Bone names and gait tuning for the procedural animator. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	FMetalBotRig Rig;
 
+	/** Collision capsule radius, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float CapsuleRadius = 34.f;
 
+	/** Collision capsule half height, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float CapsuleHalfHeight = 68.f;
 
+	/** Hit points at spawn and after a full repair. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float MaxHealth = 100.f;
 
+	/** Top running speed on the ground, cm/s. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float WalkSpeed = 500.f;
 
+	/** Upward launch speed of a jump, cm/s. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float JumpZVelocity = 600.f;
 
@@ -108,6 +118,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float WeaponSwapDuration = 0.8f;
 
+	/** Weak points and breakable parts, checked by AMetalBotCharacter::TakeDamage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	TArray<FMetalHitZone> HitZones;
 
@@ -123,6 +134,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	TObjectPtr<UMetalWeaponData> GrenadeWeapon;
 
+	/** Grenades carried at spawn. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	int32 StartingGrenades = 0;
 
@@ -130,9 +142,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	TArray<FName> MuzzleBones;
 
+	/** AI vision distance, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float SightRange = 3500.f;
 
+	/** AI vision cone half-angle, degrees. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float SightHalfAngle = 70.f;
 
@@ -144,9 +158,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float AimErrorDegrees = 4.f;
 
+	/** Seconds an AI holds the trigger per burst. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float BurstDuration = 1.2f;
 
+	/** Seconds an AI waits between bursts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float BurstPause = 1.0f;
 
@@ -158,6 +174,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float SquadAlertRadius = 2000.f;
 
+	/** Enemies of this type can be taken over with the Hack Tether. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
 	bool bHackable = true;
 
@@ -165,7 +182,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
 	float PossessionDuration = 30.f;
 
-	/** Robots of the player's own team can be linked (parked Stalkers): no time limit, no self-destruct. */
+	/** Robots of the player's own team can be linked (parked Stalkers): no time limit, and they go idle when released. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hacking")
 	bool bAllyHackable = false;
 
@@ -173,9 +190,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Flight")
 	FMetalFlightTuning Flight;
 
+	/** Third-person camera boom length when a player drives this robot, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Camera")
 	float CameraDistance = 300.f;
 
+	/** Over-the-shoulder offset of the camera from the end of the boom (right, up), cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Camera")
 	FVector CameraOffset = FVector(0.f, 55.f, 55.f);
 };

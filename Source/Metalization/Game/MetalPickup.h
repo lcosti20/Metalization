@@ -64,18 +64,24 @@ protected:
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	/** Overlap sphere (root). */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> Trigger;
 
+	/** Bobbing, spinning mesh: the weapon's PropMesh or a coloured shape. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Visual;
 
+	/** Glow in the pickup's colour. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPointLightComponent> Light;
 
 private:
 	/** @return The type's colour (green repair, amber ammo, blue grenades, pink weapon). */
 	FLinearColor GetColor() const;
+
+	/** Seconds since spawn, drives the bob and spin. */
 	float Age = 0.f;
+	/** Rest position of Visual, which bobs around it. */
 	FVector VisualBase = FVector::ZeroVector;
 };

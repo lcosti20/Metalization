@@ -157,15 +157,23 @@ private:
 	 */
 	void UpdateFiring(const FVector& AimPoint, float Now);
 
+	/** Enemy flyer being dogfought, if any. */
 	TWeakObjectPtr<AMetalBotCharacter> TargetFlyer;
+	/** Ship subsystem a Raider is attacking, if any. */
 	TWeakObjectPtr<UPrimitiveComponent> TargetPart;
+	/** Last robot that damaged this pilot; a flyer attacker becomes the target. */
 	TWeakObjectPtr<AMetalBotCharacter> LastAttacker;
 	/** Portal currently being flown through, and whether we've lined up in front of it. */
 	TWeakObjectPtr<AMetalPortal> RoutePortal;
+	/** Lined up in front of RoutePortal and now flying straight through. */
 	bool bRouteLinedUp = false;
+	/** World time of the next target and route re-think. */
 	float NextThinkTime = 0.f;
+	/** Earliest world time the pilot may dodge again. */
 	float NextDodgeTime = 0.f;
+	/** World time the current burst or pause ends. */
 	float BurstToggleTime = 0.f;
+	/** In the firing half of the burst cycle. */
 	bool bBurstFiring = false;
 	/** Angle driving the orbit's sway around the target. */
 	float OrbitPhase = 0.f;

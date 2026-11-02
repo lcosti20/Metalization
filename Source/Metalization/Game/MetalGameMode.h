@@ -141,25 +141,40 @@ private:
 	 */
 	void OnBotDied(AMetalBotCharacter* Bot, AController* Killer);
 
+	/** The mission being played, or null in free-roam levels. */
 	UPROPERTY(Transient)
 	TObjectPtr<AMetalMission> Mission;
 
+	/** Small message under the crosshair (pickups, console results). */
 	FMetalMessage Notice;
+	/** Seconds Notice stays on screen. */
 	float NoticeTimeLeft = 0.f;
+	/** Large centred message (objective and mission complete). */
 	FMetalMessage Banner;
+	/** Seconds Banner stays on screen. */
 	float BannerTimeLeft = 0.f;
 
+	/** A checkpoint has been reached; respawns use CheckpointTransform. */
 	bool bHasCheckpoint = false;
+	/** Where the player respawns after dying. */
 	FTransform CheckpointTransform;
 	/** Loadout carried over from the body that died. */
 	TArray<FMetalWeaponSlot> SavedWeapons;
+	/** Equipped slot of the saved loadout. */
 	int32 SavedWeaponIndex = 0;
+	/** Grenades of the saved loadout. */
 	int32 SavedGrenades = 0;
+	/** The last objective is done and the results are showing. */
 	bool bMissionComplete = false;
+	/** World time the mission started, for the results time. */
 	float MissionStartTime = 0.f;
+	/** World time the mission was completed. */
 	float MissionEndTime = 0.f;
+	/** Enemies the player has destroyed. */
 	int32 Kills = 0;
+	/** Times the player has died. */
 	int32 Deaths = 0;
+	/** Subscription to AMetalBotCharacter::OnAnyBotDied. */
 	FDelegateHandle BotDiedHandle;
 };
 
@@ -173,6 +188,7 @@ class AMetalAlphaGameMode : public AMetalGameMode
 	GENERATED_BODY()
 
 public:
+	/** Turns on the action camera. */
 	AMetalAlphaGameMode()
 	{
 		bActionCamera = true;
@@ -186,6 +202,7 @@ class AMetalArenaGameMode : public AMetalGameMode
 	GENERATED_BODY()
 
 public:
+	/** Turns on the action camera and the minimal HUD. */
 	AMetalArenaGameMode()
 	{
 		bActionCamera = true;

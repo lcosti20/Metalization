@@ -19,9 +19,14 @@
 
 namespace
 {
+	// HUD palette (the pause menu uses the same amber).
+	/** Main accent: names, objectives, prompts. */
 	const FLinearColor Amber(1.f, 0.65f, 0.15f);
+	/** Hacking, links, sneaking and the boost meter. */
 	const FLinearColor Cyan(0.3f, 0.9f, 1.f);
+	/** Hit confirmation, low health and warnings. */
 	const FLinearColor Danger(1.f, 0.2f, 0.1f);
+	/** Translucent backing behind text panels. */
 	const FLinearColor Panel(0.f, 0.f, 0.f, 0.55f);
 }
 
@@ -397,6 +402,7 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 	float RowW = 0.f, RowH = 0.f, FootW = 0.f, FootH = 0.f;
 	MeasureText(TEXT("Ag"), RowW, RowH, Medium, UI * 1.1f);
 	MeasureText(TEXT("Ag"), FootW, FootH, Small, UI * 1.3f);
+	// A centred panel under the end-of-mission banner: four label/value rows and a footer with the keys.
 	const float RowStep = RowH + 10.f * UI;
 	const float PanelW = 760.f * UI;
 	const float PanelH = 22.f * UI + 4.f * RowStep + 12.f * UI + FootH + 18.f * UI;
@@ -414,6 +420,7 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 		{TEXT("ACCURACY"), Accuracy < 0.f ? TEXT("-") : FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Accuracy * 100.f))},
 	};
 	float RowY = Y + 22.f * UI;
+	// Labels left-aligned, values right-aligned.
 	for (const FString* Row : Rows)
 	{
 		DrawTextShadowed(Row[0], X + 30.f * UI, RowY, FLinearColor(1.f, 1.f, 1.f, 0.75f), Medium, UI);

@@ -62,6 +62,8 @@ AMetalCapitalShip::AMetalCapitalShip()
 	Hull->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	RootComponent = Hull;
 
+	// The destructible parts sit on fixed hull sockets. Their meshes and health come from ShipData later
+	// (ApplyShipData, BeginPlay), so one actor class serves every ship class.
 	auto MakeSubsystem = [this](const TCHAR* Name, FName Socket, EMetalShipSubsystem Type)
 	{
 		UMetalShipSubsystemComponent* Part = CreateDefaultSubobject<UMetalShipSubsystemComponent>(Name);
@@ -75,6 +77,7 @@ AMetalCapitalShip::AMetalCapitalShip()
 	ShieldGeneratorR = MakeSubsystem(TEXT("ShieldGeneratorR"), TEXT("shieldgen_R"), EMetalShipSubsystem::ShieldGenerator);
 	Comms = MakeSubsystem(TEXT("Comms"), TEXT("comms"), EMetalShipSubsystem::Comms);
 
+	// Turrets are instances rather than components because their number depends on the hull mesh.
 	TurretBases = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("TurretBases"));
 	TurretBases->SetupAttachment(Hull);
 	TurretBases->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -219,6 +222,8 @@ void AMetalCapitalShip::HandleInteriorShown()
 	{
 		return;
 	}
+	// The interior map is expected to contain exactly one hangar; hand it this ship so it can start
+	// spawning on the ship's team.
 	for (AActor* Actor : Level->Actors)
 	{
 		if (AMetalHangar* Found = Cast<AMetalHangar>(Actor))
@@ -232,6 +237,7 @@ void AMetalCapitalShip::HandleInteriorShown()
 	{
 		UE_LOG(LogMetal, Warning, TEXT("%s: interior %s has no AMetalHangar."), *GetName(), *ShipData->Interior.ToString());
 	}
+	// Portals last: they need the hangar's mouth. Then tell everyone players can now spawn aboard.
 	CreatePortals();
 	bInteriorReady = true;
 	UE_LOG(LogMetal, Display, TEXT("%s interior ready at %s (%d spawn points)"), *GetName(), *InteriorLocation.ToCompactString(), GetSpawnPoints().Num());

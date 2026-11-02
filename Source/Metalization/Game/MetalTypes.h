@@ -40,33 +40,43 @@ struct FMetalBotRig
 {
 	GENERATED_BODY()
 
+	/** Root of the body; bobbed by the gait and lowered when crouching. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName Pelvis = TEXT("bip_pelvis");
 
+	/** Head bone. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName Head = TEXT("bip_head");
 
+	/** Left thigh, swung by the gait. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName ThighL = TEXT("bip_hip_L");
 
+	/** Right thigh, swung by the gait. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName ThighR = TEXT("bip_hip_R");
 
+	/** Left lower leg, bent by the gait. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName KneeL = TEXT("bip_knee_L");
 
+	/** Right lower leg, bent by the gait. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName KneeR = TEXT("bip_knee_R");
 
+	/** Left (off-hand) upper arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName UpperArmL = TEXT("bip_upperArm_L");
 
+	/** Right (weapon) upper arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName UpperArmR = TEXT("bip_upperArm_R");
 
+	/** Left forearm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName ForearmL = TEXT("bip_lowerArm_L");
 
+	/** Right (weapon) forearm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
 	FName ForearmR = TEXT("bip_lowerArm_R");
 
@@ -102,12 +112,15 @@ struct FMetalBotRig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stance")
 	FRotator UpperArmLReady = FRotator::ZeroRotator;
 
+	/** Ready-stance offset of the right upper arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stance")
 	FRotator UpperArmRReady = FRotator::ZeroRotator;
 
+	/** Ready-stance offset of the left forearm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stance")
 	FRotator ForearmLReady = FRotator::ZeroRotator;
 
+	/** Ready-stance offset of the right forearm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stance")
 	FRotator ForearmRReady = FRotator::ZeroRotator;
 
@@ -115,6 +128,7 @@ struct FMetalBotRig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")
 	float StrideLength = 120.f;
 
+	/** How far the thighs swing forwards and back at full stride. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")
 	float LegSwingDegrees = 28.f;
 
@@ -122,9 +136,11 @@ struct FMetalBotRig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")
 	float KneeBendDegrees = 35.f;
 
+	/** Up-and-down pelvis bob per step, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")
 	float BobHeight = 3.f;
 
+	/** Arm swing opposite to the legs while walking. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")
 	float ArmSwingDegrees = 14.f;
 
@@ -144,12 +160,15 @@ struct FMetalBotRig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	FName FlyerArmUpperL = NAME_None;
 
+	/** Upper right gun arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	FName FlyerArmUpperR = NAME_None;
 
+	/** Lower left gun arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	FName FlyerArmLowerL = NAME_None;
 
+	/** Lower right gun arm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	FName FlyerArmLowerR = NAME_None;
 
@@ -176,9 +195,11 @@ struct FMetalFlightTuning
 {
 	GENERATED_BODY()
 
+	/** Cruise top speed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	float MaxSpeed = 4500.f;
 
+	/** Cruise acceleration, cm/s per second. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	float Acceleration = 6000.f;
 
@@ -198,9 +219,11 @@ struct FMetalFlightTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flight")
 	float MaxBank = 35.f;
 
+	/** Top speed while boosting. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
 	float BoostSpeed = 10000.f;
 
+	/** Acceleration while boosting, cm/s per second. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boost")
 	float BoostAcceleration = 14000.f;
 
@@ -231,9 +254,11 @@ struct FMetalTeamColors
 {
 	GENERATED_BODY()
 
+	/** Main paint (Body material slots). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Colors")
 	FLinearColor Body = FLinearColor::Gray;
 
+	/** Trim paint (Accent material slots). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Colors")
 	FLinearColor Accent = FLinearColor::White;
 };

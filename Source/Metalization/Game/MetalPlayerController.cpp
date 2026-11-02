@@ -162,6 +162,8 @@ void AMetalPlayerController::CreateInputObjects()
 void AMetalPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+	// The input actions are built in code (no input assets), so they must exist before they can be bound.
+	// Started/Completed pairs give press and release for held buttons; Triggered fires every frame for axes.
 	CreateInputObjects();
 
 	UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent);

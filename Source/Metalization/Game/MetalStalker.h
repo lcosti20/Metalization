@@ -135,17 +135,24 @@ private:
 	 */
 	void TickTilt(float DeltaSeconds, float Now);
 
+	/** Standing on a hangar pad instead of flying. */
 	bool bParked = false;
+	/** Boost input held. */
 	bool bBoostHeld = false;
+	/** Boost is active (held and the meter is not empty). */
 	bool bBoosting = false;
+	/** Remaining boost, 0..1. */
 	float BoostMeter = 1.f;
+	/** World time boost was last used; the meter refills after a short delay. */
 	float LastBoostTime = -100.f;
 	/** Visual body pitch (the capsule stays upright) and bank, degrees. */
 	float BodyPitch = 0.f;
+	/** Visual roll from strafing and turning, degrees. */
 	float Bank = 0.f;
 	/** Yaw last frame, to measure the turn rate for banking. */
 	float LastYaw = 0.f;
 	/** World time the current dodge roll started, or -1. */
 	float DodgeStartTime = -1.f;
+	/** -1 left or +1 right for the current dodge roll. */
 	float DodgeDirection = 0.f;
 };

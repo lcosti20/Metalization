@@ -158,16 +158,19 @@ void AMetalDevAutopilot::BeginPlay()
 	const TCHAR* Cmd = FCommandLine::Get();
 	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
+	// -MetalAutopilot[=<scenario>]: run a scripted scenario (unknown or missing names fall back to "combat").
 	bAutopilot = FParse::Param(Cmd, TEXT("MetalAutopilot")) || FParse::Value(Cmd, TEXT("MetalAutopilot="), Scenario);
 	if (bAutopilot && !Scenarios().Contains(Scenario))
 	{
 		Scenario = TEXT("combat");
 	}
+	// -MetalShots=t1,t2,...: take screenshots at these times. -MetalQuitAt=t: exit the game at that time.
 	if (FParse::Value(Cmd, TEXT("MetalShots="), Value, false))
 	{
 		ShotTimes = ParseFloats(Value);
 	}
 	FParse::Value(Cmd, TEXT("MetalQuitAt="), QuitAt);
+	// -MetalCam=x,y,z,pitch,yaw;...: fixed cameras to view the level from; each screenshot switches to the next one.
 	if (FParse::Value(Cmd, TEXT("MetalCam="), Value, false))
 	{
 		TArray<FString> Entries;

@@ -62,13 +62,17 @@ protected:
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	/** The trigger volume (root). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Zone")
 	TObjectPtr<UBoxComponent> Box;
 
+	/** Glowing floor disc, fitted to the box. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Zone")
 	TObjectPtr<UStaticMeshComponent> Marker;
 
 private:
+	/** The checkpoint has been saved. */
 	bool bTriggered = false;
+	/** Dialogue has been queued. */
 	bool bDialoguePlayed = false;
 };

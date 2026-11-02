@@ -17,6 +17,7 @@ class AMetalTitleGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	/** Sets the title controller, no default pawn and a plain HUD. */
 	AMetalTitleGameMode();
 };
 
@@ -30,6 +31,7 @@ class AMetalTitlePlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	/** Ticks even while paused so the orbit keeps moving. */
 	AMetalTitlePlayerController();
 
 	/** Orbits the camera. */
@@ -43,15 +45,20 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	/** The menu, in title mode. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMetalPauseMenu> Menu;
 
+	/** Placed camera tagged "TitleCamera", or null. */
 	UPROPERTY(Transient)
 	TObjectPtr<ACameraActor> TitleCamera;
 
 	/** Point the camera circles and looks at. */
 	FVector Focus = FVector::ZeroVector;
+	/** Horizontal distance of the camera from Focus, cm. */
 	float OrbitRadius = 1500.f;
+	/** Height of the camera above Focus, cm. */
 	float OrbitHeight = 400.f;
+	/** Current angle around Focus, degrees. */
 	float OrbitAngle = 0.f;
 };
