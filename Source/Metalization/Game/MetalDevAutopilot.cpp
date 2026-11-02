@@ -109,6 +109,8 @@ namespace
 			{TEXT("bunker"), {{0.1f, EStep::ClearSquad1}, {0.6f, EStep::AimBunker}, {1.0f, EStep::Grenade},
 				{1.8f, EStep::AimBunker}, {2.2f, EStep::Grenade}, {3.0f, EStep::AimBunker}, {3.4f, EStep::Grenade},
 				{6.0f, EStep::AimEnemy}, {6.2f, EStep::Fire}, {11.0f, EStep::StopFire}}},
+			// Jetpack: stand still and double jump (the thrusters only fire on the mid-air jump).
+			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
 		};

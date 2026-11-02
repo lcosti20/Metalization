@@ -84,7 +84,15 @@ struct FMetalBotRig
 
 	/** Where stowed weapons sit on the back, in body-mesh space (+Y forward, +Z up, -X right) of the bind pose, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
-	FVector RackOffset = FVector(0.f, -17.f, 70.f);
+	FVector RackOffset = FVector(0.f, -24.f, 70.f);
+
+	/** Centre between the two jetpack thrusters, body-mesh space of the bind pose (+Y forward, +Z up), cm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
+	FVector JetpackOffset = FVector(0.f, -20.f, 84.f);
+
+	/** Sideways distance of each jetpack thruster from JetpackOffset, cm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Bones")
+	float JetpackSpread = 14.f;
 
 	/** How far the pelvis sinks when fully crouched, cm (bind-pose units). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gait")

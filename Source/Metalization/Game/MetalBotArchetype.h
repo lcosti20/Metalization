@@ -97,6 +97,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	bool bAnimatedWeaponSwap = false;
 
+	/**
+	 * Wears a jetpack on the back whose thrusters fire on the mid-air (double) jump. Placed by the rig's
+	 * JetpackOffset / JetpackSpread.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	bool bHasJetpack = false;
+
 	/** Seconds the acted-out weapon swap takes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float WeaponSwapDuration = 0.8f;

@@ -223,9 +223,9 @@ def make_archetypes(manifest, w):
     # A long stride keeps the run at ~3 cycles/s; short strides made the legs flicker at full speed.
     setp(archetypes["player"], display_name="Player", unarmed_part=mesh("player", "hand"),
          capsule_radius=30.0, capsule_half_height=66.0, max_health=150.0, walk_speed=600.0, jump_z_velocity=700.0, max_jumps=2,
-         sprint_speed=1000.0, crouch_speed=260.0, crouch_height_fraction=0.65, animated_weapon_swap=True, weapon_swap_duration=0.8,
+         sprint_speed=1000.0, crouch_speed=260.0, crouch_height_fraction=0.65, animated_weapon_swap=True, weapon_swap_duration=0.8, has_jetpack=True,
          rig=rig(stride_length=200.0, leg_swing_degrees=40.0, knee_bend_degrees=50.0, bob_height=4.0, arm_swing_degrees=20.0,
-                 crouch_drop=22.0, hand_l="bip_hand_L", rack_offset=unreal.Vector(0.0, -17.0, 70.0)),
+                 crouch_drop=22.0, hand_l="bip_hand_L", rack_offset=unreal.Vector(0.0, -24.0, 70.0)),
          hit_zones=[zone("Head", "bip_head", 18.0, 1.5)],
          starting_weapons=[w["Laser"], w["Repeater"]], melee_weapon=w["Claw"],
          grenade_weapon=w["EMPGrenade"], starting_grenades=3,
@@ -623,7 +623,7 @@ def build_level(archetypes, w, manifest):
         ]),
         objective("Use the guard to open the gate console [E]", unreal.MetalObjectiveType.ACTIVATE_CONSOLE, target=console, dialogue=[
             line(K, "Ha! You're wearing an enemy shooter! Walk him over to the console and press E. Try to look... evil-ish."),
-            line(K, "When you let go with F, that poor guy blows up. So maybe let go near his friends."),
+            line(K, "When you let go with F he reboots and goes right back to their side. So don't let go next to him."),
         ]),
         objective("Destroy the Brute (or borrow it)", unreal.MetalObjectiveType.ELIMINATE_TAGGED, tag="Boss", dialogue=[
             line(K, "Gate's open! Uh. Oh. That's a Brute. Big guns, bigger attitude. Grab the rocket launcher..."),

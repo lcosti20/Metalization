@@ -12,6 +12,9 @@
 class AMetalFX;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
+class UPointLightComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 class UMetalBotAnimInstance;
 class UMetalBotArchetype;
 class UMetalWeaponData;
@@ -190,7 +193,7 @@ public:
 	void Heal(float Amount);
 
 	/**
-	 * Enemy robots can be hijacked (a timed link, then they self-destruct). Friendly robots built for it
+	 * Enemy robots can be hijacked (a timed link, then they reboot back onto their own side). Friendly robots built for it
 	 * (bAllyHackable, e.g. parked Stalkers) accept an open-ended link instead.
 	 *
 	 * @param Hacker The robot firing the Hack Tether.
@@ -545,6 +548,15 @@ protected:
 	 */
 	void PlaceWeaponOnBone(USkeletalMeshComponent* Component, int32 Slot, FName Bone, const FTransform& GripInBody);
 
+	/** Builds the jetpack (thruster pods, nozzles, flames, light) on the back for archetypes with bHasJetpack. */
+	void BuildJetpack();
+
+	/** Fires the jetpack thrusters (on the double jump). */
+	void FireJetpack();
+
+	/** Scales and flickers the jetpack flames while they burn. */
+	void TickJetpack(float Now);
+
 	/** Plays a library sound at this robot (see MetalAudio). */
 	void PlaySound(FName Name, float Volume = 1.f) const;
 
@@ -558,6 +570,33 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USkeletalMeshComponent> RackGunB;
+
+	/** Engine shapes for the jetpack, held here so they are cooked. */
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> JetPodMesh;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> JetFlameMesh;
+
+	/** Jetpack pods and nozzles (static). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> JetpackParts;
+
+	/** Per thruster: a pivot at the nozzle that is scaled to stretch the flame below it. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USceneComponent>> JetFlamePivots;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> JetFlameMaterials;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPointLightComponent> JetLight;
+
+	/** Relative scale of a flame pivot that equals unit size in body space (bone sockets carry a scale). */
+	FVector JetPivotUnitScale = FVector::OneVector;
+
+	/** World time the current thruster burst ends (0 when idle). */
+	float JetFireEnd = 0.f;
 
 	/** Beam from the muzzle to the aim point while an AI aims a weapon with bLaserSight. */
 	UPROPERTY(Transient)

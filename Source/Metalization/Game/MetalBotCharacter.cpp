@@ -14,7 +14,11 @@
 #include "MetalWeaponData.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
@@ -63,6 +67,11 @@ AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializ
 		(*Gun)->SetVisibility(false);
 		(*Gun)->SetCastShadow(true);
 	}
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cone(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	JetPodMesh = Cylinder.Object;
+	JetFlameMesh = Cone.Object;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -207,6 +216,7 @@ void AMetalBotCharacter::BeginPlay()
 	EquipWeapon(Weapons.Num() > 0 ? FMath::Max(0, CurrentWeapon) : INDEX_NONE);
 	RefreshWeaponVisual();
 	RefreshRack();
+	BuildJetpack();
 	ConfigureRotationForController();
 }
 
@@ -309,7 +319,7 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 		return false;
 	}
 	// Two rules: same-team robots need bAllyHackable (an open-ended "link", e.g. boarding a parked
-	// Stalker), enemy robots need bHackable (a timed hijack that ends in self-destruct).
+	// Stalker), enemy robots need bHackable (a timed hijack; the robot goes back to its side afterwards).
 	if (Team == Hacker->GetTeam())
 	{
 		// Only idle ones (parked, or left hovering): never one an AI pilot is flying.
@@ -623,7 +633,7 @@ void AMetalBotCharacter::RefreshRack()
 	for (int32 Index = 0; Index < 2; ++Index)
 	{
 		const float Side = Index == 0 ? 1.f : -1.f;
-		const FQuat Lean = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(18.f * Side)) * FQuat(FVector::XAxisVector, FMath::DegreesToRadians(100.f));
+		const FQuat Lean = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(10.f * Side)) * FQuat(FVector::XAxisVector, FMath::DegreesToRadians(100.f));
 		// The grip rotation keeps the gun's own grip orientation, then leans the whole thing.
 		USkeletalMeshComponent* Component = Index == 0 ? RackGunA : RackGunB;
 		const int32 Slot = Shown.IsValidIndex(Index) ? Shown[Index] : INDEX_NONE;
@@ -639,7 +649,7 @@ void AMetalBotCharacter::RefreshRack()
 				}
 			}
 		}
-		const FTransform Grip(Lean * GripRotation, Rig.RackOffset + FVector(7.f * Side, -3.f * Index, 0.f));
+		const FTransform Grip(Lean * GripRotation, Rig.RackOffset + FVector(6.f * Side, -3.f * Index, 0.f));
 		PlaceWeaponOnBone(Component, Slot, Bone, Grip);
 	}
 }
@@ -1331,6 +1341,137 @@ void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
 	}
 }
 
+void AMetalBotCharacter::BuildJetpack()
+{
+	const USkeletalMesh* Body = GetMesh()->GetSkeletalMeshAsset();
+	if (!JetpackParts.IsEmpty() || Archetype == nullptr || !Archetype->bHasJetpack || Body == nullptr || JetPodMesh == nullptr || JetFlameMesh == nullptr)
+	{
+		return;
+	}
+	const FMetalBotRig& Rig = GetRig();
+	const int32 BoneIndex = Body->GetRefSkeleton().FindBoneIndex(Rig.Pelvis);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+	// Everything is placed in body-mesh space of the bind pose (+Y forward, +Z up, -X right) and then made
+	// relative to the pelvis, so the pack rides along with the body, the double-jump flip included.
+	const FTransform BoneInBody = FAnimationRuntime::GetComponentSpaceTransformRefPose(Body->GetRefSkeleton(), BoneIndex);
+	UMaterialInterface* Dark = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Metalization/Materials/MI_Env_Dark.MI_Env_Dark"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UMaterialInterface* Glow = MetalAssets::GetGlowMaterial();
+	auto Attach = [this, &BoneInBody, &Rig](USceneComponent* Component, const FTransform& InBody)
+	{
+		Component->SetupAttachment(GetMesh(), Rig.Pelvis);
+		Component->SetRelativeTransform(InBody.GetRelativeTransform(BoneInBody));
+		Component->RegisterComponent();
+	};
+	auto Part = [this, Dark](UStaticMesh* Shape)
+	{
+		UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(this);
+		Component->SetStaticMesh(Shape);
+		Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (Dark)
+		{
+			Component->SetMaterial(0, Dark);
+		}
+		JetpackParts.Add(Component);
+		return Component;
+	};
+	// The engine cylinder and cone are 100 cm across and 100 cm tall around their pivot; the cone's tip is up.
+	for (const float Side : {1.f, -1.f})
+	{
+		const FVector Pod = Rig.JetpackOffset + FVector(Rig.JetpackSpread * Side, 0.f, 0.f);
+		Attach(Part(JetPodMesh), FTransform(FQuat::Identity, Pod, FVector(0.09f, 0.09f, 0.24f)));
+		// Strap holding the pod to the back, and a flared nozzle under it.
+		Attach(Part(JetPodMesh),
+			FTransform(FQuat(FVector::XAxisVector, UE_HALF_PI), Pod + FVector(0.f, 4.f, 6.f), FVector(0.04f, 0.04f, 0.08f)));
+		const FVector Nozzle = Pod - FVector(0.f, 0.f, 12.f + 3.f);
+		Attach(Part(JetFlameMesh), FTransform(FQuat::Identity, Nozzle, FVector(0.085f, 0.085f, 0.06f)));
+
+		// Flame: a cone pointing down from the nozzle, hung off a pivot that is stretched while it burns.
+		// Attached at unit size first to learn the relative scale that means "1" in body space: the imported
+		// skeleton's bones carry a scale, so the flame can't be sized with absolute relative scales.
+		USceneComponent* Pivot = NewObject<USceneComponent>(this);
+		Attach(Pivot, FTransform(FQuat::Identity, Nozzle - FVector(0.f, 0.f, 3.f)));
+		JetPivotUnitScale = Pivot->GetRelativeScale3D();
+		Pivot->SetRelativeScale3D(JetPivotUnitScale * FVector(0.07f, 0.07f, 0.01f));
+		UStaticMeshComponent* Flame = NewObject<UStaticMeshComponent>(this);
+		Flame->SetStaticMesh(JetFlameMesh);
+		Flame->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Flame->SetCastShadow(false);
+		Flame->SetupAttachment(Pivot);
+		Flame->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -50.f), FQuat(FVector::XAxisVector, UE_PI));
+		if (Glow)
+		{
+			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Glow, this);
+			MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(1.f, 0.55f, 0.15f));
+			MID->SetScalarParameterValue(TEXT("Intensity"), 3.f);
+			Flame->SetMaterial(0, MID);
+			JetFlameMaterials.Add(MID);
+		}
+		Flame->RegisterComponent();
+		Flame->SetVisibility(false);
+		Pivot->SetVisibility(false, true);
+		JetFlamePivots.Add(Pivot);
+	}
+	JetLight = NewObject<UPointLightComponent>(this);
+	JetLight->SetLightColor(FLinearColor(1.f, 0.55f, 0.2f));
+	JetLight->SetAttenuationRadius(450.f);
+	JetLight->SetCastShadows(false);
+	JetLight->SetIntensity(0.f);
+	Attach(JetLight, FTransform(Rig.JetpackOffset - FVector(0.f, 4.f, 30.f)));
+}
+
+void AMetalBotCharacter::FireJetpack()
+{
+	if (JetFlamePivots.IsEmpty() || bDead)
+	{
+		return;
+	}
+	JetFireEnd = GetWorld()->GetTimeSeconds() + 0.55f;
+	for (USceneComponent* Pivot : JetFlamePivots)
+	{
+		Pivot->SetVisibility(true, true);
+		AMetalFX::SpawnBurst(GetWorld(), Pivot->GetComponentLocation() - FVector(0.f, 0.f, 10.f), FLinearColor(1.f, 0.6f, 0.2f), 18.f, 0.2f);
+	}
+}
+
+void AMetalBotCharacter::TickJetpack(float Now)
+{
+	if (JetFlamePivots.IsEmpty() || JetFireEnd <= 0.f)
+	{
+		return;
+	}
+	// A hard kick that tails off: full length at ignition, gone after ~0.55 s (or as soon as it lands).
+	const float Alpha = FMath::Clamp((JetFireEnd - Now) / 0.55f, 0.f, 1.f);
+	const bool bBurning = Alpha > 0.02f && !bDead && !bDormant && GetCharacterMovement()->IsFalling();
+	for (int32 Index = 0; Index < JetFlamePivots.Num(); ++Index)
+	{
+		USceneComponent* Pivot = JetFlamePivots[Index];
+		if (!bBurning)
+		{
+			Pivot->SetVisibility(false, true);
+			continue;
+		}
+		const float Flicker = 0.85f + 0.15f * FMath::Sin(Now * 55.f + Index * 1.7f);
+		const float Length = (8.f + 42.f * FMath::Sqrt(Alpha)) * Flicker;
+		const float Width = 0.07f * (0.7f + 0.3f * Alpha);
+		Pivot->SetRelativeScale3D(JetPivotUnitScale * FVector(Width, Width, Length / 100.f));
+		if (JetFlameMaterials.IsValidIndex(Index))
+		{
+			JetFlameMaterials[Index]->SetScalarParameterValue(TEXT("Intensity"), 2.f + 4.f * Alpha);
+		}
+	}
+	if (JetLight)
+	{
+		JetLight->SetIntensity(bBurning ? 600.f * Alpha : 0.f);
+	}
+	if (!bBurning)
+	{
+		JetFireEnd = 0.f;
+	}
+}
+
 void AMetalBotCharacter::PlaySound(FName Name, float Volume) const
 {
 	MetalAudio::PlayAt(this, Name, GetActorLocation(), Volume);
@@ -1436,6 +1577,7 @@ void AMetalBotCharacter::OnJumped_Implementation()
 	{
 		FlipStartTime = GetWorld()->GetTimeSeconds();
 		PlaySound(TEXT("double_jump"), 0.8f);
+		FireJetpack();
 	}
 	else
 	{
@@ -1593,6 +1735,7 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 
 	TickLocomotion(DeltaSeconds);
 	TickWeaponSwap(Now);
+	TickJetpack(Now);
 	TickActionCamera(DeltaSeconds);
 	TickFlip(Now);
 	if (GetCharacterMovement()->IsFalling())

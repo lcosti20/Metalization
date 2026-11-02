@@ -21,6 +21,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     -Scenario title   the title screen
     -Scenario bridge  double jump across the collapsed bridge onto the higher ledge
     -Scenario bunker  lob EMP grenades into the bunker and shoot the Reds it flushes out
+    -Scenario jetpack double jump in the Outpost hangar, filmed from behind (jetpack flames, back rack)
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
 Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
@@ -31,7 +32,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "alpha", "swap", "lift", "sneak", "sniper", "hack", "title", "bridge", "bunker")]
+                 "alpha", "swap", "lift", "sneak", "sniper", "hack", "title", "bridge", "bunker", "jetpack")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -57,6 +58,7 @@ $setups = @{
     "sniper" = @("-MetalObjective=9", "-MetalTeleport=23380,1000,2240,0", "-MetalShots=0.8,2.6,3.2,5.2", "-MetalQuitAt=7")
     "hack"   = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=1.3,2.3,4,7,9", "-MetalQuitAt=11")
     "title"  = @("-MetalShots=1.5,4", "-MetalQuitAt=5")
+    "jetpack" = @("-MetalTeleport=-300,0,120,0", "-MetalCam=-620,-260,190,-4,38", "-MetalShots=0.8,1.36,1.45,1.6,3.38", "-MetalQuitAt=5")
     "bridge" = @("-MetalObjective=3", "-MetalTeleport=9100,0,120,0", "-MetalShots=1.0,1.4,2.0,3.0", "-MetalQuitAt=4")
     "bunker" = @("-MetalObjective=6", "-MetalTeleport=16550,500,1330,0", "-MetalShots=1.2,2.6,4.5,8,11", "-MetalQuitAt=13")
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
