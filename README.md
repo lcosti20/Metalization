@@ -127,7 +127,7 @@ Scenarios: `combat`, `gate`, `boss`, `arena`, `flight`, `hangar`, `battle`, `dog
 - [x] Sprint 1: Project pitch and vision
 - [x] Sprint 2: Preproduction and greybox testing
 - [x] Sprint 3: Technical framework
-- [ ] Sprint 4: Production alpha (playable build done; hand playtest pending, see [Docs/Sprint4_TaskList.md](Docs/Sprint4_TaskList.md))
+- [x] Sprint 4: Production alpha (playable build done; hand playtest pending, see [Docs/Sprint4_TaskList.md](Docs/Sprint4_TaskList.md))
 - [ ] Sprint 5: Production beta and polish
 - [ ] Sprint 6: Final release and trailer
 
