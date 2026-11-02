@@ -77,6 +77,7 @@ protected:
 	 */
 	void Release(AMetalBotCharacter* Bot, bool bAtTop);
 
+	/** Volume covering the column; robots overlapping it are carried. */
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TObjectPtr<UBoxComponent> Trigger;
 
@@ -92,14 +93,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Components")
 	TArray<TObjectPtr<UStaticMeshComponent>> Rings;
 
+	/** Glow materials: pad, beam, then one per ring. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> Materials;
 
+	/** Looping hum played at the pad. */
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> Hum;
 
 	/** Robots currently riding. */
 	TSet<TWeakObjectPtr<AMetalBotCharacter>> Riders;
 
+	/** 0..1 cycle position of the rising rings. */
 	float RingPhase = 0.f;
 };

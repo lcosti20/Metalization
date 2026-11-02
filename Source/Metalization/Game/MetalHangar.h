@@ -125,12 +125,15 @@ protected:
 	/** Builds the pads; self-initialises when this interior is the persistent level (opened directly). */
 	virtual void BeginPlay() override;
 
+	/** The hangar room (root). Carries the pad_N sockets. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UStaticMeshComponent> Shell;
 
+	/** One pad instance per pad_N socket. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UInstancedStaticMeshComponent> PadMeshes;
 
+	/** Life support machine. Destroying it costs the ship's side tickets (see AMetalSpaceBattleGameMode). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UMetalShipSubsystemComponent> LifeSupport;
 
@@ -140,6 +143,7 @@ private:
 	{
 		/** Pad socket transform, relative to the hangar. */
 		FTransform Transform;
+		/** Robot parked on the pad, if it is still there and alive. */
 		TWeakObjectPtr<AMetalBotCharacter> Robot;
 		/** World time to spawn a replacement, or -1 when none is scheduled. */
 		float RespawnAt = -1.f;
@@ -165,15 +169,20 @@ private:
 	/** The AI squadron: one entry per pilot slot, respawned like the pads. */
 	struct FPilotSlot
 	{
+		/** The pilot's robot while it is alive. */
 		TWeakObjectPtr<AMetalBotCharacter> Robot;
 		/** World time to launch a replacement, or -1 when none is scheduled. */
 		float RespawnAt = 0.f;
 	};
+	/** One slot per AI pilot the hangar keeps in the air. */
 	TArray<FPilotSlot> PilotSlots;
 
+	/** Pads in pad_N order. */
 	TArray<FPad> Pads;
+	/** Ship this hangar belongs to (null when the interior is opened on its own). */
 	TWeakObjectPtr<AMetalCapitalShip> OwningShip;
 	/** Set by InitForShip; until then nothing spawns. */
 	bool bActive = false;
+	/** World time of the next dead-robot check. */
 	float NextCheckTime = 0.f;
 };

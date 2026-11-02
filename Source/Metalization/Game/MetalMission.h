@@ -35,6 +35,7 @@ struct FMetalObjective
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Objective")
 	FText Description;
 
+	/** What completes the objective. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Objective")
 	EMetalObjectiveType Type = EMetalObjectiveType::ReachZone;
 
@@ -146,11 +147,15 @@ private:
 	 */
 	void PlayDialogue(const TArray<FMetalDialogueLine>& Lines) const;
 
+	/** Editor icon so the mission actor can be found in the level. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UBillboardComponent> Sprite;
 
+	/** Game mode that started the mission; receives its messages. */
 	TWeakObjectPtr<AMetalGameMode> GameMode;
+	/** Index into Objectives; INDEX_NONE before StartMission(). */
 	int32 CurrentObjective = INDEX_NONE;
+	/** World time of the next objective check. */
 	float NextCheckTime = 0.f;
 	/** PlayerStartingWeapons has been given to the first player pawn. */
 	bool bLoadoutApplied = false;

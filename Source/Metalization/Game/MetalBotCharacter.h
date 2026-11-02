@@ -568,6 +568,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USkeletalMeshComponent> RackGunA;
 
+	/** Second stowed weapon on the back (see RackOrder). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USkeletalMeshComponent> RackGunB;
 
@@ -575,6 +576,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> JetPodMesh;
 
+	/** Cone stretched below each nozzle as the thruster flame. */
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> JetFlameMesh;
 
@@ -586,9 +588,11 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USceneComponent>> JetFlamePivots;
 
+	/** Glow material of each flame, faded with the burst. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> JetFlameMaterials;
 
+	/** Light thrown on the ground while the thrusters burn. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPointLightComponent> JetLight;
 
@@ -604,16 +608,23 @@ protected:
 
 	/** The robot's own meshes are hidden from its camera while looking down a scope. */
 	bool bHiddenForScope = false;
+	/** Sprint button held (the robot may still not sprint, e.g. while aiming). */
 	bool bWantsSprint = false;
+	/** Actually sprinting this frame: SprintSpeed is the movement cap. */
 	bool bSprinting = false;
+	/** Smoothed 0..1 crouch amount, for the animator. */
 	float CrouchAlpha = 0.f;
+	/** Smoothed 0..1 sprint amount, for the animator and camera. */
 	float SprintAlpha = 0.f;
 	/** Distance walked since the last footstep. */
 	float StepDistance = 0.f;
+	/** Smoothed 0..1 aim blend for the camera field of view and boom length. */
 	float ScopeAlpha = 0.f;
 	/** World time the acted-out swap started, or -1. */
 	float SwapStartTime = -1.f;
+	/** Weapon slot being put away by the acted-out swap. */
 	int32 SwapFromSlot = INDEX_NONE;
+	/** Weapon slot being drawn by the acted-out swap. */
 	int32 SwapTargetSlot = INDEX_NONE;
 	/** 0 reaching, 1 gun off, 2 racked/drawn, 3 attached. */
 	int32 SwapStage = 0;
@@ -652,15 +663,19 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, Category="Metalization")
 	float Health = 100.f;
 
+	/** Hit points when fully repaired (from the archetype). */
 	float MaxHealth = 100.f;
+	/** Current side. Changes while the player has hijacked this robot. */
 	EMetalTeam Team = EMetalTeam::Villains;
 	/** Index of the equipped slot in Weapons, or INDEX_NONE. */
 	int32 CurrentWeapon = INDEX_NONE;
 	/** Damage absorbed so far by each archetype hit zone (same indices as HitZones). */
 	TArray<float> ZoneDamage;
+	/** Health reached 0 and Die() has run. */
 	bool bDead = false;
 	/** Died with a physics asset and is now simulating; the mesh transform is then left alone. */
 	bool bRagdoll = false;
+	/** Switched off: no firing, moving or footsteps (see SetDormant). */
 	bool bDormant = false;
 	bool bHijacked = false;
 	bool bWeaponDisabled = false;

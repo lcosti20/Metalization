@@ -42,11 +42,15 @@ protected:
 	/** Records the closed position. */
 	virtual void BeginPlay() override;
 
+	/** The sliding door slab. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Gate")
 	TObjectPtr<UStaticMeshComponent> Door;
 
 private:
+	/** Door's relative location when closed. */
 	FVector ClosedLocation = FVector::ZeroVector;
+	/** 0 closed .. 1 fully open. */
 	float OpenAlpha = 0.f;
+	/** Open() has been called. */
 	bool bOpening = false;
 };

@@ -64,9 +64,11 @@ class UMetalWeaponData : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	/** Name shown on the HUD and in pickup notices. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	FText DisplayName;
 
+	/** How shots are delivered. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	EMetalFireMode FireMode = EMetalFireMode::Hitscan;
 
@@ -78,6 +80,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	bool bInfiniteAmmo = false;
 
+	/** Seconds a reload takes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	float ReloadTime = 1.2f;
 
@@ -89,12 +92,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	float SpreadDegrees = 1.f;
 
+	/** Maximum reach of a shot, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	float Range = 6000.f;
 
+	/** Launch speed of projectiles and thrown grenades, cm/s. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Projectile")
 	float ProjectileSpeed = 5000.f;
 
+	/** Gravity on projectiles: 0 flies straight, 1 falls like a thrown object. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Projectile")
 	float ProjectileGravityScale = 0.f;
 
@@ -114,6 +120,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	float ProjectileScale = 1.f;
 
+	/** Colour of tracers, slugs, muzzle flashes and impacts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	FLinearColor TracerColor = FLinearColor(1.f, 0.4f, 0.1f);
 
@@ -149,6 +156,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
 	FName FireSound;
 
+	/** Played when a reload starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
 	FName ReloadSound = TEXT("reload");
 

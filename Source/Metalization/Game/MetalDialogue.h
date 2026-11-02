@@ -16,6 +16,7 @@ struct FMetalDialogueLine
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Dialogue")
 	FText Speaker;
 
+	/** The words spoken. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Dialogue", meta=(MultiLine=true))
 	FText Line;
 
@@ -64,6 +65,7 @@ public:
 	/** Advances to the next line once the current one has shown for its Duration. */
 	virtual void Tick(float DeltaTime) override;
 
+	/** Stat id required of tickable objects. */
 	virtual TStatId GetStatId() const override;
 
 protected:
@@ -73,6 +75,8 @@ protected:
 private:
 	/** Lines waiting to be shown; the front entry is on screen. */
 	TArray<FMetalDialogueLine> Queue;
+	/** Seconds the front line has been on screen. */
 	float LineTime = 0.f;
+	/** Seconds since the dialogue box opened (reset when the queue empties). */
 	float OpenTime = 0.f;
 };

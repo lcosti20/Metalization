@@ -66,18 +66,23 @@ protected:
 	 */
 	void SetScreenColor(const FLinearColor& Color);
 
+	/** Pedestal (root). */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Base;
 
+	/** Glowing screen: red while locked, green once activated. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Screen;
 
+	/** Light tinted with the screen colour. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPointLightComponent> Light;
 
+	/** Dynamic glow material on Screen. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> ScreenMaterial;
 
 private:
+	/** Set by the first successful TryActivate(). */
 	bool bActivated = false;
 };

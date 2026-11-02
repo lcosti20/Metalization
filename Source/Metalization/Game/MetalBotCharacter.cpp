@@ -1198,11 +1198,14 @@ void AMetalBotCharacter::Die(AController* Killer)
 	}
 	bDead = true;
 	Health = 0.f;
+	// Stop firing and moving, and switch the capsule's collision off.
 	StopFire();
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	// Robots with a physics asset collapse as a ragdoll, nudged backwards. The others are slumped by the
+	// animator instead (IsSlumped).
 	if (GetMesh()->GetPhysicsAsset())
 	{
 		GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
@@ -1213,11 +1216,13 @@ void AMetalBotCharacter::Die(AController* Killer)
 		bRagdoll = true;
 	}
 
+	// Kill counts, hijack endings and battle tickets all hang off this event.
 	OnAnyBotDied.Broadcast(this, Killer);
 	if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(GetController()))
 	{
 		AI->NotifyPawnDied();
 	}
+	// The wreck lies there for a moment, then blows apart and is removed.
 	GetWorldTimerManager().SetTimer(ExplodeTimer, this, &AMetalBotCharacter::Explode, 2.5f, false);
 }
 
@@ -1646,6 +1651,9 @@ void AMetalBotCharacter::FellOutOfWorld(const UDamageType& DamageType)
 
 void AMetalBotCharacter::RefreshMaterials()
 {
+	// Called whenever a mesh changes (archetype applied, weapon swapped): the new meshes come with their
+	// asset materials, so every slot on every part is given a fresh dynamic instance and the current
+	// hack glow and team paint are re-applied.
 	DynamicMaterials.Reset();
 	TArray<USkeletalMeshComponent*> Components = {GetMesh(), WeaponMesh, UnarmedMesh};
 	for (USkeletalMeshComponent* Part : PartMeshes)
@@ -1723,6 +1731,7 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	const float Now = GetWorld()->GetTimeSeconds();
 
+	// Material feedback: the hit flash fades out in about 1/6 s, and a hijacked robot's hack glow pulses.
 	if (HitFlash > 0.f)
 	{
 		HitFlash = FMath::Max(0.f, HitFlash - DeltaSeconds * 6.f);
@@ -1733,6 +1742,8 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		SetMaterialScalar(TEXT("HackGlow"), 0.65f + 0.35f * FMath::Sin(Now * 6.f));
 	}
 
+	// Movement state first (sprint, crouch, footsteps), then the things that pose or move the body, and the
+	// flip last because it sets the final mesh transform.
 	TickLocomotion(DeltaSeconds);
 	TickWeaponSwap(Now);
 	TickJetpack(Now);
@@ -1748,6 +1759,8 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		FinishReload();
 	}
 
+	// The trigger: fire whenever it is held and the weapon is ready. A player has to click again for each shot
+	// of a semi-automatic weapon; AI keeps holding the trigger for its bursts.
 	if (bFireHeld && !bDead && !bDormant && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
 	{
 		FireOnce();

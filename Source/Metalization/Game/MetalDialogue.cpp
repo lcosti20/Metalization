@@ -17,6 +17,7 @@ void UMetalDialogueSubsystem::PlayLine(const FMetalDialogueLine& Line)
 	{
 		return;
 	}
+	// Nothing playing: this line opens the dialogue box, with a radio blip.
 	if (Queue.Num() == 0)
 	{
 		LineTime = 0.f;
@@ -36,6 +37,8 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 	}
 	LineTime += DeltaTime;
 	OpenTime += DeltaTime;
+	// The front line has had its time: drop it. The box stays open (OpenTime keeps counting) while more lines
+	// are queued, with a quieter blip between speakers.
 	if (LineTime >= FMath::Max(0.5f, Queue[0].Duration))
 	{
 		Queue.RemoveAt(0);

@@ -104,7 +104,7 @@ The summary below is the quick reference. For how each system is implemented, st
 | Robots | `AMetalBotCharacter` + `UMetalBotArchetype` (Data Asset) | One class for the player, enemies, and NPCs. Archetype sets mesh, parts, rig, stats, hit zones, weapons, AI tuning, hackability, camera |
 | Weapons | `UMetalWeaponData` (Data Asset), `AMetalProjectile` | Hitscan / projectile / thrown / melee. Per-level stats and meshes (upgrades). Ammo, clips, reload |
 | Damage | `AMetalBotCharacter::TakeDamage` | No friendly fire. Hit zones per bone: head = ×1.5–2. Destroying a Shooter's **gun arm** disarms it and it charges into melee |
-| Possession | `AMetalPlayerController` | Explicit control transfer: AI brain destroyed, the player's body powered down in place (still shootable), timer, `[F]` to eject, host self-destructs on release (a tactical bomb) |
+| Possession | `AMetalPlayerController` | Explicit control transfer: AI brain destroyed, the player's body powered down in place (still shootable), timer, `[F]` to eject; on release the host reboots (stunned for 2 s) and rejoins its own side |
 | Animation | `UMetalBotAnimInstance` | Native procedural poses: gait from velocity, aim pitch, recoil, hit react, jump, powered-down slump, EMP twitch. Configured per robot via `FMetalBotRig` |
 | AI | `AMetalBotAIController` | Patrol → Investigate → Combat (strafe at preferred range, burst fire) → Retreat. Plus Stunned, Disabled-weapon melee, squad alerts. Runtime navmesh |
 | Mission | `AMetalMission`, `AMetalTriggerZone`, `AMetalControlConsole`, `AMetalGate`, `AMetalPickup` | Ordered objectives (eliminate tagged / reach zone / activate console / hijack tagged) with dialogue lines. Checkpoints. Villain-only consoles for possession puzzles |

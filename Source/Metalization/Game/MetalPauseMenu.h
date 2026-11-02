@@ -1,8 +1,9 @@
-// Pause menu: Continue, Level Select (a list of UMetalLevelSettings levels plus Back), Quit.
+// Pause menu and title menu. In game: Continue, Restart Mission, Level Select (the UMetalLevelSettings levels
+// plus Back), Controls, Title Screen, Quit. On the title screen: Start Mission, Level Select, Controls, Quit.
 //
 // Built in code like the HUD, so there are no widget assets to keep in sync. It works with the mouse,
 // keyboard (arrows + Enter) and gamepad (stick/d-pad + A). Escape, P, Start or B backs out: from Level
-// Select to the pause menu, from the pause menu back into the game. AMetalPlayerController opens and
+// Select or Controls to the main panel, from the main panel back into the game (not on the title screen). AMetalPlayerController opens and
 // closes it and owns the pause.
 
 #pragma once
@@ -50,10 +51,13 @@ private:
 	UFUNCTION()
 	void HandleHovered();
 
+	/** The button's label widget. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> Text;
 
+	/** Label text, also used for lookups. */
 	FText Label;
+	/** Run when the button is pressed. */
 	TFunction<void()> Action;
 	/** Last applied highlight state: -1 unknown (forces the first update), 0 off, 1 on. */
 	int8 bHighlighted = -1;
@@ -61,8 +65,9 @@ private:
 
 /**
  * The pause menu widget, created by AMetalPlayerController::OpenPauseMenu. Its whole widget tree is built
- * in BuildTree(): a dimmed backdrop, a title and a widget switcher with the main panel (index 0) and the
- * Level Select panel (index 1).
+ * in BuildTree(): a dimmed backdrop, a title and a widget switcher with the main panel (index 0), the
+ * Level Select panel (index 1) and the Controls panel (index 2). AMetalTitlePlayerController uses it too,
+ * with bTitleMode set.
  */
 UCLASS()
 class UMetalPauseMenu : public UUserWidget
@@ -119,21 +124,21 @@ protected:
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
-	/** Constructs the backdrop, title, both panels and their buttons. Level buttons come from UMetalLevelSettings. */
+	/** Constructs the backdrop, title, the three panels and their buttons. Level buttons come from UMetalLevelSettings. */
 	void BuildTree();
 
 	/**
 	 * Creates a menu button at the bottom of a panel.
 	 *
 	 * @param Panel  Panel to add it to.
-	 * @param List   Button list for that panel (MainButtons or LevelButtons).
+	 * @param List   Button list for that panel (MainButtons, LevelButtons or ControlsButtons).
 	 * @param Label  Button text.
 	 * @param Action Run when pressed.
 	 * @return The new button.
 	 */
 	UMetalMenuButton* AddButton(UVerticalBox* Panel, TArray<TObjectPtr<UMetalMenuButton>>& List, const FText& Label, TFunction<void()> Action);
 
-	/** From Level Select, returns to the main panel; from the main panel, closes the menu. */
+	/** From Level Select or Controls, returns to the main panel; from the main panel, closes the menu (except in title mode). */
 	void Back();
 
 	/** Gives keyboard focus to the first button on the visible panel. */
@@ -142,18 +147,23 @@ private:
 	/** @return The buttons on the visible panel. */
 	const TArray<TObjectPtr<UMetalMenuButton>>& VisibleButtons() const;
 
+	/** Heading above the panels. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> Title;
 
+	/** Shows one panel at a time: main, Level Select or Controls. */
 	UPROPERTY(Transient)
 	TObjectPtr<UWidgetSwitcher> Switcher;
 
+	/** Buttons on the main panel, top to bottom. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMetalMenuButton>> MainButtons;
 
+	/** Buttons on the Level Select panel. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMetalMenuButton>> LevelButtons;
 
+	/** Buttons on the Controls panel. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMetalMenuButton>> ControlsButtons;
 };

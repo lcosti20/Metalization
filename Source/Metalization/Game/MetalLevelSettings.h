@@ -14,9 +14,11 @@ struct FMetalLevelEntry
 {
 	GENERATED_BODY()
 
+	/** Button label. */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Level")
 	FText DisplayName;
 
+	/** Map opened when the button is pressed. */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Level")
 	TSoftObjectPtr<UWorld> Map;
 };

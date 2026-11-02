@@ -328,6 +328,7 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	// EMP-stunned or switched-off robots stand still and hold fire, keeping their state for when they wake.
 	if (Bot->IsStunned() || Bot->IsDormant())
 	{
 		StopMovement();
@@ -336,6 +337,7 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 	}
 
 	const float Now = GetWorld()->GetTimeSeconds();
+	// Look and listen a few times a second rather than every frame; the state ticks below act on the result.
 	if (Now >= NextSenseTime)
 	{
 		NextSenseTime = Now + SenseInterval;
@@ -472,6 +474,7 @@ void AMetalBotAIController::TickRetreat(float Now)
 {
 	AMetalBotCharacter* Bot = GetBot();
 	Bot->StopFire();
+	// On entering the state, run to a random spot about 9 m directly away from the enemy.
 	if (Now - StateStartTime < 0.1f)
 	{
 		const AMetalBotCharacter* Enemy = Target.Get();
@@ -479,6 +482,7 @@ void AMetalBotAIController::TickRetreat(float Now)
 		const FVector Away = (Bot->GetActorLocation() - From).GetSafeNormal2D();
 		MoveToRandomPointNear(Bot->GetActorLocation() + Away * 900.f, 300.f, false);
 	}
+	// After 4 s of falling back, turn and fight again (or go looking if the enemy is gone).
 	if (Now - StateStartTime > 4.f)
 	{
 		if (AMetalBotCharacter* Enemy = Target.Get())

@@ -60,22 +60,32 @@ protected:
 	 */
 	void Detonate(const FHitResult* DirectHit);
 
+	/** Collision sphere (root). */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> Collision;
 
+	/** Glowing slug or grenade mesh. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Visual;
 
+	/** Flight and gravity. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UProjectileMovementComponent> Movement;
 
 private:
+	/** Damage on a direct hit, or at the centre of an explosion. */
 	float Damage = 0.f;
+	/** Blast radius, cm; 0 = direct hit only. */
 	float ExplosionRadius = 0.f;
+	/** Seconds robots in the blast are stunned (EMP). */
 	float StunDuration = 0.f;
+	/** Seconds before a grenade explodes on its own; 0 = no fuse. */
 	float FuseTime = 0.f;
+	/** Glow colour of the slug and its impact. */
 	FLinearColor Color = FLinearColor::White;
+	/** Size multiplier of the slug and impact effects. */
 	float Scale = 1.f;
+	/** Detonate() has run. */
 	bool bDetonated = false;
 	/** Sound library name played on a direct (non-explosive) hit. */
 	FName ImpactSound;

@@ -74,6 +74,8 @@ FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 	{
 		return NSLOCTEXT("Metalization", "ConsoleDone", "The gate is already open.");
 	}
+	// The archetype's team, not GetTeam(): a hijacked Villain fights for the Heroes but keeps its clearance.
+	// So the player's own body is refused at an enemy console and must hack a guard to use it.
 	const EMetalTeam UserFaction = User && User->Archetype ? User->Archetype->Team : EMetalTeam::Neutral;
 	if (UserFaction != RequiredFaction)
 	{

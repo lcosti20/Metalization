@@ -120,9 +120,11 @@ private:
 	/** (Re)creates the render target whenever the viewport size changes. */
 	void EnsureRenderTarget();
 
+	/** What the linked end's capture sees, shown on this end's surface. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
+	/** Surface material that samples RenderTarget in screen space. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> SurfaceMaterial;
 
@@ -133,10 +135,12 @@ private:
 	/** A camera boom whose lag was switched off for a teleport, waiting to be switched back on. */
 	struct FLagRestore
 	{
+		/** The boom to restore. */
 		TWeakObjectPtr<USpringArmComponent> Boom;
 		/** Ticks left before the boom's camera lag is switched back on. */
 		int32 Frames = 0;
 	};
+	/** Booms waiting for their camera lag to be restored. */
 	TArray<FLagRestore> LagRestores;
 	/** Opening width and height, cm. */
 	FVector2D Size = FVector2D(8000.f, 3000.f);

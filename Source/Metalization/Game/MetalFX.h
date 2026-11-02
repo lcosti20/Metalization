@@ -73,21 +73,31 @@ private:
 	 */
 	void Setup(UStaticMesh* Mesh, const FLinearColor& Color, float InLifetime, float LightRadius);
 
+	/** The engine shape that is shown (sphere, cylinder...). */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
+	/** Optional light, faded out with the glow. */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPointLightComponent> Light;
 
+	/** Glow material on MeshComponent (Color, Intensity). */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> Material;
 
+	/** Actor scale at spawn; Tick blends towards EndScale over the lifetime. */
 	FVector StartScale = FVector::OneVector;
+	/** Actor scale at the end of the lifetime. */
 	FVector EndScale = FVector::OneVector;
+	/** Beam thickness, cm (beams only). */
 	float BeamWidth = 3.f;
+	/** Seconds to live; <= 0 never expires. */
 	float Lifetime = 0.f;
+	/** Seconds alive so far. */
 	float Age = 0.f;
+	/** Light intensity at spawn, faded to 0 over the lifetime. */
 	float StartLightIntensity = 0.f;
+	/** Material Intensity at spawn, faded to 0 over the lifetime. */
 	float StartGlow = 0.f;
 };
 
