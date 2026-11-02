@@ -25,8 +25,14 @@ namespace
 	const FLinearColor Panel(0.f, 0.f, 0.f, 0.55f);
 }
 
+void AMetalHUD::MeasureText(const FString& Text, float& OutW, float& OutH, UFont* Font, float Scale)
+{
+	GetTextSize(Text, OutW, OutH, Font, Scale * TextScale);
+}
+
 void AMetalHUD::DrawTextShadowed(const FString& Text, float X, float Y, const FLinearColor& Color, UFont* Font, float Scale, bool bCentered)
 {
+	Scale *= TextScale;
 	if (bCentered)
 	{
 		float W = 0.f, H = 0.f;
@@ -118,19 +124,23 @@ void AMetalHUD::DrawHUD()
 		// Health.
 		const float BarW = 360.f * UI;
 		const float BarX = 40.f * UI;
-		const float BarY = H - 70.f * UI;
+		// Laid out from the bottom up with measured text: stance line, health bar, then the name above it.
+		float StanceW = 0.f, StanceH = 0.f, NameW = 0.f, NameH = 0.f;
+		MeasureText(TEXT("Ag"), StanceW, StanceH, Small, UI * 1.2f);
+		MeasureText(TEXT("Ag"), NameW, NameH, Medium, UI);
+		const float BarY = H - 14.f * UI - StanceH - 6.f * UI - 18.f * UI;
 		const float HealthFraction = Bot->GetHealth() / FMath::Max(1.f, Bot->GetMaxHealth());
 		const FString Name = Bot->GetDisplayName().ToString().ToUpper() + (Bot->IsHijacked() ? TEXT("  (HIJACKED)") : TEXT(""));
-		DrawTextShadowed(Name, BarX, BarY - 34.f * UI, Bot->IsHijacked() ? Cyan : Amber, Medium, UI);
+		DrawTextShadowed(Name, BarX, BarY - NameH - 4.f * UI, Bot->IsHijacked() ? Cyan : Amber, Medium, UI);
 		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthFraction < 0.3f ? Danger : FLinearColor(0.3f, 1.f, 0.4f));
 		// Stance: sneaking keeps you hidden, sprinting is loud.
 		if (Bot->IsSneaking())
 		{
-			DrawTextShadowed(TEXT("SNEAKING - quiet, hard to spot"), BarX, BarY + 26.f * UI, Cyan, Small, UI * 1.2f);
+			DrawTextShadowed(TEXT("SNEAKING - quiet, hard to spot"), BarX, BarY + 24.f * UI, Cyan, Small, UI * 1.2f);
 		}
 		else if (Bot->IsSprinting())
 		{
-			DrawTextShadowed(TEXT("SPRINTING - loud"), BarX, BarY + 26.f * UI, Amber, Small, UI * 1.2f);
+			DrawTextShadowed(TEXT("SPRINTING - loud"), BarX, BarY + 24.f * UI, Amber, Small, UI * 1.2f);
 		}
 
 		// Flying: airspeed and the boost meter.
@@ -138,13 +148,22 @@ void AMetalHUD::DrawHUD()
 		{
 			DrawLeadReticle(Flyer, UI);
 			const int32 Speed = FMath::RoundToInt(Flyer->GetVelocity().Size() / 100.f);
-			DrawTextShadowed(FString::Printf(TEXT("SPEED %d m/s%s"), Speed, Flyer->IsBoosting() ? TEXT("   BOOST") : TEXT("")), BarX, BarY - 64.f * UI, FLinearColor::White, Small, UI * 1.3f);
+			DrawTextShadowed(FString::Printf(TEXT("SPEED %d m/s%s"), Speed, Flyer->IsBoosting() ? TEXT("   BOOST") : TEXT("")), BarX, BarY - 2.f * NameH - 8.f * UI, FLinearColor::White, Small, UI * 1.3f);
 			const float Boost = Flyer->GetBoostFraction();
-			DrawBar(BarX, BarY + 30.f * UI, BarW, 8.f * UI, Boost, Flyer->IsBoosting() ? Amber : Cyan);
+			DrawBar(BarX, BarY + 24.f * UI, BarW, 8.f * UI, Boost, Flyer->IsBoosting() ? Amber : Cyan);
 		}
 
 		// Weapon and ammo.
 		const float RightX = W - 40.f * UI;
+		// Laid out from the bottom up: grenade count, ammo, weapon name, then the weapon list above.
+		float GW = 0.f, GH = 0.f, AW = 0.f, AH = 0.f, WW = 0.f, WH = 0.f, LW = 0.f, LH = 0.f;
+		MeasureText(TEXT("Ag"), GW, GH, Small, UI * 1.3f);
+		MeasureText(TEXT("Ag"), AW, AH, Large, UI);
+		MeasureText(TEXT("Ag"), WW, WH, Medium, UI);
+		MeasureText(TEXT("Ag"), LW, LH, Small, UI * 1.2f);
+		const float GrenadeY = H - 14.f * UI - GH;
+		const float AmmoY = GrenadeY - AH;
+		const float WeaponNameY = AmmoY - WH;
 		if (const FMetalWeaponSlot* Slot = Bot->GetCurrentWeapon(); Slot && Slot->Data)
 		{
 			const FString WeaponName = FString::Printf(TEXT("%s  LV%d"), *Slot->Data->DisplayName.ToString().ToUpper(), Slot->Level + 1);
@@ -156,17 +175,17 @@ void AMetalHUD::DrawHUD()
 				: Slot->Data->bInfiniteAmmo ? TEXT("INF")
 				: FString::Printf(TEXT("%d / %d"), Slot->Clip, Slot->Reserve);
 			float TW = 0.f, TH = 0.f;
-			GetTextSize(WeaponName, TW, TH, Medium, UI);
-			DrawTextShadowed(WeaponName, RightX - TW, BarY - 34.f * UI, Amber, Medium, UI);
-			GetTextSize(Ammo, TW, TH, Large, UI);
-			DrawTextShadowed(Ammo, RightX - TW, BarY - 6.f * UI, FLinearColor::White, Large, UI);
+			MeasureText(WeaponName, TW, TH, Medium, UI);
+			DrawTextShadowed(WeaponName, RightX - TW, WeaponNameY, Amber, Medium, UI);
+			MeasureText(Ammo, TW, TH, Large, UI);
+			DrawTextShadowed(Ammo, RightX - TW, AmmoY, FLinearColor::White, Large, UI);
 		}
 		if (Bot->GrenadeWeapon && !Bot->IsHijacked())
 		{
 			const FString GrenadeText = FString::Printf(TEXT("[G] %s x%d"), *Bot->GrenadeWeapon->DisplayName.ToString().ToUpper(), Bot->Grenades);
 			float TW = 0.f, TH = 0.f;
-			GetTextSize(GrenadeText, TW, TH, Small, UI * 1.3f);
-			DrawTextShadowed(GrenadeText, RightX - TW, BarY + 34.f * UI, FLinearColor(0.6f, 0.75f, 1.f), Small, UI * 1.3f);
+			MeasureText(GrenadeText, TW, TH, Small, UI * 1.3f);
+			DrawTextShadowed(GrenadeText, RightX - TW, GrenadeY, FLinearColor(0.6f, 0.75f, 1.f), Small, UI * 1.3f);
 		}
 		// Weapon list (1-6).
 		const TArray<FMetalWeaponSlot>& Weapons = Bot->GetWeapons();
@@ -177,8 +196,8 @@ void AMetalHUD::DrawHUD()
 				const bool bCurrent = Bot->IsSwappingWeapon() ? Index == Bot->GetSwapTargetSlot() : Index == Bot->GetCurrentWeaponIndex();
 				const FString Entry = FString::Printf(TEXT("%d %s"), Index + 1, *Weapons[Index].Data->DisplayName.ToString());
 				float TW = 0.f, TH = 0.f;
-				GetTextSize(Entry, TW, TH, Small, UI * 1.2f);
-				DrawTextShadowed(Entry, RightX - TW, BarY - (70.f + 22.f * (Weapons.Num() - 1 - Index)) * UI, bCurrent ? Amber : FLinearColor(1.f, 1.f, 1.f, 0.6f), Small, UI * 1.2f);
+				MeasureText(Entry, TW, TH, Small, UI * 1.2f);
+				DrawTextShadowed(Entry, RightX - TW, WeaponNameY - 6.f * UI - (LH + 2.f * UI) * (Weapons.Num() - Index), bCurrent ? Amber : FLinearColor(1.f, 1.f, 1.f, 0.6f), Small, UI * 1.2f);
 			}
 		}
 
@@ -195,8 +214,10 @@ void AMetalHUD::DrawHUD()
 		{
 			const float Fraction = PC->GetPossessionTimeRemaining() / FMath::Max(1.f, PC->GetPossessionDuration());
 			const float TimerW = 420.f * UI;
+			float TimerTW = 0.f, TimerTH = 0.f;
+			MeasureText(TEXT("Ag"), TimerTW, TimerTH, Medium, UI);
 			DrawTextShadowed(FString::Printf(TEXT("HACK TETHER  %.0fs   [F] disconnect"), PC->GetPossessionTimeRemaining()), W * 0.5f, 92.f * UI, Cyan, Medium, UI, true);
-			DrawBar(W * 0.5f - TimerW * 0.5f, 122.f * UI, TimerW, 10.f * UI, Fraction, Fraction < 0.25f && FMath::Fmod(Now, 0.4f) < 0.2f ? Danger : Cyan);
+			DrawBar(W * 0.5f - TimerW * 0.5f, 92.f * UI + TimerTH + 4.f * UI, TimerW, 10.f * UI, Fraction, Fraction < 0.25f && FMath::Fmod(Now, 0.4f) < 0.2f ? Danger : Cyan);
 		}
 
 		if (AMetalControlConsole* Console = PC->GetNearbyConsole())
@@ -226,12 +247,17 @@ void AMetalHUD::DrawHUD()
 
 	if (GameMode)
 	{
-		// Objective (top-left).
+		// Objective (top-left): label, objective text, then the hint card under it.
+		float LabelW = 0.f, LabelH = 0.f, ObjW = 0.f, ObjH = 0.f;
+		MeasureText(TEXT("Ag"), LabelW, LabelH, Small, UI * 1.2f);
+		MeasureText(TEXT("Ag"), ObjW, ObjH, Medium, UI);
+		const float ObjectiveY = 24.f * UI + LabelH;
+		const float HintY = ObjectiveY + ObjH + 16.f * UI;
 		const FText Objective = GameMode->GetObjectiveText();
 		if (!Objective.IsEmpty())
 		{
-			DrawTextShadowed(TEXT("OBJECTIVE"), 40.f * UI, 30.f * UI, Amber, Small, UI * 1.2f);
-			DrawTextShadowed(Objective.ToString(), 40.f * UI, 50.f * UI, FLinearColor::White, Medium, UI);
+			DrawTextShadowed(TEXT("OBJECTIVE"), 40.f * UI, 24.f * UI, Amber, Small, UI * 1.2f);
+			DrawTextShadowed(Objective.ToString(), 40.f * UI, ObjectiveY, FLinearColor::White, Medium, UI);
 		}
 		if (const AMetalMission* Mission = GameMode->GetMission(); Mission && !GameMode->IsMissionComplete())
 		{
@@ -240,8 +266,8 @@ void AMetalHUD::DrawHUD()
 			if (!Hint.IsEmpty())
 			{
 				float TW = 0.f, TH = 0.f;
-				GetTextSize(Hint.ToString(), TW, TH, Medium, UI);
-				const float Y = 84.f * UI;
+				MeasureText(Hint.ToString(), TW, TH, Medium, UI);
+				const float Y = HintY;
 				DrawRect(Panel, 34.f * UI, Y - 6.f * UI, TW + 24.f * UI, TH + 12.f * UI);
 				DrawRect(Cyan, 34.f * UI, Y - 6.f * UI, 4.f * UI, TH + 12.f * UI);
 				DrawTextShadowed(Hint.ToString(), 46.f * UI, Y, FLinearColor(0.85f, 0.97f, 1.f), Medium, UI);
@@ -262,7 +288,7 @@ void AMetalHUD::DrawHUD()
 		// Banners.
 		if (const FMetalMessage* Banner = GameMode->GetBanner())
 		{
-			DrawTextShadowed(Banner->Text.ToString(), W * 0.5f, H * 0.38f, Amber, Large, UI * 2.2f, true);
+			DrawTextShadowed(Banner->Text.ToString(), W * 0.5f, H * 0.38f, Amber, Large, UI * 2.2f / TextScale, true);
 		}
 		if (GameMode->IsMissionComplete())
 		{
@@ -351,12 +377,12 @@ void AMetalHUD::DrawAwareness(const AMetalBotCharacter* Viewer, float UI)
 		{
 			// Pops in big, then settles.
 			const float Pop = 1.f + 0.6f * FMath::Max(0.f, 1.f - (Now - It->GetAlertTime()) / 0.25f);
-			DrawTextShadowed(TEXT("!"), Screen.X, Screen.Y - 30.f * UI * Pop, Danger, Large, UI * 1.6f * Pop, true);
+			DrawTextShadowed(TEXT("!"), Screen.X, Screen.Y - 30.f * UI * Pop, Danger, Large, UI * 1.6f * Pop / TextScale, true);
 			continue;
 		}
 		// A "?" whose meter fills from yellow to orange as the robot gets closer to noticing.
 		const FLinearColor Color = FLinearColor::LerpUsingHSV(FLinearColor(1.f, 0.95f, 0.3f), FLinearColor(1.f, 0.45f, 0.1f), Suspicion);
-		DrawTextShadowed(TEXT("?"), Screen.X, Screen.Y - 30.f * UI, Color, Large, UI * 1.3f, true);
+		DrawTextShadowed(TEXT("?"), Screen.X, Screen.Y - 30.f * UI, Color, Large, UI * 1.3f / TextScale, true);
 		const float BarW = 34.f * UI;
 		DrawBar(Screen.X - BarW * 0.5f, Screen.Y + 6.f * UI, BarW, 4.f * UI, Suspicion, Color);
 	}
@@ -368,8 +394,12 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 	const float H = Canvas->ClipY;
 	UFont* Medium = GEngine->GetMediumFont();
 	UFont* Small = GEngine->GetSmallFont();
-	const float PanelW = 520.f * UI;
-	const float PanelH = 230.f * UI;
+	float RowW = 0.f, RowH = 0.f, FootW = 0.f, FootH = 0.f;
+	MeasureText(TEXT("Ag"), RowW, RowH, Medium, UI * 1.1f);
+	MeasureText(TEXT("Ag"), FootW, FootH, Small, UI * 1.3f);
+	const float RowStep = RowH + 10.f * UI;
+	const float PanelW = 760.f * UI;
+	const float PanelH = 22.f * UI + 4.f * RowStep + 12.f * UI + FootH + 18.f * UI;
 	const float X = (W - PanelW) * 0.5f;
 	const float Y = H * 0.46f;
 	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.8f), X, Y, PanelW, PanelH);
@@ -388,11 +418,11 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 	{
 		DrawTextShadowed(Row[0], X + 30.f * UI, RowY, FLinearColor(1.f, 1.f, 1.f, 0.75f), Medium, UI);
 		float TW = 0.f, TH = 0.f;
-		GetTextSize(Row[1], TW, TH, Medium, UI * 1.1f);
+		MeasureText(Row[1], TW, TH, Medium, UI * 1.1f);
 		DrawTextShadowed(Row[1], X + PanelW - 30.f * UI - TW, RowY, FLinearColor::White, Medium, UI * 1.1f);
-		RowY += 36.f * UI;
+		RowY += RowStep;
 	}
-	DrawTextShadowed(TEXT("[ENTER] play again      [ESC] menu"), W * 0.5f, Y + PanelH - 34.f * UI, Amber, Small, UI * 1.3f, true);
+	DrawTextShadowed(TEXT("[ENTER] play again      [ESC] menu"), W * 0.5f, Y + PanelH - FootH - 16.f * UI, Amber, Small, UI * 1.3f, true);
 }
 
 void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, float UI)
@@ -403,7 +433,7 @@ void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, 
 	UFont* Medium = GEngine->GetMediumFont();
 
 	// Centred between the health panel (bottom left) and the weapon panel (bottom right).
-	const float BoxW = FMath::Clamp(W - 880.f * UI, 420.f * UI, 820.f * UI);
+	const float BoxW = FMath::Clamp(W - 960.f * UI, 520.f * UI, 1000.f * UI);
 	const float Pad = 16.f * UI;
 	const float TextW = BoxW - 2.f * Pad;
 
@@ -420,7 +450,7 @@ void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, 
 		{
 			const FString Candidate = Row.IsEmpty() ? Word : Row + TEXT(" ") + Word;
 			float TW = 0.f, TH = 0.f;
-			GetTextSize(Candidate, TW, TH, Medium, UI);
+			MeasureText(Candidate, TW, TH, Medium, UI);
 			if (TW > TextW && !Row.IsEmpty())
 			{
 				Rows.Add(Row);
@@ -438,10 +468,10 @@ void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, 
 	float NameW = 0.f, NameH = 0.f, RowW = 0.f, RowH = 0.f;
 	if (!Name.IsEmpty())
 	{
-		GetTextSize(Name, NameW, NameH, Small, UI * 1.3f);
+		MeasureText(Name, NameW, NameH, Small, UI * 1.3f);
 		NameH += 6.f * UI;
 	}
-	GetTextSize(TEXT("Ag"), RowW, RowH, Medium, UI);
+	MeasureText(TEXT("Ag"), RowW, RowH, Medium, UI);
 	const float BoxH = Pad + NameH + Rows.Num() * RowH + Pad;
 
 	// Pops up: slides in from below and fades in over the first 0.2 s.
@@ -572,6 +602,9 @@ void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* 
 	{
 		const FLinearColor Color = TeamColors[Team == EMetalTeam::Heroes ? 0 : 1];
 		DrawTextShadowed(FString::Printf(TEXT("%s  %d"), Name, Battle->GetTickets(Team)), CenterX, 18.f * UI, Color, Large, UI * 0.9f, true);
+		float TicketW = 0.f, TicketH = 0.f;
+		MeasureText(TEXT("Ag"), TicketW, TicketH, Large, UI * 0.9f);
+		const float HullY = 18.f * UI + TicketH + 4.f * UI;
 		const AMetalCapitalShip* Ship = Battle->GetShip(Team);
 		if (Ship == nullptr)
 		{
@@ -579,7 +612,7 @@ void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* 
 		}
 		const float BarW = 240.f * UI;
 		const float Hull = Ship->GetHullHealth() / FMath::Max(1.f, Ship->GetMaxHullHealth());
-		DrawBar(CenterX - BarW * 0.5f, 56.f * UI, BarW, 8.f * UI, Hull, Ship->IsShielded() ? FLinearColor(0.4f, 0.8f, 1.f) : FLinearColor(1.f, 0.6f, 0.2f));
+		DrawBar(CenterX - BarW * 0.5f, HullY, BarW, 8.f * UI, Hull, Ship->IsShielded() ? FLinearColor(0.4f, 0.8f, 1.f) : FLinearColor(1.f, 0.6f, 0.2f));
 		const TArray<TObjectPtr<UMetalShipSubsystemComponent>>& Parts = Ship->GetSubsystems();
 		const float Pip = 14.f * UI;
 		const float Gap = 6.f * UI;
@@ -587,9 +620,9 @@ void AMetalHUD::DrawSpaceBattle(AMetalSpaceBattleGameMode* Battle, const APawn* 
 		for (const UMetalShipSubsystemComponent* Part : Parts)
 		{
 			const float Fraction = Part->GetHealth() / FMath::Max(1.f, Part->GetMaxHealth());
-			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, 72.f * UI, Pip, Pip);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, (HullY + 16.f * UI), Pip, Pip);
 			DrawRect(Part->IsDestroyed() ? FLinearColor(0.25f, 0.05f, 0.05f) : FLinearColor::LerpUsingHSV(FLinearColor(1.f, 0.2f, 0.1f), FLinearColor(0.3f, 1.f, 0.4f), Fraction),
-				X + 2.f, 72.f * UI + 2.f, Pip - 4.f, Pip - 4.f);
+				X + 2.f, (HullY + 16.f * UI) + 2.f, Pip - 4.f, Pip - 4.f);
 			X += Pip + Gap;
 		}
 	};

@@ -45,6 +45,23 @@ private:
 	void DrawTextShadowed(const FString& Text, float X, float Y, const FLinearColor& Color, UFont* Font, float Scale = 1.f, bool bCentered = false);
 
 	/**
+	 * Size of text as DrawTextShadowed would draw it (including TextScale).
+	 *
+	 * @param Text   String to measure.
+	 * @param OutW   Width in pixels.
+	 * @param OutH   Height in pixels.
+	 * @param Font   Canvas font.
+	 * @param Scale  Text scale, as passed to DrawTextShadowed.
+	 */
+	void MeasureText(const FString& Text, float& OutW, float& OutH, UFont* Font, float Scale = 1.f);
+
+	/**
+	 * Every HUD text is drawn this much larger than its font for readability; layouts measure text with
+	 * MeasureText so they make room for it. (Menus are UMG and unaffected.)
+	 */
+	static constexpr float TextScale = 2.f;
+
+	/**
 	 * Space battles: tickets and both ships' health across the top, markers on the hangar and enemy subsystems.
 	 *
 	 * @param Battle The active battle mode.
