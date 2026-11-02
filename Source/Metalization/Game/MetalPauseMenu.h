@@ -70,14 +70,26 @@ class UMetalPauseMenu : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Shows Continue / Level Select / Quit and focuses the first button. */
+	/**
+	 * Title-screen mode: Start Mission / Level Select / Controls / Quit over the title backdrop, and Back on
+	 * the main panel does nothing. Set before the widget is added to the viewport.
+	 */
+	bool bTitleMode = false;
+
+	/** Shows the main buttons and focuses the first one. */
 	void ShowMainPanel();
+
+	/** Shows the controls reference and its Back button. */
+	void ShowControlsPanel();
 
 	/** Shows the level list and focuses the first entry. */
 	void ShowLevelPanel();
 
 	/** @return True while the Level Select panel is showing. */
 	bool IsShowingLevels() const;
+
+	/** @return True while the Controls panel is showing. */
+	bool IsShowingControls() const;
 
 	/**
 	 * Presses the visible button with this label, exactly as a click would. For the dev autopilot.
@@ -141,4 +153,7 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMetalMenuButton>> LevelButtons;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMetalMenuButton>> ControlsButtons;
 };
