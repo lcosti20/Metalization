@@ -48,6 +48,7 @@ WEAPON_COLLECTIONS = {
     "Flamethrower": "flamethrower",
     "Disc Launcher": "disclauncher",
     "Hack Tether": "hacktether",
+    "Sniper Rifle": "sniper",
 }
 GRENADE_COLLECTIONS = {
     "Cluster Grenade": "grenade_cluster",
@@ -61,7 +62,7 @@ GRENADE_COLLECTIONS = {
 # Which characters get which weapons exported as bonemerged followers.
 WEAPON_HOLDERS = {
     "player": [w for w in WEAPON_COLLECTIONS.values() if w != "laser_enemy"],
-    "shooter": ["laser_enemy", "repeater_l1", "shotgun_l1"],
+    "shooter": ["laser_enemy", "repeater_l1", "shotgun_l1", "sniper"],
 }
 
 
