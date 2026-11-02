@@ -1,16 +1,19 @@
-// Box volume used for checkpoints and "reach this area" objectives, with an optional glowing floor marker.
+// Box volume used for checkpoints, "reach this area" objectives and dialogue triggers, with an optional
+// glowing floor marker.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "MetalDialogue.h"
 #include "MetalTriggerZone.generated.h"
 
 class UBoxComponent;
 class UStaticMeshComponent;
 
 /**
- * Box trigger used as a checkpoint (bIsCheckpoint) and/or as the target of a ReachZone mission objective.
+ * Box trigger used as a checkpoint (bIsCheckpoint), a dialogue trigger (Dialogue) and/or as the target of a
+ * ReachZone mission objective.
  *
  * @see AMetalMission
  */
@@ -35,6 +38,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Zone")
 	bool bShowMarker = true;
 
+	/** Radio dialogue played the first time the player enters, in their own body or a hijacked one. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Zone")
+	TArray<FMetalDialogueLine> Dialogue;
+
 	/**
 	 * @param Actor Actor to test.
 	 * @return True if Actor currently overlaps the zone's box.
@@ -48,7 +55,10 @@ protected:
 	/** Binds the overlap event and gives the marker the glow material. */
 	virtual void BeginPlay() override;
 
-	/** Checkpoints trigger once, on the player's own body: saves the respawn point and fully repairs the player. */
+	/**
+	 * Plays the dialogue the first time the player enters. Checkpoints trigger once, on the player's own
+	 * body: saves the respawn point and fully repairs the player.
+	 */
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -60,4 +70,5 @@ protected:
 
 private:
 	bool bTriggered = false;
+	bool bDialoguePlayed = false;
 };

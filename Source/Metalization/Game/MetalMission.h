@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "MetalDialogue.h"
 #include "MetalMission.generated.h"
 
 class AMetalGameMode;
@@ -21,24 +22,6 @@ enum class EMetalObjectiveType : uint8
 	ActivateConsole,
 	/** Take control of any robot carrying TargetTag with the Hack Tether. */
 	HijackTagged
-};
-
-/** A line of radio dialogue, queued through AMetalGameMode::ShowMessage. */
-USTRUCT(BlueprintType)
-struct FMetalDialogueLine
-{
-	GENERATED_BODY()
-
-	/** Name shown above the line (e.g. "Guide"). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Dialogue")
-	FText Speaker;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Dialogue", meta=(MultiLine=true))
-	FText Line;
-
-	/** Seconds the line stays on screen before the next one. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Dialogue")
-	float Duration = 4.f;
 };
 
 /** One step of a mission. Which of TargetTag / TargetActor is used depends on Type. */
@@ -123,7 +106,7 @@ private:
 	bool IsObjectiveComplete(const FMetalObjective& Objective) const;
 
 	/**
-	 * Queues each line on the game mode's dialogue queue.
+	 * Queues the lines on the world's UMetalDialogueSubsystem.
 	 *
 	 * @param Lines Dialogue to play, in order.
 	 */

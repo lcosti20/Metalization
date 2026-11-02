@@ -3,6 +3,7 @@
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
+#include "MetalDialogue.h"
 #include "MetalPlayerController.h"
 #include "MetalCapitalShip.h"
 #include "MetalPortal.h"
@@ -179,6 +180,20 @@ void AMetalHUD::DrawHUD()
 		DrawSpaceBattle(Battle, PC ? PC->GetPawn() : nullptr, UI);
 	}
 
+	// Dialogue. Every line is a radio call unless the player's own robot is the one speaking.
+	if (const UMetalDialogueSubsystem* Dialogue = GetWorld()->GetSubsystem<UMetalDialogueSubsystem>())
+	{
+		if (const FMetalDialogueLine* Line = Dialogue->GetCurrentLine())
+		{
+			DrawDialogueBox(*Line, Dialogue->GetOpenTime(), UI);
+			const AMetalBotCharacter* OwnBody = PC ? PC->GetPlayerBody() : nullptr;
+			if (PC && PC->GetPawn() && !(OwnBody && Line->Speaker.EqualToCaseIgnored(OwnBody->GetDisplayName())))
+			{
+				DrawRadioIcon(PC->GetPawn(), UI);
+			}
+		}
+	}
+
 	if (GameMode)
 	{
 		// Objective (top-left).
@@ -187,15 +202,6 @@ void AMetalHUD::DrawHUD()
 		{
 			DrawTextShadowed(TEXT("OBJECTIVE"), 40.f * UI, 30.f * UI, Amber, Small, UI * 1.2f);
 			DrawTextShadowed(Objective.ToString(), 40.f * UI, 50.f * UI, FLinearColor::White, Medium, UI);
-		}
-		// Dialogue subtitles.
-		if (const FMetalMessage* Line = GameMode->GetDialogue())
-		{
-			const FString Text = FString::Printf(TEXT("%s: %s"), *Line->Speaker.ToString().ToUpper(), *Line->Text.ToString());
-			float TW = 0.f, TH = 0.f;
-			GetTextSize(Text, TW, TH, Medium, UI);
-			DrawRect(Panel, W * 0.5f - TW * 0.5f - 14.f, H - 190.f * UI - 8.f, TW + 28.f, TH + 16.f);
-			DrawTextShadowed(Text, W * 0.5f, H - 190.f * UI, FLinearColor(1.f, 0.95f, 0.8f), Medium, UI, true);
 		}
 		// System notices.
 		if (const FMetalMessage* Notice = GameMode->GetNotice())
@@ -213,6 +219,123 @@ void AMetalHUD::DrawHUD()
 			const FString Stats = FString::Printf(TEXT("Time %d:%02d    Enemies destroyed %d"), FMath::FloorToInt(Time / 60.f), FMath::FloorToInt(FMath::Fmod(Time, 60.f)), GameMode->GetKills());
 			DrawTextShadowed(Stats, W * 0.5f, H * 0.48f, FLinearColor::White, Medium, UI * 1.2f, true);
 			DrawTextShadowed(TEXT("Press ENTER to play again"), W * 0.5f, H * 0.54f, FLinearColor(1.f, 1.f, 1.f, 0.7f), Medium, UI, true);
+		}
+	}
+}
+
+void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, float UI)
+{
+	const float W = Canvas->ClipX;
+	const float H = Canvas->ClipY;
+	UFont* Small = GEngine->GetSmallFont();
+	UFont* Medium = GEngine->GetMediumFont();
+
+	// Centred between the health panel (bottom left) and the weapon panel (bottom right).
+	const float BoxW = FMath::Clamp(W - 880.f * UI, 420.f * UI, 820.f * UI);
+	const float Pad = 16.f * UI;
+	const float TextW = BoxW - 2.f * Pad;
+
+	// Word-wrap the line to the box, keeping any line breaks the writer put in.
+	TArray<FString> Rows;
+	TArray<FString> Paragraphs;
+	Line.Line.ToString().ParseIntoArray(Paragraphs, TEXT("\n"), false);
+	for (const FString& Paragraph : Paragraphs)
+	{
+		TArray<FString> Words;
+		Paragraph.ParseIntoArrayWS(Words);
+		FString Row;
+		for (const FString& Word : Words)
+		{
+			const FString Candidate = Row.IsEmpty() ? Word : Row + TEXT(" ") + Word;
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Candidate, TW, TH, Medium, UI);
+			if (TW > TextW && !Row.IsEmpty())
+			{
+				Rows.Add(Row);
+				Row = Word;
+			}
+			else
+			{
+				Row = Candidate;
+			}
+		}
+		Rows.Add(Row);
+	}
+
+	const FString Name = Line.Speaker.ToString().ToUpper();
+	float NameW = 0.f, NameH = 0.f, RowW = 0.f, RowH = 0.f;
+	if (!Name.IsEmpty())
+	{
+		GetTextSize(Name, NameW, NameH, Small, UI * 1.3f);
+		NameH += 6.f * UI;
+	}
+	GetTextSize(TEXT("Ag"), RowW, RowH, Medium, UI);
+	const float BoxH = Pad + NameH + Rows.Num() * RowH + Pad;
+
+	// Pops up: slides in from below and fades in over the first 0.2 s.
+	const float Pop = 1.f - FMath::Square(1.f - FMath::Clamp(OpenTime / 0.2f, 0.f, 1.f));
+	const float X = (W - BoxW) * 0.5f;
+	const float Y = H - 24.f * UI - BoxH + (1.f - Pop) * 40.f * UI;
+	DrawRect(FLinearColor(0.02f, 0.04f, 0.06f, 0.75f * Pop), X, Y, BoxW, BoxH);
+	DrawRect(FLinearColor(Amber.R, Amber.G, Amber.B, Pop), X, Y, BoxW, 3.f * UI);
+	float TextY = Y + Pad;
+	if (!Name.IsEmpty())
+	{
+		DrawTextShadowed(Name, X + Pad, TextY, FLinearColor(Amber.R, Amber.G, Amber.B, Pop), Small, UI * 1.3f);
+		TextY += NameH;
+	}
+	for (const FString& Row : Rows)
+	{
+		DrawTextShadowed(Row, X + Pad, TextY, FLinearColor(1.f, 0.95f, 0.8f, Pop), Medium, UI);
+		TextY += RowH;
+	}
+}
+
+void AMetalHUD::DrawRadioIcon(const APawn* Pawn, float UI)
+{
+	const FVector Screen = Project(Pawn->GetActorLocation() + FVector(0.f, 0.f, Pawn->GetSimpleCollisionHalfHeight() + 5.f));
+	if (Screen.Z <= 0.f)
+	{
+		return;
+	}
+	const float Now = GetWorld()->GetTimeSeconds();
+	// The radio's bottom edge sits on the point above the head, bobbing slightly so it reads as live.
+	const float BodyW = 16.f * UI;
+	const float BodyH = 22.f * UI;
+	const float L = Screen.X - BodyW * 0.5f;
+	const float T = Screen.Y - BodyH - (1.f + FMath::Sin(Now * 4.f)) * 2.f * UI;
+	DrawRect(FLinearColor(0.02f, 0.05f, 0.07f, 0.85f), L, T, BodyW, BodyH);
+	DrawLine(L, T, L + BodyW, T, Cyan, 2.f);
+	DrawLine(L + BodyW, T, L + BodyW, T + BodyH, Cyan, 2.f);
+	DrawLine(L + BodyW, T + BodyH, L, T + BodyH, Cyan, 2.f);
+	DrawLine(L, T + BodyH, L, T, Cyan, 2.f);
+	// Display window and speaker grille.
+	DrawRect(FLinearColor(Cyan.R, Cyan.G, Cyan.B, 0.8f), L + 3.f * UI, T + 3.f * UI, BodyW - 6.f * UI, 5.f * UI);
+	for (int32 Slot = 0; Slot < 3; ++Slot)
+	{
+		const float GrilleY = T + (12.f + 3.f * Slot) * UI;
+		DrawLine(L + 4.f * UI, GrilleY, L + BodyW - 4.f * UI, GrilleY, FLinearColor(Cyan.R, Cyan.G, Cyan.B, 0.6f), 1.f);
+	}
+	// Antenna, with signal waves going out both sides of its tip.
+	const FVector2D Tip(Screen.X, T - 14.f * UI);
+	DrawLine(Tip.X, T, Tip.X, Tip.Y, Cyan, 2.f);
+	DrawRect(Cyan, Tip.X - 2.f * UI, Tip.Y - 2.f * UI, 4.f * UI, 4.f * UI);
+	constexpr int32 Segments = 6;
+	const float HalfArc = FMath::DegreesToRadians(50.f);
+	for (int32 Wave = 0; Wave < 3; ++Wave)
+	{
+		// Each ring flashes a quarter cycle after the one inside it, so the signal ripples outward.
+		const float Phase = FMath::Fmod(Now * 1.5f + 1.f - Wave * 0.25f, 1.f);
+		const FLinearColor Color(Cyan.R, Cyan.G, Cyan.B, FMath::Lerp(0.2f, 1.f, 1.f - Phase));
+		const float Radius = (7.f + 5.f * Wave) * UI;
+		for (const float Facing : {0.f, UE_PI})
+		{
+			for (int32 Segment = 0; Segment < Segments; ++Segment)
+			{
+				const float A0 = Facing - HalfArc + Segment * 2.f * HalfArc / Segments;
+				const float A1 = Facing - HalfArc + (Segment + 1) * 2.f * HalfArc / Segments;
+				DrawLine(Tip.X + Radius * FMath::Cos(A0), Tip.Y + Radius * FMath::Sin(A0), Tip.X + Radius * FMath::Cos(A1), Tip.Y + Radius * FMath::Sin(A1), Color, 2.f);
+			}
 		}
 	}
 }

@@ -1,5 +1,5 @@
 // Canvas HUD for the demo: health, weapon/ammo, crosshair, hacking prompt and timer, objectives,
-// dialogue subtitles and banners. Kept in code so it works without any UMG assets; a UMG version
+// the dialogue box and radio icon, and banners. Kept in code so it works without any UMG assets; a UMG version
 // can read the same game mode / controller getters.
 
 #pragma once
@@ -60,6 +60,24 @@ private:
 	 * @param UI    Resolution scale factor.
 	 */
 	void DrawLeadReticle(const class AMetalStalker* Flyer, float UI);
+
+	/**
+	 * The dialogue box at the bottom of the screen: speaker name over the word-wrapped line. It slides up
+	 * when it opens and stays put across back-to-back lines.
+	 *
+	 * @param Line     Line on screen.
+	 * @param OpenTime Seconds since the box opened.
+	 * @param UI       Resolution scale factor.
+	 */
+	void DrawDialogueBox(const struct FMetalDialogueLine& Line, float OpenTime, float UI);
+
+	/**
+	 * A handheld radio with pulsing signal waves above Pawn's head, shown while an NPC talks to the player.
+	 *
+	 * @param Pawn The pawn the player controls.
+	 * @param UI   Resolution scale factor.
+	 */
+	void DrawRadioIcon(const APawn* Pawn, float UI);
 
 	/**
 	 * A world-space marker; pinned to the screen edge with an arrow when bEdgeArrow and off screen.

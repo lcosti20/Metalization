@@ -40,12 +40,9 @@ FText AMetalMission::GetCurrentObjectiveText() const
 
 void AMetalMission::PlayDialogue(const TArray<FMetalDialogueLine>& Lines) const
 {
-	if (AMetalGameMode* GM = GameMode.Get())
+	if (UMetalDialogueSubsystem* Dialogue = GetWorld()->GetSubsystem<UMetalDialogueSubsystem>())
 	{
-		for (const FMetalDialogueLine& Line : Lines)
-		{
-			GM->ShowMessage(Line.Speaker, Line.Line, Line.Duration);
-		}
+		Dialogue->PlayDialogue(Lines);
 	}
 }
 

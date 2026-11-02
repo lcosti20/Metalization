@@ -1,6 +1,6 @@
 # Missions, levels, HUD and menus
 
-Files: `MetalGameMode.h/.cpp`, `MetalMission.h/.cpp`, `MetalTriggerZone.h/.cpp`, `MetalControlConsole.h/.cpp`, `MetalGate.h/.cpp`, `MetalPickup.h/.cpp`, `MetalHUD.h/.cpp`, `MetalPauseMenu.h/.cpp`, `MetalLevelSettings.h`
+Files: `MetalGameMode.h/.cpp`, `MetalDialogue.h/.cpp`, `MetalMission.h/.cpp`, `MetalTriggerZone.h/.cpp`, `MetalControlConsole.h/.cpp`, `MetalGate.h/.cpp`, `MetalPickup.h/.cpp`, `MetalHUD.h/.cpp`, `MetalPauseMenu.h/.cpp`, `MetalLevelSettings.h`
 
 ## Game modes
 
@@ -20,7 +20,7 @@ The game mode holds the on-screen text; the HUD only draws it.
 
 | Kind | Call | Behaviour |
 |---|---|---|
-| Dialogue | `ShowMessage(Speaker, Text, Duration)` with a speaker | Queued; each line shows for its duration, then the next |
+| Dialogue | `ShowMessage(Speaker, Text, Duration)` with a speaker | Forwarded to `UMetalDialogueSubsystem` (see [Dialogue](#dialogue)) |
 | Notice | `ShowMessage` with an empty speaker | Replaces the current notice ("Objective complete", "ACCESS DENIED") |
 | Banner | `ShowBanner(Text, Duration)` | Big centred text ("CHECKPOINT", "SCRAPPED!", "MISSION COMPLETE") |
 
@@ -35,6 +35,21 @@ The game mode holds the on-screen text; the HUD only draws it.
 ### Completion
 
 `CompleteMission(EndBanner)` freezes the mission timer and shows the end banner with time and kills (kills count Villains killed by a player controller). Enter then calls `RestartMission`, which reloads the level.
+
+## Dialogue
+
+`UMetalDialogueSubsystem` (a world subsystem, so every map has one) plays radio dialogue during gameplay. There are no cutscenes or choices, and lines can't be skipped: the game keeps running and the lines play automatically.
+
+Each `FMetalDialogueLine` has a `Speaker`, the `Line` and a `Duration` (seconds before the next line shows, at least 0.5). `PlayDialogue(Lines)` (also Blueprint-callable) adds lines to the end of the queue, so dialogue from overlapping events plays in order instead of cutting in. Dialogue pauses with the game.
+
+| Trigger | Field |
+|---|---|
+| Mission objective starts | `FMetalObjective::StartDialogue` |
+| Mission completes | `AMetalMission::CompletionDialogue` |
+| Player enters a zone (own body or hijacked), once | `AMetalTriggerZone::Dialogue` (set `bShowMarker` false for an invisible trigger) |
+| Anything else | Call `PlayDialogue` on the subsystem from C++ or a level Blueprint |
+
+The HUD draws the current line in a box at the bottom centre of the screen (speaker name above the word-wrapped text). The box slides up when dialogue starts and stays put between back-to-back lines. While a line plays, a radio icon with pulsing signal waves floats above the head of the robot the player controls, showing an incoming radio call. It isn't shown when the speaker's name matches the player's own robot (`Player`).
 
 ## Missions
 
@@ -55,7 +70,7 @@ In non-shipping builds, `-MetalObjective=N` on the command line starts at object
 
 | Actor | What it does |
 |---|---|
-| `AMetalTriggerZone` | Box volume with an optional glowing floor disc. With `bIsCheckpoint`, the first time the player's **own body** enters it sets the checkpoint and fully repairs the player. Also the target of `ReachZone` objectives |
+| `AMetalTriggerZone` | Box volume with an optional glowing floor disc. With `bIsCheckpoint`, the first time the player's **own body** enters it sets the checkpoint and fully repairs the player. Its `Dialogue` plays the first time the player enters in any body. Also the target of `ReachZone` objectives |
 | `AMetalControlConsole` | Opens its `LinkedGates` when operated by a robot whose **archetype** belongs to `RequiredFaction` (Villains by default). The player can't use it in their own body; they have to hijack an enemy and walk it over. A hijacked robot fights for the Heroes but keeps its archetype, which is why the check uses the archetype's team |
 | `AMetalGate` | A door slab that slides by `OpenOffset` over `OpenTime` once `Open()` is called |
 | `AMetalPickup` | Floating, spinning collectible: repair, ammo (fraction of reserve), grenades, or a weapon (granted, or upgraded one level if owned). Only the player's own body collects it, and it stays put if it would have no effect |
@@ -71,7 +86,7 @@ Placeholder geometry for these uses the engine's basic shapes with the `M_FX_Glo
 - Hack Tether timer, or "LINKED" for ally links.
 - Console prompt.
 - Space battle status (tickets, hull bars, subsystem pips, markers). See [SpaceBattle.md](SpaceBattle.md).
-- Objective, dialogue subtitles, notices, banners, and the end-of-mission stats.
+- Objective, the dialogue box and radio icon, notices, banners, and the end-of-mission stats.
 
 `DrawMarker` projects a world point to the screen; off-screen points (optionally) get an arrow on the screen edge, pushed out from the centre until it meets the margin.
 
