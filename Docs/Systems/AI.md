@@ -81,3 +81,25 @@ Each tick, once in the same space as its target:
 - **Fire.** `UpdateFiring()` fires in bursts only when the aim point is within `FireRange` and `FireCone`, and a trace shows nothing but the target in the way.
 
 `DescribeState()` returns a one-line summary used in the dev autopilot's log.
+
+## Hearing and suspicion (stealth)
+
+- **Hearing.** `ReportNoise(Instigator, Location, Radius)` is static and is called for the player's
+  footsteps, gunshots and explosions. Every hostile AI within the radius gets `HearNoise`. Unless it's already
+  fighting, it stares at the spot and walks over to investigate. A second noise while investigating
+  re-targets the walk and extends it.
+- **Suspicion.** The player isn't spotted at a glance. When `Sense` finds a player-driven robot in view and
+  the robot isn't already in combat, `BuildSuspicion` fills `Suspicion` (0–1):
+  - **Distance.** The time to fill is about 0.4 s at 3 m, rising to 3.5 s at the archetype's `SightRange`.
+  - **Stance.** Sneaking makes it 2.5× slower; sprinting makes it 1.7× faster.
+  - **Shooting.** Firing in the last 1.5 s makes it 4× faster.
+  - **Disguise.** A hijacked robot of the watcher's own side makes it 4× slower.
+- **Reacting.** The robot stops and turns to look; past 0.5 it walks over. At 1 it calls `EnterCombat`
+  (which alerts the squad), records `AlertTime` for the HUD's "!" and plays `alert`. Out of sight, suspicion
+  drains at 0.25/s.
+- **Sneaking robots** are only seen at about 60% of the normal range, and `ProximityAwareness` (feeling
+  someone behind you) shrinks to 35%.
+- **Other targets.** Robots that aren't the player (Blue allies) are still fought on sight. Damage still
+  starts a fight at once.
+- **Debugging.** The HUD's `DrawAwareness` reads `GetSuspicion` / `GetAlertTime`, and the autopilot logs
+  every robot's suspicion.

@@ -18,7 +18,9 @@ The current build is a playable prototype made of graybox models. Its pillars:
 
 | Level | Map | What's there |
 |---|---|---|
-| Outpost - The Gate Job | `MZ_Outpost_Demo` (default) | A short mission: firefights, platforming, a gate puzzle that needs a hijacked guard, and a Brute boss |
+| **Operation Redline (Production Alpha)** | `MZ_ProductionAlpha` | The Sprint 4 demo: one Blue-vs-Red ground mission that teaches sprinting, jumping, double jumps, anti-grav lifts, shooting and weapon-arm swaps, grenades, sneaking, sniping, hacking and consoles in order, then throws them all into a final battle. See [Docs/ProductionAlpha.md](Docs/ProductionAlpha.md) |
+| Title screen | `MZ_Title` (packaged game's start map) | Start Mission / Level Select / Controls / Quit |
+| Outpost - The Gate Job | `MZ_Outpost_Demo` | A short mission: firefights, platforming, a gate puzzle that needs a hijacked guard, and a Brute boss |
 | Arena | `MZ_Arena` | Free roam with an action camera and a double-jump flip; enemies ignore you until you shoot them |
 | Flight Test | `MZ_FlightTest` | Link to a parked Stalker and practise flying and dogfighting |
 | Space Battle | `MZ_SpaceBattle` | Spawn aboard your capital ship, take a Stalker out of the hangar, and destroy the enemy ship |
@@ -30,15 +32,19 @@ Switch levels in game from the pause menu (Esc, P or Start > Level Select).
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
 | Move / look | WASD / mouse | Left / right stick |
-| Fire / aim (zoom) | LMB / RMB | RT / LT |
+| Sprint (hold) | Shift | Left stick click |
+| Sneak | Hold Ctrl, or toggle with C | Right stick click |
+| Fire / aim (zoom; scope with the Sniper) | LMB / RMB | RT / LT |
 | Jump (press again in mid-air to double-jump) | Space | A |
-| Switch weapon | 1–6, mouse wheel | Y |
+| Swap weapon arm (acted out: twist off, rack, snap on) | 1–6, mouse wheel | Y |
 | Reload | R | X |
 | EMP grenade | G | RB |
 | Hack Tether (hack / disconnect) | F | LB |
 | Use console | E | B |
 | Pause menu | Esc or P (Esc also ends Play-In-Editor, so use P there) | Start |
-| Replay after a mission | Enter | Pause menu > Level Select |
+| Replay after a mission | Enter | Pause menu > Restart Mission |
+
+Anti-grav lifts need no button: walk into the glowing beam.
 
 While flying a Stalker:
 
@@ -96,7 +102,7 @@ git clone https://github.com/lcosti20/Metalization.git
 
 2. Right-click `Metalization.uproject` and choose **Generate Visual Studio project files**.
 3. Open `Metalization.sln` and build **Development Editor | Win64**.
-4. Open `Metalization.uproject`. The editor starts on `MZ_Outpost_Demo`; press Play.
+4. Open `Metalization.uproject`. The editor starts on `MZ_ProductionAlpha`; press Play. (A packaged build starts on the title screen.)
 
 The generated assets are already committed, so you don't need to run the pipeline to play. To rebuild them from the Blender file (editor closed):
 
@@ -114,14 +120,14 @@ Scripted smoke tests drive the game with a dev autopilot, take screenshots and l
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario combat
 ```
 
-Scenarios: `combat`, `gate`, `boss`, `arena`, `flight`, `hangar`, `battle`, `dogfight`, `menu`, `ships`. Add `-Packaged` to run one in a packaged build. Details are in [Docs/Systems/EffectsAndTools.md](Docs/Systems/EffectsAndTools.md).
+Scenarios: `combat`, `gate`, `boss`, `arena`, `flight`, `hangar`, `battle`, `dogfight`, `menu`, `ships`, and for the Production Alpha `alpha`, `bridge`, `lift`, `swap`, `bunker`, `sneak`, `sniper`, `hack`, `title`. Add `-Packaged` to run one in a packaged build. Details are in [Docs/Systems/EffectsAndTools.md](Docs/Systems/EffectsAndTools.md).
 
 ## Development Roadmap
 
 - [x] Sprint 1: Project pitch and vision
 - [x] Sprint 2: Preproduction and greybox testing
 - [x] Sprint 3: Technical framework
-- [ ] Sprint 4: Production alpha
+- [ ] Sprint 4: Production alpha (playable build done; hand playtest pending, see [Docs/Sprint4_TaskList.md](Docs/Sprint4_TaskList.md))
 - [ ] Sprint 5: Production beta and polish
 - [ ] Sprint 6: Final release and trailer
 
@@ -129,6 +135,7 @@ Scenarios: `combat`, `gate`, `boss`, `arena`, `flight`, `hangar`, `battle`, `dog
 
 - Code documentation: [Docs/Architecture.md](Docs/Architecture.md) and the system pages in [Docs/Systems/](Docs/Systems/)
 - Plan and demo guide: [Docs/Metalization_Plan.md](Docs/Metalization_Plan.md)
+- Production Alpha (mission guide, new mechanics, testing): [Docs/ProductionAlpha.md](Docs/ProductionAlpha.md) and the [Sprint 4 task list](Docs/Sprint4_TaskList.md)
 - Space battle design: [Docs/SpaceBattle_Plan.md](Docs/SpaceBattle_Plan.md)
 
 For development logs, sprint notes, and course deliverables, see the project outcome site:

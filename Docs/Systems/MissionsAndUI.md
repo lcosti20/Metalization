@@ -100,3 +100,23 @@ Placeholder geometry for these uses the engine's basic shapes with the `M_FX_Glo
 Buttons are `UMetalMenuButton`s, which run a stored lambda when pressed, so each level button can carry its own map. Hovering moves keyboard focus, so mouse, keyboard and gamepad share one selection; the menu re-focuses the first button whenever nothing is focused. Escape, P, Start and B go back a panel or close the menu.
 
 `UMetalLevelSettings` is a developer-settings class stored in `Config/DefaultGame.ini` and editable at Project Settings > Game > Metalization Levels. Any map listed there must also be in the packaging settings' `MapsToCook`, or it won't be in packaged builds.
+
+## Production Alpha additions
+
+- **Objectives.**
+  - `FMetalObjective::Hint` is a control tip shown in a card under the objective.
+  - `bShowMarker` points the HUD marker (with distance) at the zone or console, or at the nearest robot still
+    to deal with (`AMetalMission::GetObjectiveMarker`).
+- **Mission loadout.** `AMetalMission::PlayerStartingWeapons` and `PlayerStartingGrenades` replace the
+  archetype loadout on the first tick, so a tutorial can hand weapons out one at a time.
+- **Results.** `AMetalGameMode` counts `Deaths`, and the controller counts hitscan shots and hits
+  (`GetAccuracy`). `AMetalHUD::DrawResults` shows time, kills, deaths and accuracy.
+- **Title screen.** `MZ_Title` uses `AMetalTitleGameMode` (no pawn) and `AMetalTitlePlayerController`. The
+  controller orbits the camera actor tagged `TitleCamera` and shows `UMetalPauseMenu` with `bTitleMode` set.
+  `AMetalGameMode::ReturnToTitle` and the pause menu's **Title Screen** button go back to it.
+- **Pause menu.**
+  - In-game: Continue, Restart Mission, Level Select, Controls, Title Screen, Quit.
+  - On the title screen: Start Mission (the first Level Select entry), Level Select, Controls, Quit.
+- **Level actors.**
+  - `AMetalGravLift`: a vertical lift beam, with its origin at the floor pad.
+  - `AMetalBarrage`: shells land behind the player while they're inside its box.

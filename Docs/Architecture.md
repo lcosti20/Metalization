@@ -117,3 +117,17 @@ Every subscriber adds its handler in `BeginPlay` and removes it in `EndPlay`, be
 | Add a level | Create the map, add it to `MapsToCook` and to `[/Script/Metalization.MetalLevelSettings]` in `Config/DefaultGame.ini`. |
 | Change a ship's special rules | Subclass `AMetalCapitalShip` and override `OnSubsystemDestroyed`, `OnShipDestroyed`, `OnInteriorReady` or `GetSpawnPoints` (all BlueprintNativeEvents). |
 | Test a change without playing | Build, then `Tools/AssetPipeline/smoke_test.ps1 -Scenario <name>`. See [EffectsAndTools.md](Systems/EffectsAndTools.md). |
+
+## Production Alpha systems
+
+These were added in Sprint 4; see [ProductionAlpha.md](ProductionAlpha.md).
+
+| Class / file | Role |
+|---|---|
+| `MetalAudio.h/.cpp` (`UMetalSoundLibrary`, `MetalAudio::PlayAt/Play2D/PlayLoop`) | Play sounds by name from `DA_Sounds` ([Systems/Audio.md](Systems/Audio.md)) |
+| `AMetalGravLift` | Anti-gravity lift beam |
+| `AMetalBarrage` | Artillery that chases the player through an area |
+| `AMetalTitleGameMode`, `AMetalTitlePlayerController` | Title screen |
+| `AMetalAlphaGameMode` | The mission's game mode (action camera, full HUD) |
+| `AMetalBotCharacter` (additions) | Sprint, sneak, weapon-arm swap, scope, laser sights, footsteps |
+| `AMetalBotAIController` (additions) | Hearing (`ReportNoise`) and suspicion |
