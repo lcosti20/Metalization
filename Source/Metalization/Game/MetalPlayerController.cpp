@@ -613,7 +613,7 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	{
 		return;
 	}
-	// The target's AI is destroyed rather than kept: when the link ends the host either blows up (enemy)
+	// The target's AI is destroyed rather than kept: when the link ends the host either gets a fresh one (enemy)
 	// or idles unpossessed (ally), and an idle ally must have no controller to be linkable again.
 	if (AController* OldBrain = Target->GetController())
 	{
@@ -699,8 +699,12 @@ void AMetalPlayerController::EndPossession()
 		}
 		else
 		{
-			// The tether burns out the host's brain: it stays on our side just long enough to blow up.
-			OldHost->SelfDestruct(1.2f);
+			// Letting go hands the robot back, intact: it reboots for a moment (stunned), then returns to its
+			// own side under a fresh AI. Only damage destroys a hijacked robot.
+			OldHost->SetHijacked(false);
+			OldHost->SetDormant(false);
+			OldHost->SpawnDefaultController();
+			OldHost->Stun(RebootTime);
 		}
 	}
 }

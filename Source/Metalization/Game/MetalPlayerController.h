@@ -3,7 +3,7 @@
 // Possession is an explicit ownership transfer: the player's body is left powered down where it stood
 // (and can still be shot), the target robot's AI controller is destroyed, and this controller
 // possesses the robot. When the link ends - by choice, timeout, or the host being destroyed -
-// control returns to the player's body and the burnt-out host self-destructs.
+// control returns to the player's body and the host reboots back onto its own side.
 //
 // Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer and no
 // self-destruct, the player flies them until they disconnect. Flyers use their own input context.
@@ -97,6 +97,10 @@ public:
 
 	/** @return World time the possessed robot was last damaged. */
 	float GetLastDamageTime() const { return LastDamageTime; }
+
+	/** Seconds a released hijack victim stays stunned ("rebooting") before its AI takes over again. */
+	UPROPERTY(EditAnywhere, Category="Metalization")
+	float RebootTime = 2.f;
 
 	/** Max distance for the Hack Tether. */
 	UPROPERTY(EditAnywhere, Category="Metalization")
@@ -239,7 +243,10 @@ private:
 	 */
 	void BeginPossession(AMetalBotCharacter* Target);
 
-	/** Returns control to the player's body. A hijacked enemy self-destructs; an ally link goes dormant. */
+	/**
+	 * Returns control to the player's body. A hijacked enemy that is still alive goes back to its own side
+	 * with a new AI after a short reboot stun; an ally link goes dormant.
+	 */
 	void EndPossession();
 
 	/**

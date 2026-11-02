@@ -636,7 +636,7 @@ def build_alpha(archetypes, w):
         ]),
         objective("Hack the gate guard", OT.HIJACK_TAGGED, tag="GateGuard", hint="Aim at the guard behind the fence and press [F]", dialogue=[
             line("Shield gate. The field only lets Red robots through... but your Hack Tether goes right through it."),
-            line("Aim at that guard and press F. He's yours for half a minute."),
+            line("Aim at that guard and press F. He's yours for half a minute - when you let go, he's theirs again."),
         ]),
         objective("Open the gate from the console", OT.ACTIVATE_CONSOLE, target=console, hint="[E] use the console     [F] let go", dialogue=[
             line("You're driving a Red now. Walk him to the gate console and press E. Act natural."),
