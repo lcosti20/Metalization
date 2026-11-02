@@ -13,8 +13,12 @@ The maps are regenerated from scratch every run - make manual layout changes on 
     /Game/Metalization/Maps/MZ_ProductionAlpha  the Production Alpha mission, + MZ_Title (ue_setup_alpha.py)
     /Game/Metalization/Data/DA_Sounds           sound library (UMetalSoundLibrary) over /Game/Metalization/Audio
 
-Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space to rebuild only those.
+Maps are only rebuilt when their inputs changed (their level script, plus the model sizes/sockets the
+Outpost and Space maps place things by) or the map is missing; the hashes are kept under "levels" in
+import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space to
+force those, or MZ_FULL=1 to rebuild them all.
 """
+import hashlib
 import json
 import math
 import os
@@ -652,6 +656,50 @@ def restore_template_game_mode():
         log("restored BP_ThirdPersonGameMode default pawn")
 
 
+TOOLS_DIR = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline")
+STATE_FILE = os.path.join(TOOLS_DIR, "import_state.json")
+# Level -> (script files it is built from, manifest sections it reads, maps it writes).
+LEVELS = {
+    "alpha": (["ue_setup_alpha.py"], [], ["MZ_ProductionAlpha"]),
+    "title": (["ue_setup_alpha.py"], [], ["MZ_Title"]),
+    "outpost": (["ue_setup_gameplay.py"], ["characters"], ["MZ_Outpost_Demo"]),
+    "arena": (["ue_setup_arena.py"], [], ["MZ_Arena"]),
+    "flight": (["ue_setup_flight.py"], [], ["MZ_FlightTest"]),
+    "space": (["ue_setup_space.py"], ["ships"], ["MZ_SpaceBattle", "MZ_CapitalShip_Interior"]),
+}
+
+
+def level_hash(name, manifest):
+    scripts, sections, _ = LEVELS[name]
+    h = hashlib.sha256()
+    for script in scripts:
+        with open(os.path.join(TOOLS_DIR, script), "rb") as f:
+            h.update(f.read())
+    for section in sections:
+        data = manifest.get(section, {})
+        if section == "characters":
+            # The showcase only uses sizes and factions.
+            data = {k: [v["bounds_min_m"], v["bounds_max_m"], v["faction"]] for k, v in data.items()}
+        h.update(json.dumps(data, sort_keys=True).encode())
+    return h.hexdigest()
+
+
+def levels_to_build(manifest, state):
+    if os.environ.get("MZ_ADOPT") == "1":
+        return []
+    forced = [l for l in os.environ.get("MZ_LEVELS", "").split(",") if l]
+    if forced:
+        return forced
+    if os.environ.get("MZ_FULL") == "1":
+        return list(LEVELS)
+    todo = []
+    for name, (_, _, maps) in LEVELS.items():
+        missing = any(not eal.does_asset_exist(f"{ROOT}/Maps/{m}") for m in maps)
+        if missing or state.get(name) != level_hash(name, manifest):
+            todo.append(name)
+    return todo
+
+
 def main():
     with open(os.path.join(PIPELINE_DIR, "manifest.json")) as f:
         manifest = json.load(f)
@@ -659,8 +707,14 @@ def main():
     archetypes = make_archetypes(manifest, weapons)
     make_sound_library()
     restore_template_game_mode()
-    levels = os.environ.get("MZ_LEVELS", "alpha,title,outpost,arena,flight,space").split(",")
-    sys.path.insert(0, os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline"))
+    state = {}
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+    level_state = state.get("levels", {})
+    levels = levels_to_build(manifest, level_state)
+    log("maps to rebuild: " + (", ".join(levels) if levels else "none (all up to date)"))
+    sys.path.insert(0, TOOLS_DIR)
     if "alpha" in levels:
         import ue_setup_alpha
         ue_setup_alpha.build_alpha(archetypes, weapons)
@@ -678,6 +732,15 @@ def main():
     if "space" in levels:
         import ue_setup_space
         ue_setup_space.build_space_maps(archetypes)
+    # Record what the rebuilt maps were made from (the import stage owns the "imports" section). Adopting
+    # records every map as up to date without rebuilding it.
+    for name in (list(LEVELS) if os.environ.get("MZ_ADOPT") == "1" else levels):
+        if name in LEVELS:
+            level_state[name] = level_hash(name, manifest)
+    state["levels"] = level_state
+    with open(STATE_FILE, "w", newline="\r\n") as f:
+        json.dump(state, f, indent=1, sort_keys=True)
+        f.write("\n")
     log("DONE")
 
 

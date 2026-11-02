@@ -42,16 +42,30 @@ Run everything with the editor **closed**:
 ```powershell
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
 # -SkipBlender / -SkipImport / -SkipGameplay to re-run individual stages, -Source <folder> to export another model folder
+# -Full re-imports everything and rebuilds every map; -Adopt records the current Content as up to date
 ```
 
 | Stage | Script | Output |
 |---|---|---|
 | 1 | `blender_export.py` (Blender 5.2, headless) | `Saved/AssetPipeline/`: FBX per character, part, and weapon-on-holder; `manifest.json` |
+| 1b | `generate_sfx.py` | `Saved/AssetPipeline/Audio/*.wav` |
+| 1c | `import_plan.py` | Decides what changed since the last import (`import_state.json`), deletes those stale assets, writes `import_plan.json` |
 | 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props,Ships}` |
 | 3 | `ue_setup_gameplay.py` | `/Game/Metalization/Data` (weapons, archetypes), `/Game/Metalization/Maps/MZ_Outpost_Demo` and `MZ_Arena` |
 | 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks, plus ship collision, sockets and portal sizes (`PASSED` / list of problems) |
 
-Before stage 2, the runner deletes the generated `Characters`, `Weapons`, `Props`, `Textures` and `Materials/Instances` folders. Reimporting over an existing mesh keeps its old material slots, and deleting assets from the commandlet leaves the files on disk.
+**Incremental runs.** Only what changed is re-imported and only maps whose inputs changed are rebuilt, so a commit after a pipeline run contains just the assets that really changed:
+
+- **Fingerprints.** `blender_export.py` writes a content fingerprint for every FBX into the manifest: geometry, UVs, normals, weights, material slots, bones, plus the exporter script. FBX files can't be compared directly, because they embed the export time and per-run object ids.
+- **Planning.** `import_plan.py` turns those fingerprints into a hash per generated unit:
+  - a character with its parts;
+  - each weapon on each holder, which also depends on the holder, because a re-imported character gets a new skeleton;
+  - each prop, ship part, material instance, texture and sound.
+
+  It compares them with `Tools/AssetPipeline/import_state.json`, which is committed so it travels with the Content it describes. For every changed, new or missing unit it deletes the old `.uasset` files: re-importing over a mesh keeps its old material slots, and the commandlet can't delete files. Units that no longer exist are removed. The importer then imports only those units and saves only dirty assets.
+- **Maps.** `ue_setup_gameplay.py` hashes each map's level script, plus the model sizes and ship sockets the Outpost and Space maps place things by, and rebuilds only maps whose hash changed or that are missing. `MZ_LEVELS` still forces specific maps.
+- **Forcing.** `-Full` gives the old behaviour: wipe the generated folders, re-import everything and rebuild every map. Any change to `ue_import_assets.py` re-imports everything anyway.
+- **Adopting.** `-Adopt` declares the current Content up to date without importing anything. Use it after pulling Content someone else generated, if `import_state.json` wasn't committed with it.
 
 Key decisions:
 - **Materials**: graybox materials have no textures and set the master material's `Tint` (and `Color` on the light master) to their flat colour. The master `M_MZ_Base` also supports packed textures for future art (metallic = 1 − R, roughness = 1 − G of the base colour, emission = base × self-illum mask). Every robot material has `HitFlash` and `HackGlow` parameters that gameplay drives.

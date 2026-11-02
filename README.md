@@ -110,7 +110,7 @@ The generated assets are already committed, so you don't need to run the pipelin
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
 ```
 
-The level scripts regenerate the maps in place, so make level changes in the scripts rather than by hand. See [Docs/Metalization_Plan.md](Docs/Metalization_Plan.md) for the pipeline stages and options.
+Runs are incremental: only models whose files changed are re-imported and only maps whose scripts changed are rebuilt, so a commit after a run contains just what really changed (`-Full` redoes everything). Commit `Tools/AssetPipeline/import_state.json` along with the Content. The level scripts regenerate the maps in place, so make level changes in the scripts rather than by hand. See [Docs/Metalization_Plan.md](Docs/Metalization_Plan.md) for the pipeline stages and options.
 
 ### Automated tests
 

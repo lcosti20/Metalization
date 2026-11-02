@@ -52,3 +52,5 @@ If you add a new material that more than one model should use, put it in `GB_Mat
 2. Model it, keeping the rules above, and save.
 3. Re-run the pipeline with the editor closed:
    `powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1`.
+   Only the models you changed (and any weapons held by a character you changed) are re-imported, so
+   the commit stays small. Commit `Tools/AssetPipeline/import_state.json` with the Content.

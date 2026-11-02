@@ -24,21 +24,29 @@ What it produces in <output_dir>:
     Ships/<part>.fbx               ship/hangar piece as one static mesh with its UCX_ collision, pivot at the
                                    part's PIVOT_* empty; its SOCKET_* empties go to the manifest (UE space)
     Textures/<image>.png           every image referenced by an exported material (none for the graybox)
-    manifest.json                  materials, textures, characters, bones, parts, weapons
+    manifest.json                  materials, textures, characters, bones, parts, weapons, and a content
+                                   fingerprint per FBX (see fingerprint()) for import_plan.py
 
 Nothing is saved back to the .blend files; all edits happen in memory.
 """
 import bpy
+import hashlib
 import json
 import os
 import re
+import struct
 import sys
+from array import array
 from mathutils import Matrix, Vector
 
 BLEND_ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 OUT_DIR = os.path.abspath(BLEND_ARGS[0] if BLEND_ARGS else os.path.join(PROJECT_DIR, "Saved", "AssetPipeline"))
 SOURCE_DIR = os.path.abspath(BLEND_ARGS[1] if len(BLEND_ARGS) > 1 else os.path.join(PROJECT_DIR, "Art", "Graybox"))
+# Any change to this script may change every export, so it is part of every fingerprint.
+with open(os.path.abspath(__file__), "rb") as _script:
+    SCRIPT_HASH = hashlib.sha256(_script.read()).hexdigest()
+FINGERPRINTS = {}  # FBX path relative to OUT_DIR -> fingerprint
 # Top-level folders of SOURCE_DIR that hold models; each becomes a collection of the same name.
 MODEL_FOLDERS = ("Characters", "Weapons", "Grenades", "Ships")
 
@@ -180,7 +188,55 @@ def sanitize_materials(objs):
 # --------------------------------------------------------------------------------------------
 # FBX export helpers
 # --------------------------------------------------------------------------------------------
+def fingerprint(objects, armature):
+    """Hash of everything an FBX export of these objects contains, built from the Blender data rather than
+    the file: FBX files embed the export time and per-run object ids, so two exports of an unchanged model
+    never match byte for byte. import_plan.py re-imports a model only when this changes."""
+    h = hashlib.sha256(SCRIPT_HASH.encode())
+    h.update(b"skeletal" if armature else b"static")
+
+    def floats(values):
+        h.update(array("d", values).tobytes())
+
+    for o in sorted(objects, key=lambda o: o.name):
+        h.update(f"{o.name}|{o.type}|{o.parent.name if o.parent else ''}".encode())
+        floats([v for row in o.matrix_world for v in row])
+        if o.type == "MESH":
+            me = o.data
+            co = array("f", [0.0]) * (len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            h.update(co.tobytes())
+            loops = array("i", [0]) * len(me.loops)
+            me.loops.foreach_get("vertex_index", loops)
+            h.update(loops.tobytes())
+            for attr in ("loop_total", "material_index"):
+                values = array("i", [0]) * len(me.polygons)
+                me.polygons.foreach_get(attr, values)
+                h.update(values.tobytes())
+            h.update(bytes(p.use_smooth for p in me.polygons))
+            for uv in me.uv_layers:
+                data = array("f", [0.0]) * (len(me.loops) * 2)
+                uv.data.foreach_get("uv", data)
+                h.update(uv.name.encode() + data.tobytes())
+            normals = array("f", [0.0]) * (len(me.loops) * 3)
+            me.corner_normals.foreach_get("vector", normals)
+            h.update(normals.tobytes())
+            h.update(repr([s.material.name if s.material else "" for s in o.material_slots]).encode())
+            h.update(repr([g.name for g in o.vertex_groups]).encode())
+            for v in me.vertices:
+                for g in v.groups:
+                    h.update(struct.pack("iif", v.index, g.group, g.weight))
+            h.update(repr([(m.type, getattr(getattr(m, "object", None), "name", "")) for m in o.modifiers]).encode())
+        elif o.type == "ARMATURE":
+            for b in o.data.bones:
+                h.update(f"{b.name}|{b.parent.name if b.parent else ''}".encode())
+                floats([v for row in b.matrix_local for v in row])
+                floats(list(b.tail_local))
+    return h.hexdigest()
+
+
 def export_fbx(path, objects, armature=True):
+    FINGERPRINTS[os.path.relpath(path, OUT_DIR).replace("\\", "/")] = fingerprint(objects, armature)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:
@@ -515,7 +571,7 @@ def main():
         if o.type == "ARMATURE":
             o.data.pose_position = "REST"
     manifest = {"source": os.path.relpath(SOURCE_DIR, PROJECT_DIR).replace("\\", "/"), "characters": {}, "weapons": {}, "props": {},
-                "ships": {}, "materials": materials, "textures": textures}
+                "ships": {}, "materials": materials, "textures": textures, "fingerprints": FINGERPRINTS}
     export_characters(manifest)
     export_weapons(manifest)
     export_ships(manifest)
