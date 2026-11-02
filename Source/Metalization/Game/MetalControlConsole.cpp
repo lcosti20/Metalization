@@ -1,5 +1,7 @@
 #include "MetalControlConsole.h"
 
+#include "MetalAudio.h"
+
 #include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
@@ -75,9 +77,11 @@ FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 	const EMetalTeam UserFaction = User && User->Archetype ? User->Archetype->Team : EMetalTeam::Neutral;
 	if (UserFaction != RequiredFaction)
 	{
+		MetalAudio::PlayAt(this, TEXT("console_denied"), GetActorLocation(), 0.8f);
 		return NSLOCTEXT("Metalization", "ConsoleDenied", "ACCESS DENIED - enemy personnel only. (Maybe borrow one?)");
 	}
 	bActivated = true;
+	MetalAudio::PlayAt(this, TEXT("console_granted"), GetActorLocation(), 0.9f);
 	SetScreenColor(OpenColor);
 	AMetalFX::SpawnBurst(GetWorld(), Screen->GetComponentLocation(), OpenColor, 50.f, 0.3f);
 	for (AActor* Actor : LinkedGates)

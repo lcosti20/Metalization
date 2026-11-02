@@ -15,9 +15,11 @@ Creates, under /Game/Metalization:
     Weapons/<Name>/SK_<Name>_On<Holder>  weapons bonemerged onto a holder's skeleton
     Props/SM_<Name>                   weapons and grenades as static meshes (pickups)
     Ships/SM_<Part>                   capital ship pieces and the hangar kit (UCX collision + sockets)
+    Audio/SW_<Name>                   sound effects from generate_sfx.py (names ending _loop loop)
 
-Safe to re-run: existing assets are updated in place. run_pipeline.ps1 clears the generated folders first,
-because reimporting over a mesh keeps its old material slots (which breaks switching models).
+Incremental: import_plan.py (run first by run_pipeline.ps1) works out which units changed, deletes their
+old .uasset files and writes Saved/AssetPipeline/import_plan.json; only those are imported here, so
+unchanged assets aren't touched or re-saved. Without a plan file everything is imported.
 """
 import json
 import os
@@ -44,11 +46,28 @@ def load(path):
 
 
 # --------------------------------------------------------------------------------------------
+# Import plan (see import_plan.py)
+# --------------------------------------------------------------------------------------------
+PLAN = None  # loaded in main(); None = import everything
+
+
+def planned(kind, key):
+    """True if the plan says this unit changed (or there is no plan)."""
+    if PLAN is None:
+        return True
+    if kind == "followers":
+        return list(key) in PLAN["followers"]
+    return key in PLAN[kind]
+
+
+# --------------------------------------------------------------------------------------------
 # Textures
 # --------------------------------------------------------------------------------------------
 def import_textures(manifest):
     tasks = []
     for key, tex in manifest["textures"].items():
+        if not planned("textures", key):
+            continue
         task = unreal.AssetImportTask()
         task.set_editor_property("filename", os.path.join(PIPELINE_DIR, tex["file"]))
         task.set_editor_property("destination_path", ROOT + "/Textures")
@@ -59,6 +78,8 @@ def import_textures(manifest):
         tasks.append(task)
     asset_tools.import_asset_tasks(tasks)
     for key, tex in manifest["textures"].items():
+        if not planned("textures", key):
+            continue
         texture = load(f"{ROOT}/Textures/T_{key}")
         if texture is None:
             unreal.log_error(f"[MZImport] texture failed: {key}")
@@ -255,6 +276,11 @@ def make_instance(path, name, parent, scalars=None, vectors=None, textures=None)
 
 
 def build_materials(manifest):
+    names = {"lit": "M_MZ_Base", "masked": "M_MZ_Base_Masked", "light": "M_MZ_Light", "decal": "M_MZ_Decal"}
+    if PLAN is not None and not PLAN["rebuild_masters"]:
+        # Masters unchanged: use them as they are, and only touch the material instances that changed.
+        masters = {kind: load(f"{ROOT}/Materials/{name}") for kind, name in names.items()}
+        return build_instances(manifest, masters)
     masters = {
         "lit": build_base("M_MZ_Base", masked=False),
         "masked": build_base("M_MZ_Base_Masked", masked=True),
@@ -274,12 +300,22 @@ def build_materials(manifest):
                    "MI_Env_Dark": {"Metallic": 0.2, "Roughness": 0.8}}
     for name, vecs in env_variants.items():
         make_instance(ROOT + "/Materials", name, env, scalars=env_scalars.get(name, {}), vectors=vecs)
+    return build_instances(manifest, masters)
 
+
+def build_instances(manifest, masters):
+    """One instance per model material: rebuilt if its description changed, otherwise loaded as is."""
     def tex(key):
         return load(f"{ROOT}/Textures/T_{key}") if key else None
 
     instances = {}
+    rebuilt = 0
     for key, m in manifest["materials"].items():
+        existing = load(f"{ROOT}/Materials/Instances/MI_{key}")
+        if existing is not None and not planned("materials", key) and not (PLAN or {}).get("rebuild_masters"):
+            instances[key] = existing
+            continue
+        rebuilt += 1
         kind = "masked" if m["kind"] == "lit" and m["masked"] else m["kind"]
         color = m.get("color")
         if kind in ("lit", "masked"):
@@ -293,7 +329,7 @@ def build_materials(manifest):
             mi = make_instance(ROOT + "/Materials/Instances", "MI_" + key, masters[kind],
                                vectors={"Color": color} if color else None, textures={"Texture": tex(m["base"])})
         instances[key] = mi
-    log(f"materials: {len(instances)} instances")
+    log(f"materials: {len(instances)} instances ({rebuilt} rebuilt)")
     return instances
 
 
@@ -376,10 +412,17 @@ def report_bounds(mesh, expected_height_cm=None):
 
 def import_characters(manifest, instances):
     skeletons = {}
+    imported = 0
     for cid, ch in manifest["characters"].items():
         name = pascal(cid)
         folder = f"{ROOT}/Characters/{name}"
         existing_skeleton = load(f"{folder}/SK_{name}_Skeleton")
+        if not planned("characters", cid):
+            # Unchanged: weapons that change still need this character's skeleton to import onto.
+            if existing_skeleton is not None:
+                skeletons[cid] = existing_skeleton
+            continue
+        imported += 1
         body = import_fbx(ch["file"], folder, f"SK_{name}", fbx_options(True, existing_skeleton, physics=existing_skeleton is None))
         if body is None:
             continue
@@ -391,7 +434,7 @@ def import_characters(manifest, instances):
             part_mesh = import_fbx(part["file"], folder, f"SK_{name}_{pascal(pid)}", fbx_options(True, skeleton))
             if part_mesh:
                 assign_skeletal_materials(part_mesh, instances)
-    log(f"characters: {len(skeletons)}")
+    log(f"characters: {len(skeletons)} ({imported} imported)")
     return skeletons
 
 
@@ -400,22 +443,59 @@ def import_weapons(manifest, instances, skeletons):
     for group in ("weapons", "props"):
         for wid, w in manifest[group].items():
             name = pascal(wid)
-            prop = import_fbx(w["prop"], f"{ROOT}/Props", f"SM_{name}", fbx_options(False))
-            if prop:
-                assign_static_materials(prop, instances)
+            if planned("props", wid):
+                prop = import_fbx(w["prop"], f"{ROOT}/Props", f"SM_{name}", fbx_options(False))
+                if prop:
+                    assign_static_materials(prop, instances)
             for holder, file in w["followers"].items():
-                if holder not in skeletons:
+                if holder not in skeletons or not planned("followers", (wid, holder)):
                     continue
                 mesh = import_fbx(file, f"{ROOT}/Weapons/{name}", f"SK_{name}_On{pascal(holder)}", fbx_options(True, skeletons[holder]))
                 if mesh:
                     assign_skeletal_materials(mesh, instances)
                     count += 1
-    log(f"weapon followers: {count}")
+    log(f"weapon followers: {count} imported")
+
+
+def import_audio():
+    """Every WAV from generate_sfx.py becomes /Game/Metalization/Audio/SW_<Name>."""
+    folder = os.path.join(PIPELINE_DIR, "Audio")
+    if not os.path.isdir(folder):
+        log("WARNING no Saved/AssetPipeline/Audio - run generate_sfx.py (the game will be silent)")
+        return
+    tasks = []
+    for file in sorted(os.listdir(folder)):
+        if not file.endswith(".wav") or not planned("sounds", file[:-4]):
+            continue
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", os.path.join(folder, file))
+        task.set_editor_property("destination_path", f"{ROOT}/Audio")
+        task.set_editor_property("destination_name", "SW_" + pascal(file[:-4]))
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("automated", True)
+        task.set_editor_property("save", False)
+        tasks.append(task)
+    asset_tools.import_asset_tasks(tasks)
+    count = 0
+    for file in sorted(os.listdir(folder)):
+        if not file.endswith(".wav") or not planned("sounds", file[:-4]):
+            continue
+        wave = load(f"{ROOT}/Audio/SW_{pascal(file[:-4])}")
+        if wave is None:
+            unreal.log_error(f"[MZImport] FAILED to import {file}")
+            continue
+        wave.set_editor_property("looping", file.endswith("_loop.wav"))
+        count += 1
+    log(f"sounds: {count} imported")
 
 
 def import_ships(manifest, instances):
     """Ship pieces: static meshes whose UCX_ hulls become simple collision, plus the sockets from the manifest."""
+    count = 0
     for part, s in manifest.get("ships", {}).items():
+        if not planned("ships", part):
+            continue
+        count += 1
         mesh = import_fbx(s["file"], f"{ROOT}/Ships", f"SM_{part}", fbx_options(False))
         if mesh is None:
             continue
@@ -428,12 +508,20 @@ def import_ships(manifest, instances):
                 unreal.Vector(*sock["forward"]), unreal.Vector(*sock["up"])))
             mesh.add_socket(socket)
         report_bounds(mesh)
-    log(f"ships: {len(manifest.get('ships', {}))} meshes")
+    log(f"ships: {count} imported")
 
 
 def main():
+    global PLAN
     with open(os.path.join(PIPELINE_DIR, "manifest.json")) as f:
         manifest = json.load(f)
+    plan_path = os.path.join(PIPELINE_DIR, "import_plan.json")
+    if os.path.exists(plan_path):
+        with open(plan_path) as f:
+            PLAN = json.load(f)
+        log("using import_plan.json" + (" (full)" if PLAN["full"] else ""))
+    else:
+        log("no import_plan.json: importing everything")
     # Use the legacy FBX importer so the options above are honoured exactly (Interchange ignores FbxImportUI).
     unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX 0")
     import_textures(manifest)
@@ -441,7 +529,9 @@ def main():
     skeletons = import_characters(manifest, instances)
     import_weapons(manifest, instances, skeletons)
     import_ships(manifest, instances)
-    eal.save_directory(ROOT, only_if_is_dirty=False, recursive=True)
+    import_audio()
+    # Only what this run touched; re-saving untouched assets would rewrite them for nothing.
+    eal.save_directory(ROOT, only_if_is_dirty=True, recursive=True)
     log("DONE")
 
 

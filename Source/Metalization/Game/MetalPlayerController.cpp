@@ -1,5 +1,6 @@
 #include "MetalPlayerController.h"
 
+#include "MetalAudio.h"
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
@@ -107,6 +108,12 @@ void AMetalPlayerController::CreateInputObjects()
 	Map(Actions[TEXT("Tether")], EKeys::Gamepad_LeftShoulder);
 	Map(MakeAction(TEXT("Interact"), Bool), EKeys::E);
 	Map(Actions[TEXT("Interact")], EKeys::Gamepad_FaceButton_Right);
+	// Hold Shift to sprint; hold Ctrl (or tap C / click the left stick) to sneak.
+	Map(MakeAction(TEXT("Sprint"), Bool), EKeys::LeftShift);
+	Map(Actions[TEXT("Sprint")], EKeys::Gamepad_LeftThumbstick);
+	Map(MakeAction(TEXT("Sneak"), Bool), EKeys::LeftControl);
+	Map(MakeAction(TEXT("SneakToggle"), Bool), EKeys::C);
+	Map(Actions[TEXT("SneakToggle")], EKeys::Gamepad_RightThumbstick);
 	Map(MakeAction(TEXT("Confirm"), Bool), EKeys::Enter);
 	// Escape ends Play-In-Editor sessions, so P opens the menu too.
 	Map(MakeAction(TEXT("Pause"), Bool), EKeys::Escape);
@@ -175,6 +182,11 @@ void AMetalPlayerController::SetupInputComponent()
 	Input->BindAction(Actions[TEXT("Grenade")], ETriggerEvent::Started, this, &AMetalPlayerController::GrenadePressed);
 	Input->BindAction(Actions[TEXT("Tether")], ETriggerEvent::Started, this, &AMetalPlayerController::TetherPressed);
 	Input->BindAction(Actions[TEXT("Interact")], ETriggerEvent::Started, this, &AMetalPlayerController::InteractPressed);
+	Input->BindAction(Actions[TEXT("Sprint")], ETriggerEvent::Started, this, &AMetalPlayerController::SprintPressed);
+	Input->BindAction(Actions[TEXT("Sprint")], ETriggerEvent::Completed, this, &AMetalPlayerController::SprintReleased);
+	Input->BindAction(Actions[TEXT("Sneak")], ETriggerEvent::Started, this, &AMetalPlayerController::SneakPressed);
+	Input->BindAction(Actions[TEXT("Sneak")], ETriggerEvent::Completed, this, &AMetalPlayerController::SneakReleased);
+	Input->BindAction(Actions[TEXT("SneakToggle")], ETriggerEvent::Started, this, &AMetalPlayerController::SneakToggled);
 	Input->BindAction(Actions[TEXT("Confirm")], ETriggerEvent::Started, this, &AMetalPlayerController::ConfirmPressed);
 	Input->BindAction(Actions[TEXT("Pause")], ETriggerEvent::Started, this, &AMetalPlayerController::PausePressed);
 	Input->BindAction(Actions[TEXT("CycleWeapon")], ETriggerEvent::Triggered, this, &AMetalPlayerController::CycleWeaponAxis);
@@ -260,9 +272,51 @@ void AMetalPlayerController::Move(const FInputActionValue& Value)
 
 void AMetalPlayerController::Look(const FInputActionValue& Value)
 {
-	const FVector2D Axis = Value.Get<FVector2D>();
+	// Scopes slow the look speed down so small corrections are possible at high zoom.
+	const AMetalBotCharacter* Bot = GetBot();
+	const FVector2D Axis = Value.Get<FVector2D>() * (Bot ? Bot->GetLookSensitivityScale() : 1.f);
 	AddYawInput(Axis.X);
 	AddPitchInput(Axis.Y);
+}
+
+void AMetalPlayerController::SprintPressed()
+{
+	if (AMetalBotCharacter* Bot = GetBot(); Bot && GetFlyer() == nullptr)
+	{
+		Bot->SetWantsSprint(true);
+	}
+}
+
+void AMetalPlayerController::SprintReleased()
+{
+	if (AMetalBotCharacter* Bot = GetBot())
+	{
+		Bot->SetWantsSprint(false);
+	}
+}
+
+void AMetalPlayerController::SneakPressed()
+{
+	if (AMetalBotCharacter* Bot = GetBot(); Bot && CanAct() && GetFlyer() == nullptr)
+	{
+		Bot->SetSneaking(true);
+	}
+}
+
+void AMetalPlayerController::SneakReleased()
+{
+	if (AMetalBotCharacter* Bot = GetBot())
+	{
+		Bot->SetSneaking(false);
+	}
+}
+
+void AMetalPlayerController::SneakToggled()
+{
+	if (AMetalBotCharacter* Bot = GetBot(); Bot && CanAct() && GetFlyer() == nullptr)
+	{
+		Bot->SetSneaking(!Bot->IsSneaking());
+	}
 }
 
 void AMetalPlayerController::JumpPressed()
@@ -420,12 +474,13 @@ void AMetalPlayerController::OpenPauseMenu()
 	{
 		Bot->StopFire();
 		Bot->SetAiming(false);
+		Bot->SetWantsSprint(false);
 	}
 	if (AMetalStalker* Flyer = GetFlyer())
 	{
 		Flyer->SetBoostHeld(false);
 	}
-	PauseMenu = CreateWidget<UMetalPauseMenu>(this, UMetalPauseMenu::StaticClass());
+	PauseMenu =CreateWidget<UMetalPauseMenu>(this, UMetalPauseMenu::StaticClass());
 	PauseMenu->AddToViewport(100);
 	SetPause(true);
 	FInputModeUIOnly Mode;
@@ -451,6 +506,7 @@ void AMetalPlayerController::ClosePauseMenu()
 
 void AMetalPlayerController::ConfirmPressed()
 {
+	// (On the results screen Esc opens the menu, which has Title Screen / Level Select.)
 	if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
 	{
 		if (GameMode->IsMissionComplete())
@@ -546,6 +602,7 @@ void AMetalPlayerController::TetherPressed()
 	else if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>(); GameMode && GetPawn() == PlayerBody.Get())
 	{
 		GameMode->ShowMessage(FText::GetEmpty(), NSLOCTEXT("Metalization", "NoTetherTarget", "Hack Tether: no robot in range."), 1.5f);
+		MetalAudio::Play2D(this, TEXT("tether_fail"), 0.6f);
 	}
 }
 
@@ -556,7 +613,7 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	{
 		return;
 	}
-	// The target's AI is destroyed rather than kept: when the link ends the host either blows up (enemy)
+	// The target's AI is destroyed rather than kept: when the link ends the host either gets a fresh one (enemy)
 	// or idles unpossessed (ally), and an idle ally must have no controller to be linkable again.
 	if (AController* OldBrain = Target->GetController())
 	{
@@ -587,12 +644,14 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	bAllyLink = bAlly;
 	PossessionDuration = bAlly ? 0.f : Target->GetPossessionDuration();
 	PossessionEndTime = GetWorld()->GetTimeSeconds() + PossessionDuration;
+	UE_LOG(LogMetal, Log, TEXT("Hack Tether: linked to %s for %.0fs (ally=%d)"), *Target->GetName(), PossessionDuration, bAlly);
 	if (!bAlly)
 	{
 		// A friendly link can take the pilot far from their body (out of the hangar), so only hijacks draw a beam.
 		TetherBeam = AMetalFX::SpawnBeam(GetWorld(), Body->GetMuzzleLocation(), Target->GetActorLocation(), TetherColor, 1.5f, 0.f);
 	}
 	AMetalFX::SpawnBurst(GetWorld(), Target->GetActorLocation(), TetherColor, 90.f, 0.4f);
+	MetalAudio::Play2D(this, TEXT("tether_link"), 0.9f);
 
 	if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
 	{
@@ -605,6 +664,8 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 void AMetalPlayerController::EndPossession()
 {
 	AMetalBotCharacter* OldHost = Host.Get();
+	UE_LOG(LogMetal, Log, TEXT("Hack Tether: link to %s ended (alive=%d, %.1fs left)"), OldHost ? *OldHost->GetName() : TEXT("none"),
+		OldHost && OldHost->IsAlive(), GetPossessionTimeRemaining());
 	AMetalBotCharacter* Body = PlayerBody.Get();
 	const bool bWasAlly = bAllyLink;
 	Host.Reset();
@@ -614,6 +675,7 @@ void AMetalPlayerController::EndPossession()
 		TetherBeam->Destroy();
 		TetherBeam = nullptr;
 	}
+	MetalAudio::Play2D(this, TEXT("tether_release"), 0.8f);
 	if (OldHost)
 	{
 		OldHost->StopFire();
@@ -637,8 +699,12 @@ void AMetalPlayerController::EndPossession()
 		}
 		else
 		{
-			// The tether burns out the host's brain: it stays on our side just long enough to blow up.
-			OldHost->SelfDestruct(1.2f);
+			// Letting go hands the robot back, intact: it reboots for a moment (stunned), then returns to its
+			// own side under a fresh AI. Only damage destroys a hijacked robot.
+			OldHost->SetHijacked(false);
+			OldHost->SetDormant(false);
+			OldHost->SpawnDefaultController();
+			OldHost->Stun(RebootTime);
 		}
 	}
 }

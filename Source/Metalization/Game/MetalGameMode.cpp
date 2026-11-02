@@ -1,5 +1,6 @@
 #include "MetalGameMode.h"
 
+#include "MetalAudio.h"
 #include "MetalDevAutopilot.h"
 #include "MetalDialogue.h"
 #include "MetalPlayerCharacter.h"
@@ -100,6 +101,20 @@ void AMetalGameMode::SetCheckpoint(const FTransform& Transform)
 	bHasCheckpoint = true;
 	CheckpointTransform = Transform;
 	ShowBanner(NSLOCTEXT("Metalization", "Checkpoint", "CHECKPOINT"), 2.f);
+	MetalAudio::Play2D(this, TEXT("checkpoint"), 0.8f);
+}
+
+void AMetalGameMode::ReturnToTitle()
+{
+	static const TCHAR* TitleMap = TEXT("/Game/Metalization/Maps/MZ_Title");
+	if (FPackageName::DoesPackageExist(TitleMap))
+	{
+		UGameplayStatics::OpenLevel(this, FName(TitleMap));
+	}
+	else
+	{
+		RestartMission();
+	}
 }
 
 void AMetalGameMode::OnBotDied(AMetalBotCharacter* Bot, AController* Killer)
@@ -118,7 +133,9 @@ void AMetalGameMode::PlayerDied(AMetalPlayerController* Controller, AMetalBotCha
 		SavedWeaponIndex = FMath::Max(0, Body->GetCurrentWeaponIndex());
 		SavedGrenades = Body->Grenades;
 	}
+	Deaths++;
 	ShowBanner(NSLOCTEXT("Metalization", "Scrapped", "SCRAPPED!"), 3.f);
+	MetalAudio::Play2D(this, TEXT("player_down"), 0.9f);
 	FTimerHandle Handle;
 	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateUObject(this, &AMetalGameMode::Respawn, Controller), 3.f, false);
 }
@@ -167,6 +184,7 @@ void AMetalGameMode::CompleteMission(const FText& EndBanner)
 	{
 		bMissionComplete = true;
 		MissionEndTime = GetWorld()->GetTimeSeconds();
+		MetalAudio::Play2D(this, TEXT("mission_complete"), 1.f);
 		ShowBanner(EndBanner.IsEmpty() ? NSLOCTEXT("Metalization", "MissionComplete", "MISSION COMPLETE") : EndBanner, 1000000.f);
 	}
 }

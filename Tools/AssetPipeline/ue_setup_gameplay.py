@@ -10,8 +10,15 @@ Run after ue_import_assets.py (see run_pipeline.ps1). Creates:
     /Game/Metalization/Maps/MZ_SpaceBattle   capital ships + MZ_CapitalShip_Interior, DA_Ship_Capital (ue_setup_space.py)
 
 The maps are regenerated from scratch every run - make manual layout changes on a copy.
-Set MZ_LEVELS to a comma-separated subset of outpost,arena,flight,space to rebuild only those.
+    /Game/Metalization/Maps/MZ_ProductionAlpha  the Production Alpha mission, + MZ_Title (ue_setup_alpha.py)
+    /Game/Metalization/Data/DA_Sounds           sound library (UMetalSoundLibrary) over /Game/Metalization/Audio
+
+Maps are only rebuilt when their inputs changed (their level script, plus the model sizes/sockets the
+Outpost and Space maps place things by) or the map is missing; the hashes are kept under "levels" in
+import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space to
+force those, or MZ_FULL=1 to rebuild them all.
 """
+import hashlib
 import json
 import math
 import os
@@ -129,10 +136,50 @@ def make_weapons():
         display_name="EMP Grenade", fire_mode=unreal.MetalFireMode.THROWN, projectile_speed=1500.0,
         projectile_gravity_scale=1.0, explosion_radius=420.0, stun_duration=4.0, tracer_color=color(0.3, 0.6, 1.0),
         prop_mesh=load(f"{ROOT}/Props/SM_GrenadeEmp"), levels=[level({}, 25.0, 1.0)])
+    # Marksman rifle: hitscan, huge damage, slow; only accurate down the scope, and loud.
+    w["Sniper"] = setp(data_asset("WD_Sniper", unreal.MetalWeaponData),
+        display_name="Sniper", fire_mode=unreal.MetalFireMode.HITSCAN, automatic=False, reload_time=2.0,
+        spread_degrees=0.0, hip_spread_degrees=5.0, range=22000.0, muzzle_offset=80.0, tracer_color=color(0.3, 0.95, 1.0),
+        aim_fov=16.0, aim_arm_length_scale=0.0, scope_overlay=True, aim_sensitivity=0.3, noise_radius=4500.0,
+        prop_mesh=load(f"{ROOT}/Props/SM_Sniper"),
+        levels=[level({"player": held("sniper", "player")}, 150.0, 1.1, 4, 20)])
+    # The Red marksmen's version: weaker, slow, with a laser sight so the player can read where it aims.
+    w["EnemySniper"] = setp(data_asset("WD_EnemySniper", unreal.MetalWeaponData),
+        display_name="Marksman Rifle", fire_mode=unreal.MetalFireMode.HITSCAN, automatic=True, infinite_ammo=True,
+        spread_degrees=0.4, range=9000.0, muzzle_offset=80.0, tracer_color=color(1.0, 0.15, 0.1), laser_sight=True,
+        levels=[level({"shooter": held("sniper", "shooter")}, 28.0, 2.6)])
+    sounds = {"Laser": "laser_fire", "Repeater": "repeater_fire", "Shotgun": "shotgun_fire", "RocketLauncher": "rocket_fire",
+              "EnemyLaser": "enemy_laser_fire", "ArmBlasters": "blaster_fire", "TwinMiniguns": "minigun_fire",
+              "StalkerCannons": "blaster_fire", "TurretFlak": "blaster_fire", "Claw": "robot_hit", "EMPGrenade": "",
+              "Sniper": "sniper_fire", "EnemySniper": "sniper_fire"}
+    for key, sound in sounds.items():
+        w[key].set_editor_property("fire_sound", sound)
     for a in w.values():
         eal.save_loaded_asset(a)
     log(f"weapons: {len(w)}")
     return w
+
+
+# --------------------------------------------------------------------------------------------
+# Sound library
+# --------------------------------------------------------------------------------------------
+def make_sound_library():
+    """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels."""
+    lib = data_asset("DA_Sounds", unreal.MetalSoundLibrary)
+    sounds = {}
+    for path in eal.list_assets(f"{ROOT}/Audio", recursive=False, include_folder=False):
+        asset = eal.load_asset(path)
+        if isinstance(asset, unreal.SoundWave):
+            name = asset.get_name()[3:]  # SW_LaserFire -> LaserFire
+            snake = "".join("_" + c.lower() if c.isupper() else c for c in name).lstrip("_")
+            sounds[unreal.Name(snake)] = asset
+    volumes = {"footstep": 0.6, "footstep_sprint": 0.7, "ambience_loop": 0.5, "battle_loop": 0.6, "swap_servo": 0.6,
+               "minigun_fire": 0.5, "enemy_laser_fire": 0.7, "ui_move": 0.6, "suspicion": 0.8}
+    lib.set_editor_property("sounds", sounds)
+    lib.set_editor_property("volumes", {unreal.Name(k): v for k, v in volumes.items()})
+    eal.save_loaded_asset(lib)
+    log(f"sound library: {len(sounds)} sounds")
+    return lib
 
 
 # --------------------------------------------------------------------------------------------
@@ -171,11 +218,18 @@ def make_archetypes(manifest, w):
                  max_health=100.0, walk_speed=350.0)
         archetypes[cid] = a
 
+    # Blue (Heroes) and Red (Villains) paint for the robots that fight on both sides: allies placed on the
+    # Heroes team and hijacked enemies turn blue.
+    faction_colors = {unreal.MetalTeam.HEROES: team_colors((0.11, 0.24, 0.62), (0.5, 0.72, 1.0)),
+                      unreal.MetalTeam.VILLAINS: team_colors((0.6, 0.11, 0.07), (1.0, 0.5, 0.22))}
+
     # ...and the gameplay robots are tuned by hand.
     # A long stride keeps the run at ~3 cycles/s; short strides made the legs flicker at full speed.
     setp(archetypes["player"], display_name="Player", unarmed_part=mesh("player", "hand"),
          capsule_radius=30.0, capsule_half_height=66.0, max_health=150.0, walk_speed=600.0, jump_z_velocity=700.0, max_jumps=2,
-         rig=rig(stride_length=200.0, leg_swing_degrees=40.0, knee_bend_degrees=50.0, bob_height=4.0, arm_swing_degrees=20.0),
+         sprint_speed=1000.0, crouch_speed=260.0, crouch_height_fraction=0.65, animated_weapon_swap=True, weapon_swap_duration=0.8, has_jetpack=True,
+         rig=rig(stride_length=200.0, leg_swing_degrees=40.0, knee_bend_degrees=50.0, bob_height=4.0, arm_swing_degrees=20.0,
+                 crouch_drop=22.0, hand_l="bip_hand_L", rack_offset=unreal.Vector(0.0, -24.0, 70.0)),
          hit_zones=[zone("Head", "bip_head", 18.0, 1.5)],
          starting_weapons=[w["Laser"], w["Repeater"]], melee_weapon=w["Claw"],
          grenade_weapon=w["EMPGrenade"], starting_grenades=3,
@@ -190,9 +244,22 @@ def make_archetypes(manifest, w):
                  arm_swing_degrees=0.0, aim_from_shoulder=True),
          hit_zones=[zone("Head", "bip_head", 20.0, 2.0),
                     zone("GunArm", "bip_lowerArm_R", 24.0, 1.0, durability=30.0, disables=True)],
-         starting_weapons=[w["EnemyLaser"]], melee_weapon=w["Claw"],
+         starting_weapons=[w["EnemyLaser"]], melee_weapon=w["Claw"], team_colors=faction_colors,
          sight_range=3200.0, preferred_range=850.0, aim_error_degrees=4.5, burst_duration=1.1, burst_pause=1.1,
          retreat_health_fraction=0.3, camera_distance=320.0, camera_offset=unreal.Vector(0.0, 60.0, 70.0))
+
+    # Red marksman: a Shooter body with a long rifle that stays back and picks targets off from cover.
+    # It shares the Shooter's id so it can hold weapons made for the Shooter skeleton.
+    marksman = data_asset("DA_Bot_Marksman", unreal.MetalBotArchetype)
+    for prop in ("archetype_id", "mesh", "parts", "unarmed_part", "team", "team_colors", "capsule_radius", "capsule_half_height", "rig",
+                 "melee_weapon", "hackable", "possession_duration", "camera_distance", "camera_offset"):
+        marksman.set_editor_property(prop, archetypes["shooter"].get_editor_property(prop))
+    setp(marksman, display_name="Marksman", max_health=55.0, walk_speed=330.0,
+         hit_zones=[zone("Head", "bip_head", 20.0, 2.0),
+                    zone("GunArm", "bip_lowerArm_R", 24.0, 1.0, durability=30.0, disables=True)],
+         starting_weapons=[w["EnemySniper"]], sight_range=7000.0, sight_half_angle=40.0, preferred_range=3500.0,
+         aim_error_degrees=1.2, burst_duration=0.3, burst_pause=2.4, squad_alert_radius=2500.0)
+    archetypes["marksman"] = marksman
 
     setp(archetypes["soldier"], display_name="Soldier", hackable=True,
          capsule_radius=40.0, capsule_half_height=68.0, max_health=130.0, walk_speed=320.0, possession_duration=20.0,
@@ -201,7 +268,7 @@ def make_archetypes(manifest, w):
                  stride_length=140.0, leg_swing_degrees=22.0, knee_bend_degrees=30.0, bob_height=4.0,
                  aim_with_both_arms=True),
          hit_zones=[zone("Head", "bip_head", 22.0, 2.0)],
-         starting_weapons=[w["ArmBlasters"]], melee_weapon=w["Claw"],
+         starting_weapons=[w["ArmBlasters"]], melee_weapon=w["Claw"], team_colors=faction_colors,
          muzzle_bones=["bip_lowerArm_R", "bip_lowerArm_L"],
          sight_range=3500.0, preferred_range=1100.0, aim_error_degrees=3.5, burst_duration=1.5, burst_pause=1.4,
          camera_distance=380.0, camera_offset=unreal.Vector(0.0, 70.0, 80.0))
@@ -211,7 +278,7 @@ def make_archetypes(manifest, w):
          rig=rig(thigh_l="hip_L", thigh_r="hip_R", stride_length=230.0, leg_swing_degrees=20.0,
                  knee_bend_degrees=28.0, bob_height=6.0, aim_with_both_arms=True),
          hit_zones=[zone("Head", "bip_head", 35.0, 1.6)],
-         starting_weapons=[w["TwinMiniguns"]], melee_weapon=w["Claw"], muzzle_bones=["minigun_R", "minigun_L"],
+         starting_weapons=[w["TwinMiniguns"]], melee_weapon=w["Claw"], muzzle_bones=["minigun_R", "minigun_L"], team_colors=faction_colors,
          sight_range=4500.0, preferred_range=1400.0, aim_error_degrees=5.5, burst_duration=1.6, burst_pause=2.0,
          squad_alert_radius=3000.0, camera_distance=620.0, camera_offset=unreal.Vector(0.0, 120.0, 160.0))
 
@@ -560,7 +627,7 @@ def build_level(archetypes, w, manifest):
         ]),
         objective("Use the guard to open the gate console [E]", unreal.MetalObjectiveType.ACTIVATE_CONSOLE, target=console, dialogue=[
             line(K, "Ha! You're wearing an enemy shooter! Walk him over to the console and press E. Try to look... evil-ish."),
-            line(K, "When you let go with F, that poor guy blows up. So maybe let go near his friends."),
+            line(K, "When you let go with F he reboots and goes right back to their side. So don't let go next to him."),
         ]),
         objective("Destroy the Brute (or borrow it)", unreal.MetalObjectiveType.ELIMINATE_TAGGED, tag="Boss", dialogue=[
             line(K, "Gate's open! Uh. Oh. That's a Brute. Big guns, bigger attitude. Grab the rocket launcher..."),
@@ -589,14 +656,71 @@ def restore_template_game_mode():
         log("restored BP_ThirdPersonGameMode default pawn")
 
 
+TOOLS_DIR = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline")
+STATE_FILE = os.path.join(TOOLS_DIR, "import_state.json")
+# Level -> (script files it is built from, manifest sections it reads, maps it writes).
+LEVELS = {
+    "alpha": (["ue_setup_alpha.py"], [], ["MZ_ProductionAlpha"]),
+    "title": (["ue_setup_alpha.py"], [], ["MZ_Title"]),
+    "outpost": (["ue_setup_gameplay.py"], ["characters"], ["MZ_Outpost_Demo"]),
+    "arena": (["ue_setup_arena.py"], [], ["MZ_Arena"]),
+    "flight": (["ue_setup_flight.py"], [], ["MZ_FlightTest"]),
+    "space": (["ue_setup_space.py"], ["ships"], ["MZ_SpaceBattle", "MZ_CapitalShip_Interior"]),
+}
+
+
+def level_hash(name, manifest):
+    scripts, sections, _ = LEVELS[name]
+    h = hashlib.sha256()
+    for script in scripts:
+        with open(os.path.join(TOOLS_DIR, script), "rb") as f:
+            h.update(f.read())
+    for section in sections:
+        data = manifest.get(section, {})
+        if section == "characters":
+            # The showcase only uses sizes and factions.
+            data = {k: [v["bounds_min_m"], v["bounds_max_m"], v["faction"]] for k, v in data.items()}
+        h.update(json.dumps(data, sort_keys=True).encode())
+    return h.hexdigest()
+
+
+def levels_to_build(manifest, state):
+    if os.environ.get("MZ_ADOPT") == "1":
+        return []
+    forced = [l for l in os.environ.get("MZ_LEVELS", "").split(",") if l]
+    if forced:
+        return forced
+    if os.environ.get("MZ_FULL") == "1":
+        return list(LEVELS)
+    todo = []
+    for name, (_, _, maps) in LEVELS.items():
+        missing = any(not eal.does_asset_exist(f"{ROOT}/Maps/{m}") for m in maps)
+        if missing or state.get(name) != level_hash(name, manifest):
+            todo.append(name)
+    return todo
+
+
 def main():
     with open(os.path.join(PIPELINE_DIR, "manifest.json")) as f:
         manifest = json.load(f)
     weapons = make_weapons()
     archetypes = make_archetypes(manifest, weapons)
+    make_sound_library()
     restore_template_game_mode()
-    levels = os.environ.get("MZ_LEVELS", "outpost,arena,flight,space").split(",")
-    sys.path.insert(0, os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "AssetPipeline"))
+    state = {}
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+    level_state = state.get("levels", {})
+    levels = levels_to_build(manifest, level_state)
+    log("maps to rebuild: " + (", ".join(levels) if levels else "none (all up to date)"))
+    sys.path.insert(0, TOOLS_DIR)
+    if "alpha" in levels:
+        import ue_setup_alpha
+        ue_setup_alpha.build_alpha(archetypes, weapons)
+    if "title" in levels:
+        import ue_setup_alpha
+        ue_setup_alpha.build_title(archetypes)
     if "outpost" in levels:
         build_level(archetypes, weapons, manifest)
     if "arena" in levels:
@@ -608,6 +732,15 @@ def main():
     if "space" in levels:
         import ue_setup_space
         ue_setup_space.build_space_maps(archetypes)
+    # Record what the rebuilt maps were made from (the import stage owns the "imports" section). Adopting
+    # records every map as up to date without rebuilding it.
+    for name in (list(LEVELS) if os.environ.get("MZ_ADOPT") == "1" else levels):
+        if name in LEVELS:
+            level_state[name] = level_hash(name, manifest)
+    state["levels"] = level_state
+    with open(STATE_FILE, "w", newline="\r\n") as f:
+        json.dump(state, f, indent=1, sort_keys=True)
+        f.write("\n")
     log("DONE")
 
 

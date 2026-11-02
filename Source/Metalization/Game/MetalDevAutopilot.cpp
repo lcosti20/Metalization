@@ -12,6 +12,8 @@
 #include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
+#include "MetalTitle.h"
+#include "MetalWeaponData.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
@@ -28,7 +30,8 @@ namespace
 	enum class EStep : uint8 { AimEnemy, AimHackable, AimBoss, AimGateGuard, Fire, StopFire, Tether, GoToConsole, Interact, Run, Stop, Jump, TurnLeft, TurnRight,
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
-		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue };
+		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
+		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1 };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -86,6 +89,30 @@ namespace
 			{TEXT("dogfight"), {}},
 			// No inputs: exterior screenshots with -MetalCam.
 			{TEXT("ships"), {}},
+			// Production Alpha (MZ_ProductionAlpha). Sprint down the trench with the barrage chasing.
+			{TEXT("alpha"), {{0.8f, EStep::Run}, {1.0f, EStep::Sprint}, {6.5f, EStep::StopSprint}, {7.5f, EStep::Jump}, {9.0f, EStep::Stop}}},
+			// Pick up the Repeater (acted-out swap), then swap back and forth: twist off, rack, snap on.
+			{TEXT("swap"), {{3.0f, EStep::NextWeapon}, {5.0f, EStep::NextWeapon}, {7.0f, EStep::NextWeapon}}},
+			// Walk into the cliff lift and ride it to the top.
+			{TEXT("lift"), {{0.5f, EStep::Run}, {1.6f, EStep::Stop}}},
+			// Crouch and creep through the crawl pipe past the yard patrols.
+			{TEXT("sneak"), {{0.5f, EStep::Sneak}, {1.0f, EStep::Run}, {14.0f, EStep::Stop}, {14.5f, EStep::StopSneak}}},
+			// On the perch with the sniper: scope in on a marksman and fire.
+			{TEXT("sniper"), {{1.0f, EStep::AimMarksman}, {1.5f, EStep::Aim}, {3.0f, EStep::Fire}, {3.1f, EStep::StopFire},
+				{5.0f, EStep::Fire}, {5.1f, EStep::StopFire}, {6.0f, EStep::StopAim}}},
+			// Hack the gate guard through the shield fence, walk it to the console, open the gate (and the Blue
+			// hangar), let go, then watch the reinforcements head for the command yard.
+			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
+			// Collapsed bridge: run at the gap, jump at the edge, jump again at the top onto the higher ledge.
+			{TEXT("bridge"), {{0.5f, EStep::Run}, {0.82f, EStep::Jump}, {1.25f, EStep::Jump}, {2.6f, EStep::Stop}}},
+			// Bunker: grab the grenades, lob EMP grenades over the wall, then shoot whoever comes out.
+			{TEXT("bunker"), {{0.1f, EStep::ClearSquad1}, {0.6f, EStep::AimBunker}, {1.0f, EStep::Grenade},
+				{1.8f, EStep::AimBunker}, {2.2f, EStep::Grenade}, {3.0f, EStep::AimBunker}, {3.4f, EStep::Grenade},
+				{6.0f, EStep::AimEnemy}, {6.2f, EStep::Fire}, {11.0f, EStep::StopFire}}},
+			// Jetpack: stand still and double jump (the thrusters only fire on the mid-air jump).
+			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
+			// Title screen: just the menu over the orbiting camera.
+			{TEXT("title"), {}},
 		};
 		return Map;
 	}
@@ -265,7 +292,9 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("aim at linkable"), TEXT("climb"), TEXT("stop climb"), TEXT("boost"), TEXT("stop boost"), TEXT("dodge left"), TEXT("dodge right"), TEXT("aim at enemy gun"),
 		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
 		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
-		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue")};
+		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue"),
+			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
+			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -275,7 +304,12 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::AimGateGuard: AimTarget = FindNearest(true, TEXT("GateGuard")); break;
 	case EStep::Fire:        Me->StartFire(); break;
 	case EStep::StopFire:    Me->StopFire(); AimTarget.Reset(); break;
-	case EStep::Tether:      PC->ToggleTether(); AimTarget.Reset(); break;
+	case EStep::Tether:
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    tether: aim target=%s candidate=%s"), AimTarget.IsValid() ? *AimTarget->GetName() : TEXT("none"),
+			PC->GetHackCandidate() ? *PC->GetHackCandidate()->GetName() : TEXT("none"));
+		PC->ToggleTether();
+		AimTarget.Reset();
+		break;
 	case EStep::Interact:    PC->Interact(); break;
 	case EStep::Run:         bRunning = true; break;
 	case EStep::Stop:        bRunning = false; break;
@@ -300,6 +334,30 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			const AMetalPortal* Mouth = Inner->GetSideDistance(Me->GetActorLocation()) > 0.f && FVector::Dist(Inner->GetActorLocation(), Me->GetActorLocation()) < 50000.f
 				? Inner : HomeShip->GetOuterPortal();
 			AimComponent = Mouth ? Mouth->GetRootComponent() : nullptr;
+		}
+		break;
+	case EStep::Sprint:      Me->SetWantsSprint(true); break;
+	case EStep::StopSprint:  Me->SetWantsSprint(false); break;
+	case EStep::Sneak:       Me->SetSneaking(true); break;
+	case EStep::StopSneak:   Me->SetSneaking(false); break;
+	case EStep::Aim:         Me->SetAiming(true); break;
+	case EStep::StopAim:     Me->SetAiming(false); break;
+	case EStep::NextWeapon:  Me->CycleWeapon(1); break;
+	case EStep::AimMarksman: AimTarget = FindNearest(false, TEXT("Marksmen")); break;
+	case EStep::Grenade:     Me->ThrowGrenade(); break;
+	case EStep::AimBunker:
+		// Their heads show over the wall: aim there, as a player would.
+		AimTarget = FindNearest(false, TEXT("Bunker"));
+		AimBone = AimTarget.IsValid() ? AimTarget->GetRig().Head : NAME_None;
+		break;
+	case EStep::ClearSquad1:
+		// Skipping ahead with -MetalObjective leaves the earlier squad standing next to the bunker.
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			if (It->ActorHasTag(TEXT("Squad1")))
+			{
+				UGameplayStatics::ApplyDamage(*It, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
+			}
 		}
 		break;
 	case EStep::OpenPauseMenu: PC->OpenPauseMenu(); break;
@@ -373,7 +431,8 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 	if (!bStarted)
 	{
 		const APlayerController* PC = GetWorld()->GetFirstPlayerController();
-		if ((PC && PC->GetPawn()) || GetWorld()->GetUnpausedTimeSeconds() > 15.f)
+		// The title screen has no pawn at all.
+		if ((PC && PC->GetPawn()) || (PC && PC->IsA<AMetalTitlePlayerController>()) || GetWorld()->GetUnpausedTimeSeconds() > 15.f)
 		{
 			Start();
 		}
@@ -445,8 +504,9 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		if (const AMetalBotCharacter* Me = PC ? Cast<AMetalBotCharacter>(PC->GetPawn()) : nullptr)
 		{
 			const FMetalWeaponSlot* Slot = Me->GetCurrentWeapon();
-			UE_LOG(LogMetal, Display, TEXT("[Autopilot] t=%.1f pawn=%s hp=%.0f loc=%s hijacked=%d clip=%d"),
-				T, *Me->GetName(), Me->GetHealth(), *Me->GetActorLocation().ToCompactString(), Me->IsHijacked(), Slot ? Slot->Clip : -1);
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot] t=%.1f pawn=%s hp=%.0f loc=%s hijacked=%d clip=%d weapon=%s sprint=%d sneak=%d swap=%.2f scope=%.2f"),
+				T, *Me->GetName(), Me->GetHealth(), *Me->GetActorLocation().ToCompactString(), Me->IsHijacked(), Slot ? Slot->Clip : -1,
+				Slot && Slot->Data ? *Slot->Data->DisplayName.ToString() : TEXT("-"), Me->IsSprinting(), Me->IsSneaking(), Me->GetSwapProgress(), Me->GetScopeAlpha());
 			if (const AMetalStalker* Flyer = Cast<AMetalStalker>(Me))
 			{
 				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    flight speed=%.0f boost=%.2f boosting=%d guns=%d"),
@@ -468,7 +528,7 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
-				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()));
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d suspicion=%.2f"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()), AI->GetSuspicion());
 			}
 			else if (const AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(It->GetController()))
 			{

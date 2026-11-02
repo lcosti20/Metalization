@@ -3,7 +3,7 @@
 // Possession is an explicit ownership transfer: the player's body is left powered down where it stood
 // (and can still be shot), the target robot's AI controller is destroyed, and this controller
 // possesses the robot. When the link ends - by choice, timeout, or the host being destroyed -
-// control returns to the player's body and the burnt-out host self-destructs.
+// control returns to the player's body and the host reboots back onto its own side.
 //
 // Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer and no
 // self-destruct, the player flies them until they disconnect. Flyers use their own input context.
@@ -82,11 +82,25 @@ public:
 	/** Called by the possessed robot when it takes damage, for the HUD damage flash. */
 	void NotifyDamageTaken();
 
+	/**
+	 * Counts one trigger pull of the player's gun for the end-of-mission accuracy.
+	 *
+	 * @param bHit True if any pellet of it hit a robot.
+	 */
+	void NotifyShotFired(bool bHit) { ShotsFired++; ShotsHit += bHit ? 1 : 0; }
+
+	/** @return Share of shots that hit a robot (0..1), or -1 before the first shot. */
+	float GetAccuracy() const { return ShotsFired > 0 ? static_cast<float>(ShotsHit) / ShotsFired : -1.f; }
+
 	/** @return World time of the last confirmed hit. */
 	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }
 
 	/** @return World time the possessed robot was last damaged. */
 	float GetLastDamageTime() const { return LastDamageTime; }
+
+	/** Seconds a released hijack victim stays stunned ("rebooting") before its AI takes over again. */
+	UPROPERTY(EditAnywhere, Category="Metalization")
+	float RebootTime = 2.f;
 
 	/** Max distance for the Hack Tether. */
 	UPROPERTY(EditAnywhere, Category="Metalization")
@@ -143,6 +157,17 @@ private:
 
 	/** @param Value 2D mouse/stick delta: X yaws, Y pitches. */
 	void Look(const FInputActionValue& Value);
+
+	/** Holds / releases sprint (Shift). */
+	void SprintPressed();
+	void SprintReleased();
+
+	/** Hold-to-sneak (Ctrl). */
+	void SneakPressed();
+	void SneakReleased();
+
+	/** Toggle sneak (C / right stick click). */
+	void SneakToggled();
 
 	/** Jumps (a second press in mid-air is the double jump). */
 	void JumpPressed();
@@ -218,7 +243,10 @@ private:
 	 */
 	void BeginPossession(AMetalBotCharacter* Target);
 
-	/** Returns control to the player's body. A hijacked enemy self-destructs; an ally link goes dormant. */
+	/**
+	 * Returns control to the player's body. A hijacked enemy that is still alive goes back to its own side
+	 * with a new AI after a short reboot stun; an ally link goes dormant.
+	 */
 	void EndPossession();
 
 	/**
@@ -256,6 +284,8 @@ private:
 	float PossessionDuration = 0.f;
 	float LastHitConfirmTime = -100.f;
 	float LastDamageTime = -100.f;
+	int32 ShotsFired = 0;
+	int32 ShotsHit = 0;
 	/** Set around Possess() calls made by the tether, so OnPossess doesn't mistake the host for the body. */
 	bool bSwitchingBodies = false;
 	bool bAllyLink = false;

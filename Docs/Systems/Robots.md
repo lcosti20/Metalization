@@ -112,7 +112,7 @@ When a zone's accumulated damage passes its `Durability`, `BreakZone` runs once:
 | Hijacked | `SetHijacked` (Hack Tether) | Team becomes Heroes, hack glow pulses on the materials |
 | Weapon disabled | `BreakZone` | Melee only |
 
-`SelfDestruct(Delay)` powers the robot down and, after the delay, deals radial damage around it and kills it. Hijacked enemies do this when the link ends.
+`SelfDestruct(Delay)` powers the robot down and, after the delay, deals radial damage around it and kills it. (Hijacked enemies used to do this when the link ended; since the Production Alpha they reboot and rejoin their side instead.)
 
 ## Movement feel
 
@@ -120,3 +120,21 @@ When a zone's accumulated damage passes its `Durability`, `BreakZone` runs once:
 - **Action camera.** In levels whose game mode sets `bActionCamera` (the Arena), `TickActionCamera` blends between exploring (body faces where it runs, camera centred and pulled back), combat (over the shoulder, body faces the camera) and aiming (zoomed in, narrower FOV). Firing first squares the robot up to the crosshair.
 - **Double jump.** `MaxJumps = 2` allows a mid-air jump, played as a forward somersault (`TickFlip`). The flip rotates the mesh around the capsule centre; because the mesh sits below the centre, both its offset and rotation are rotated.
 - **Landing.** `Landed` plays a knee-bend scaled by the fastest fall speed.
+
+## Weapon and archetype fields added for the alpha
+
+- **`UMetalWeaponData`.**
+  - Aim: `HipSpreadDegrees`, `AimFOV`, `AimArmLengthScale`, `bScopeOverlay`, `AimSensitivity`.
+  - AI: `bLaserSight`, a red beam to the aim point while an AI has a target.
+  - Stealth: `NoiseRadius`.
+  - Sound names: `FireSound`, `ReloadSound`, `ImpactSound`.
+- **`UMetalBotArchetype`.** `SprintSpeed`, `CrouchSpeed`, `CrouchHeightFraction`, `bAnimatedWeaponSwap`,
+  `WeaponSwapDuration`.
+- **`FMetalBotRig`.** `HandL`, `BackBone`, `RackOffset`, `CrouchDrop`.
+- **New assets.**
+  - `WD_Sniper` (player) and `WD_EnemySniper` (Red marksmen).
+  - `DA_Bot_Marksman`: a Shooter body with a long rifle.
+  - `DA_Bot_BlueSoldier` / `DA_Bot_BlueShooter`: far-sighted Blue reinforcements, made by
+    `ue_setup_alpha.py`.
+- **Faction colours.** Shooter, Soldier, Brute and Marksman have Heroes (blue) and Villains (red)
+  `TeamColors`.

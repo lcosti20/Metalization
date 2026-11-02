@@ -1,5 +1,7 @@
 #include "MetalBotCharacter.h"
 
+#include "AnimationRuntime.h"
+#include "MetalAudio.h"
 #include "MetalGameMode.h"
 #include "MetalBotAIController.h"
 #include "MetalCapitalShip.h"
@@ -12,7 +14,11 @@
 #include "MetalWeaponData.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
@@ -50,6 +56,22 @@ AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializ
 	UnarmedMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("UnarmedMesh"));
 	UnarmedMesh->SetupAttachment(GetMesh());
 	UnarmedMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// Stand-alone weapon meshes (no leader pose) for the acted-out swap: one in the off hand, two on the back.
+	for (TObjectPtr<USkeletalMeshComponent>* Gun : {&CarriedGun, &RackGunA, &RackGunB})
+	{
+		const TCHAR* Name = Gun == &CarriedGun ? TEXT("CarriedGun") : (Gun == &RackGunA ? TEXT("RackGunA") : TEXT("RackGunB"));
+		*Gun = CreateDefaultSubobject<USkeletalMeshComponent>(Name);
+		(*Gun)->SetupAttachment(GetMesh());
+		(*Gun)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		(*Gun)->SetVisibility(false);
+		(*Gun)->SetCastShadow(true);
+	}
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cone(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	JetPodMesh = Cylinder.Object;
+	JetFlameMesh = Cone.Object;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -131,9 +153,14 @@ void AMetalBotCharacter::ApplyArchetype()
 	UnarmedMesh->SetSkeletalMeshAsset(Archetype->UnarmedPart);
 	UnarmedMesh->SetLeaderPoseComponent(GetMesh());
 
-	GetCharacterMovement()->MaxWalkSpeed = Archetype->WalkSpeed;
-	GetCharacterMovement()->JumpZVelocity = Archetype->JumpZVelocity;
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->MaxWalkSpeed = Archetype->WalkSpeed;
+	Move->JumpZVelocity = Archetype->JumpZVelocity;
 	JumpMaxCount = FMath::Max(1, Archetype->MaxJumps);
+	// Sneaking is the engine's crouch with a shorter capsule; TickFlip keeps the feet on the ground.
+	Move->GetNavAgentPropertiesRef().bCanCrouch = Archetype->CrouchSpeed > 0.f;
+	Move->MaxWalkSpeedCrouched = Archetype->CrouchSpeed > 0.f ? Archetype->CrouchSpeed : 200.f;
+	Move->SetCrouchedHalfHeight(Archetype->CapsuleHalfHeight * FMath::Clamp(Archetype->CrouchHeightFraction, 0.3f, 1.f));
 
 	DefaultArmLength = Archetype->CameraDistance;
 	DefaultCameraOffset = Archetype->CameraOffset;
@@ -188,7 +215,19 @@ void AMetalBotCharacter::BeginPlay()
 	}
 	EquipWeapon(Weapons.Num() > 0 ? FMath::Max(0, CurrentWeapon) : INDEX_NONE);
 	RefreshWeaponVisual();
+	RefreshRack();
+	BuildJetpack();
 	ConfigureRotationForController();
+}
+
+void AMetalBotCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (LaserSight)
+	{
+		LaserSight->Destroy();
+		LaserSight = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void AMetalBotCharacter::PossessedBy(AController* NewController)
@@ -280,7 +319,7 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 		return false;
 	}
 	// Two rules: same-team robots need bAllyHackable (an open-ended "link", e.g. boarding a parked
-	// Stalker), enemy robots need bHackable (a timed hijack that ends in self-destruct).
+	// Stalker), enemy robots need bHackable (a timed hijack; the robot goes back to its side afterwards).
 	if (Team == Hacker->GetTeam())
 	{
 		// Only idle ones (parked, or left hovering): never one an AI pilot is flying.
@@ -340,7 +379,11 @@ void AMetalBotCharacter::SetWeapons(const TArray<FMetalWeaponSlot>& NewWeapons, 
 {
 	Weapons = NewWeapons;
 	CurrentWeapon = INDEX_NONE;
+	SwapStartTime = -1.f;
+	CarriedGun->SetVisibility(false);
+	RackOrder.Reset();
 	EquipWeapon(EquipIndex);
+	RefreshRack();
 }
 
 bool AMetalBotCharacter::GiveWeapon(UMetalWeaponData* Weapon, bool bEquip)
@@ -379,6 +422,7 @@ bool AMetalBotCharacter::GiveWeapon(UMetalWeaponData* Weapon, bool bEquip)
 	{
 		EquipWeapon(Weapons.Num() - 1);
 	}
+	RefreshRack();
 	return true;
 }
 
@@ -400,17 +444,214 @@ bool AMetalBotCharacter::AddAmmoFraction(float Fraction)
 
 void AMetalBotCharacter::EquipWeapon(int32 SlotIndex)
 {
-	if (!Weapons.IsValidIndex(SlotIndex) || SlotIndex == CurrentWeapon)
+	if (!Weapons.IsValidIndex(SlotIndex))
 	{
 		return;
 	}
-	CurrentWeapon = SlotIndex;
+	if (IsSwappingWeapon())
+	{
+		// Changed their mind mid-swap: whatever was picked last is what gets drawn and attached.
+		if (SlotIndex != SwapTargetSlot)
+		{
+			SwapTargetSlot = SlotIndex;
+			if (SwapStage == 2)
+			{
+				PlaceWeaponOnBone(CarriedGun, SwapTargetSlot, GetRig().HandL, FTransform::Identity);
+			}
+			RefreshRack();
+		}
+		return;
+	}
+	if (SlotIndex == CurrentWeapon)
+	{
+		return;
+	}
 	ReloadEndTime = 0.f;
-	if (const UWorld* World = GetWorld())
+	const UWorld* World = GetWorld();
+	// Players with an animated rig act the swap out; everything else (AI, respawn loadouts) swaps instantly.
+	const bool bActOut = World && World->IsGameWorld() && HasActorBegunPlay() && Archetype && Archetype->bAnimatedWeaponSwap
+		&& IsPlayerControlled() && !bDead && !bWeaponDisabled && Weapons.IsValidIndex(CurrentWeapon);
+	if (bActOut)
+	{
+		SwapFromSlot = CurrentWeapon;
+		SwapTargetSlot = SlotIndex;
+		SwapStartTime = World->GetTimeSeconds();
+		SwapStage = 0;
+		PlaySound(TEXT("swap_servo"));
+		return;
+	}
+	CurrentWeapon = SlotIndex;
+	if (World)
 	{
 		NextFireTime = World->GetTimeSeconds() + 0.2f;
 	}
 	RefreshWeaponVisual();
+	RefreshRack();
+}
+
+float AMetalBotCharacter::GetSwapProgress() const
+{
+	if (!IsSwappingWeapon() || GetWorld() == nullptr)
+	{
+		return -1.f;
+	}
+	const float Duration = Archetype ? FMath::Max(0.2f, Archetype->WeaponSwapDuration) : 0.8f;
+	return FMath::Clamp((GetWorld()->GetTimeSeconds() - SwapStartTime) / Duration, 0.f, 1.f);
+}
+
+void AMetalBotCharacter::TickWeaponSwap(float Now)
+{
+	if (!IsSwappingWeapon())
+	{
+		return;
+	}
+	if (bDead || bDormant || !Weapons.IsValidIndex(SwapTargetSlot))
+	{
+		// Interrupted (killed, or the player tethered away): finish instantly so the robot isn't left armless.
+		SwapStartTime = -1.f;
+		CarriedGun->SetVisibility(false);
+		CurrentWeapon = Weapons.IsValidIndex(SwapTargetSlot) ? SwapTargetSlot : CurrentWeapon;
+		RefreshWeaponVisual();
+		RefreshRack();
+		return;
+	}
+	// The beats line up with the poses in UMetalBotAnimInstance: the off hand reaches the gun arm and twists
+	// the gun off (0.28), swings it over the shoulder onto the back rack and pulls the new one (0.5), then
+	// brings it round and snaps it onto the forearm (0.8).
+	const float T = GetSwapProgress();
+	if (SwapStage == 0 && T >= 0.28f)
+	{
+		SwapStage = 1;
+		RefreshWeaponVisual(); // bare forearm mount while the gun is off
+		PlaceWeaponOnBone(CarriedGun, SwapFromSlot, GetRig().HandL, FTransform::Identity);
+		PlaySound(TEXT("swap_detach"));
+	}
+	if (SwapStage == 1 && T >= 0.5f)
+	{
+		SwapStage = 2;
+		RackOrder.Remove(SwapFromSlot);
+		RackOrder.Insert(SwapFromSlot, 0);
+		PlaceWeaponOnBone(CarriedGun, SwapTargetSlot, GetRig().HandL, FTransform::Identity);
+		RefreshRack();
+		PlaySound(TEXT("swap_rack"), 0.7f);
+	}
+	if (SwapStage == 2 && T >= 0.8f)
+	{
+		SwapStage = 3;
+		CurrentWeapon = SwapTargetSlot;
+		CarriedGun->SetVisibility(false);
+		RefreshWeaponVisual();
+		RefreshRack();
+		if (UMetalBotAnimInstance* Anim = Cast<UMetalBotAnimInstance>(GetMesh()->GetAnimInstance()))
+		{
+			Anim->PlayRecoil();
+		}
+		PlaySound(TEXT("swap_attach"));
+	}
+	if (T >= 1.f)
+	{
+		SwapStartTime = -1.f;
+		NextFireTime = FMath::Max(NextFireTime, Now);
+	}
+}
+
+void AMetalBotCharacter::PlaceWeaponOnBone(USkeletalMeshComponent* Component, int32 Slot, FName Bone, const FTransform& GripInBody)
+{
+	USkeletalMesh* Held = nullptr;
+	if (Weapons.IsValidIndex(Slot) && Weapons[Slot].Data)
+	{
+		Held = Weapons[Slot].Data->GetLevel(Weapons[Slot].Level).HeldMeshes.FindRef(GetArchetypeId());
+	}
+	const USkeletalMesh* BodyAsset = GetMesh()->GetSkeletalMeshAsset();
+	if (BodyAsset && (Bone.IsNone() || BodyAsset->GetRefSkeleton().FindBoneIndex(Bone) == INDEX_NONE))
+	{
+		Bone = Component == CarriedGun ? GetRig().ForearmL : GetRig().Pelvis;
+	}
+	const int32 BodyBone = BodyAsset ? BodyAsset->GetRefSkeleton().FindBoneIndex(Bone) : INDEX_NONE;
+	if (Held == nullptr || BodyBone == INDEX_NONE)
+	{
+		Component->SetVisibility(false);
+		return;
+	}
+	if (Component->GetSkeletalMeshAsset() != Held)
+	{
+		Component->SetSkeletalMeshAsset(Held);
+	}
+	// The held meshes are skinned to the body's skeleton, so on their own (no leader pose) they show the gun
+	// where it sits on the gun arm in the bind pose. Find that grip (the weapon bone in the gun's bind pose)
+	// and move the whole component so the grip lands on the wanted spot. The maths is done in body-mesh
+	// space and then made relative to Bone, so the gun follows that bone's animation.
+	const FReferenceSkeleton& GunRef = Held->GetRefSkeleton();
+	const int32 GunBone = GunRef.FindBoneIndex(GetRig().WeaponBone);
+	const FTransform GripInGun = GunBone != INDEX_NONE ? FAnimationRuntime::GetComponentSpaceTransformRefPose(GunRef, GunBone) : FTransform::Identity;
+	const FTransform BoneInBody = FAnimationRuntime::GetComponentSpaceTransformRefPose(BodyAsset->GetRefSkeleton(), BodyBone);
+	// Identity means "in the hand": grip on the bone itself, gun pointing the way it points on the arm.
+	const FTransform Target = GripInBody.Equals(FTransform::Identity) ? FTransform(GripInGun.GetRotation(), BoneInBody.GetLocation()) : GripInBody;
+	const FTransform ComponentInBody = GripInGun.Inverse() * Target;
+	Component->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Bone);
+	Component->SetRelativeTransform(ComponentInBody.GetRelativeTransform(BoneInBody));
+	Component->SetVisibility(true);
+}
+
+void AMetalBotCharacter::RefreshRack()
+{
+	if (Archetype == nullptr || !Archetype->bAnimatedWeaponSwap || bWeaponDisabled || GetMesh()->GetSkeletalMeshAsset() == nullptr)
+	{
+		RackGunA->SetVisibility(false);
+		RackGunB->SetVisibility(false);
+		return;
+	}
+	RackOrder.RemoveAll([this](int32 Slot) { return !Weapons.IsValidIndex(Slot); });
+	for (int32 Slot = 0; Slot < Weapons.Num(); ++Slot)
+	{
+		RackOrder.AddUnique(Slot);
+	}
+	// Whatever is on the arm or in the off hand right now isn't on the rack. Mid-swap CurrentWeapon still
+	// names the old gun until it is snapped on (stage 3), so work out where each gun actually is: on the
+	// arm (stage 0), in the hand (stage 1), racked while the new one is in the hand (stage 2), new one on.
+	int32 OnArm = CurrentWeapon;
+	int32 InHand = INDEX_NONE;
+	if (IsSwappingWeapon())
+	{
+		OnArm = SwapStage == 0 ? SwapFromSlot : (SwapStage >= 3 ? SwapTargetSlot : INDEX_NONE);
+		InHand = SwapStage == 1 ? SwapFromSlot : (SwapStage == 2 ? SwapTargetSlot : INDEX_NONE);
+	}
+	TArray<int32, TInlineAllocator<2>> Shown;
+	for (int32 Slot : RackOrder)
+	{
+		const FMetalWeaponSlot& Weapon = Weapons[Slot];
+		if (Slot != OnArm && Slot != InHand && Shown.Num() < 2 && Weapon.Data
+			&& Weapon.Data->GetLevel(Weapon.Level).HeldMeshes.FindRef(GetArchetypeId()))
+		{
+			Shown.Add(Slot);
+		}
+	}
+	const FMetalBotRig& Rig = GetRig();
+	const FName Bone = Rig.BackBone.IsNone() ? Rig.Pelvis : Rig.BackBone;
+	// Two guns slung barrel-up behind the shoulders, crossed into a shallow X. Body space: +Y forward, +Z up;
+	// tilting the forward-pointing barrel 100 degrees about X stands it up, leaning slightly back.
+	for (int32 Index = 0; Index < 2; ++Index)
+	{
+		const float Side = Index == 0 ? 1.f : -1.f;
+		const FQuat Lean = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(10.f * Side)) * FQuat(FVector::XAxisVector, FMath::DegreesToRadians(100.f));
+		// The grip rotation keeps the gun's own grip orientation, then leans the whole thing.
+		USkeletalMeshComponent* Component = Index == 0 ? RackGunA : RackGunB;
+		const int32 Slot = Shown.IsValidIndex(Index) ? Shown[Index] : INDEX_NONE;
+		FQuat GripRotation = FQuat::Identity;
+		if (Weapons.IsValidIndex(Slot))
+		{
+			if (const USkeletalMesh* Held = Weapons[Slot].Data->GetLevel(Weapons[Slot].Level).HeldMeshes.FindRef(GetArchetypeId()))
+			{
+				const int32 GunBone = Held->GetRefSkeleton().FindBoneIndex(Rig.WeaponBone);
+				if (GunBone != INDEX_NONE)
+				{
+					GripRotation = FAnimationRuntime::GetComponentSpaceTransformRefPose(Held->GetRefSkeleton(), GunBone).GetRotation();
+				}
+			}
+		}
+		const FTransform Grip(Lean * GripRotation, Rig.RackOffset + FVector(6.f * Side, -3.f * Index, 0.f));
+		PlaceWeaponOnBone(Component, Slot, Bone, Grip);
+	}
 }
 
 void AMetalBotCharacter::CycleWeapon(int32 Direction)
@@ -430,8 +671,10 @@ void AMetalBotCharacter::RefreshWeaponVisual()
 	}
 	WeaponMesh->SetSkeletalMeshAsset(Held);
 	WeaponMesh->SetLeaderPoseComponent(GetMesh());
-	WeaponMesh->SetVisibility(Held != nullptr);
-	UnarmedMesh->SetVisibility(Held == nullptr && UnarmedMesh->GetSkeletalMeshAsset() != nullptr);
+	// Mid-swap the gun is in the other hand and the forearm ends in a bare mount: no gun, no hand.
+	const bool bBareMount = IsSwappingWeapon() && (SwapStage == 1 || SwapStage == 2);
+	WeaponMesh->SetVisibility(Held != nullptr && !bBareMount);
+	UnarmedMesh->SetVisibility(Held == nullptr && !bBareMount && UnarmedMesh->GetSkeletalMeshAsset() != nullptr);
 	RefreshMaterials();
 }
 
@@ -460,6 +703,7 @@ void AMetalBotCharacter::Reload()
 	if (Slot->Clip < Slot->Data->GetLevel(Slot->Level).ClipSize && Slot->Reserve > 0)
 	{
 		ReloadEndTime = GetWorld()->GetTimeSeconds() + Slot->Data->ReloadTime;
+		PlaySound(Slot->Data->ReloadSound, IsPlayerControlled() ? 1.f : 0.5f);
 	}
 }
 
@@ -609,15 +853,34 @@ void AMetalBotCharacter::FireOnce()
 	}
 	const FVector Muzzle = GetMuzzleLocation();
 	MuzzleCycle++;
-	FVector AimDirection = (GetAimPoint() - Muzzle).GetSafeNormal();
+	const FVector AimPoint = GetAimPoint();
+	FVector AimDirection = (AimPoint - Muzzle).GetSafeNormal();
+	// A player's hitscan shot is traced along the camera's aim ray (from level with the robot), and only
+	// drawn from the muzzle. Tracing from the muzzle misses when the gun pokes into a wall or ledge the
+	// player is aiming over, e.g. sniping down from a perch.
+	FVector TraceStart = Muzzle;
+	FVector TraceDirection = AimDirection;
+	if (const APlayerController* PC = Cast<APlayerController>(GetController()); PC && Data->FireMode == EMetalFireMode::Hitscan)
+	{
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		const FVector ViewDirection = ViewRotation.Vector();
+		TraceStart = ViewLocation + ViewDirection * FMath::Max(0.f, FVector::DotProduct(GetActorLocation() - ViewLocation, ViewDirection));
+		TraceDirection = (AimPoint - TraceStart).GetSafeNormal();
+	}
 	// The aim point can be behind the muzzle (target right next to the robot, or the camera looking past
 	// the body); shooting backwards through the robot looks wrong, so fall back to straight ahead.
 	if (FVector::DotProduct(AimDirection, GetAimForward()) < 0.2f)
 	{
 		AimDirection = GetAimForward();
+		TraceStart = Muzzle;
+		TraceDirection = AimDirection;
 	}
 	const float AIError = (!IsPlayerControlled() && Archetype) ? Archetype->AimErrorDegrees : 0.f;
-	const float Cone = FMath::DegreesToRadians(Data->SpreadDegrees + AIError);
+	// Precision weapons (sniper) are only accurate down the scope.
+	const float Spread = (IsPlayerControlled() && !bAiming && Data->HipSpreadDegrees >= 0.f) ? Data->HipSpreadDegrees : Data->SpreadDegrees;
+	const float Cone = FMath::DegreesToRadians(Spread + AIError);
 
 	// One iteration per pellet, each randomised inside the spread cone. Hitscan weapons trace and damage
 	// immediately; projectile and thrown weapons spawn an AMetalProjectile that deals damage on impact.
@@ -627,15 +890,21 @@ void AMetalBotCharacter::FireOnce()
 		const FVector Direction = FMath::VRandCone(AimDirection, Cone);
 		if (Data->FireMode == EMetalFireMode::Hitscan)
 		{
-			const FVector End = Muzzle + Direction * Data->Range;
+			// Same spread offset, applied to the trace ray (identical to Direction for AI and muzzle traces).
+			const FVector TraceDir = FQuat::FindBetweenNormals(AimDirection, TraceDirection).RotateVector(Direction);
+			const FVector End = TraceStart + TraceDir * Data->Range;
 			FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalShot), false, this);
 			FHitResult Hit;
-			const bool bHit = World->LineTraceSingleByChannel(Hit, Muzzle, End, ECC_Visibility, Params);
+			const bool bHit = World->LineTraceSingleByChannel(Hit, TraceStart, End, ECC_Visibility, Params);
 			const FVector Impact = bHit ? FVector(Hit.ImpactPoint) : End;
 			AMetalFX::SpawnBeam(World, Muzzle, Impact, Data->TracerColor, 2.5f, 0.07f);
 			if (bHit)
 			{
 				AMetalFX::SpawnBurst(World, Impact, Data->TracerColor, 10.f, 0.12f);
+				if (Pellet == 0)
+				{
+					MetalAudio::PlayAt(this, Data->ImpactSound, Impact, 0.6f, 0.1f);
+				}
 				if (AActor* HitActor = Hit.GetActor())
 				{
 					bHitRobot |= HitActor->IsA<AMetalBotCharacter>();
@@ -662,13 +931,24 @@ void AMetalBotCharacter::FireOnce()
 	}
 
 	AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 8.f, 0.06f);
+	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.7f);
+	if (IsPlayerControlled())
+	{
+		// Gunfire carries: enemies within the weapon's noise radius come looking.
+		AMetalBotAIController::ReportNoise(this, Muzzle, Data->NoiseRadius);
+	}
 	if (UMetalBotAnimInstance* Anim = Cast<UMetalBotAnimInstance>(GetMesh()->GetAnimInstance()))
 	{
 		Anim->PlayRecoil();
 	}
-	if (bHitRobot)
+	if (AMetalPlayerController* PC = Cast<AMetalPlayerController>(GetController()))
 	{
-		if (AMetalPlayerController* PC = Cast<AMetalPlayerController>(GetController()))
+		// Projectiles land later; only hitscan shots count towards accuracy.
+		if (Data->FireMode == EMetalFireMode::Hitscan)
+		{
+			PC->NotifyShotFired(bHitRobot);
+		}
+		if (bHitRobot)
 		{
 			PC->NotifyHitConfirmed();
 		}
@@ -714,15 +994,38 @@ void AMetalBotCharacter::ThrowGrenade()
 	}
 	Grenades--;
 	const FVector Start = GetEyesLocation() + GetActorForwardVector() * 40.f;
-	const FVector Direction = (GetAimPoint() - Start).GetSafeNormal();
+	const FVector Target = GetAimPoint();
+	const FVector Direction = (Target - Start).GetSafeNormal();
+	FVector Velocity = Direction * GrenadeWeapon->ProjectileSpeed + FVector(0.f, 0.f, 350.f);
+	float Fuse = -1.f;
+	// Players lob onto whatever the crosshair is on (within throwing range), arcing over cover, and the
+	// fuse waits for it to land. Beyond that range, or with nothing under the crosshair, it's a long throw.
+	constexpr float MaxLob = 2200.f;
+	if (IsPlayerControlled() && FVector::Dist(Start, Target) < MaxLob)
+	{
+		const float GravityZ = GetWorld()->GetGravityZ() * GrenadeWeapon->ProjectileGravityScale;
+		FVector Lob;
+		if (UGameplayStatics::SuggestProjectileVelocity_CustomArc(this, Lob, Start, Target, GravityZ, 0.45f))
+		{
+			Velocity = Lob;
+			// Time to reach the target horizontally, plus a beat to settle.
+			const float Horizontal = FVector::Dist2D(Start, Target);
+			Fuse = Horizontal / FMath::Max(1.f, Velocity.Size2D()) + 0.35f;
+		}
+	}
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (AMetalProjectile* Projectile = GetWorld()->SpawnActor<AMetalProjectile>(Start, Direction.Rotation(), Params))
+	if (AMetalProjectile* Projectile = GetWorld()->SpawnActor<AMetalProjectile>(Start, Velocity.Rotation(), Params))
 	{
-		Projectile->Launch(GrenadeWeapon, GrenadeWeapon->GetLevel(0).Damage, Direction * GrenadeWeapon->ProjectileSpeed + FVector(0.f, 0.f, 350.f));
+		Projectile->Launch(GrenadeWeapon, GrenadeWeapon->GetLevel(0).Damage, Velocity);
+		if (Fuse > 0.f)
+		{
+			Projectile->SetFuse(Fuse);
+		}
 	}
+	PlaySound(TEXT("grenade_throw"));
 }
 
 // --------------------------------------------------------------------------------------------
@@ -825,6 +1128,10 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 
 	Health -= Damage;
 	HitFlash = 1.f;
+	if (GetWorld()->GetTimeSeconds() - LastDamageTakenTime > 0.1f)
+	{
+		PlaySound(IsPlayerControlled() ? TEXT("player_hit") : TEXT("robot_hit"), 0.8f);
+	}
 	LastDamageTakenTime = GetWorld()->GetTimeSeconds();
 
 	const FVector From = Attacker ? Attacker->GetActorLocation() : (DamageCauser ? DamageCauser->GetActorLocation() : GetActorLocation() - GetActorForwardVector());
@@ -922,6 +1229,7 @@ void AMetalBotCharacter::Explode()
 	}
 	const FVector Center = GetMesh()->GetComponentLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	AMetalFX::SpawnBurst(GetWorld(), Center, FLinearColor(1.f, 0.45f, 0.1f), 140.f * GetMesh()->GetRelativeScale3D().X, 0.5f);
+	MetalAudio::PlayAt(this, TEXT("robot_explode"), Center, FMath::Clamp(GetMesh()->GetRelativeScale3D().X, 0.8f, 2.f));
 	if (IsPlayerControlled())
 	{
 		// The game mode respawns the player and cleans this body up.
@@ -949,13 +1257,315 @@ void AMetalBotCharacter::TickActionCamera(float DeltaSeconds)
 		Move->RotationRate = FRotator(0.f, bCombat ? 1080.f : 720.f, 0.f);
 	}
 
-	// Exploring: centred behind and a little further out. Combat: over the shoulder. Aiming: zoomed in.
+	// Exploring: centred behind and a little further out. Combat: over the shoulder. Aiming: zoomed in by
+	// the weapon's own amount; a scoped weapon pulls the camera right into the robot's head.
+	const FMetalWeaponSlot* Slot = IsSwappingWeapon() ? nullptr : GetCurrentWeapon();
+	const UMetalWeaponData* Weapon = Slot ? Slot->Data.Get() : nullptr;
+	const bool bScoped = bAiming && Weapon && Weapon->bScopeOverlay && IsPlayerControlled();
+	const float AimArm = Weapon ? Weapon->AimArmLengthScale : 0.55f;
+	const float AimFOV = Weapon ? Weapon->AimFOV : 60.f;
 	const bool bRelaxed = bAction && !bCombat;
-	const float ArmTarget = bAiming ? DefaultArmLength * 0.55f : (bRelaxed ? DefaultArmLength * 1.1f : DefaultArmLength);
-	const FVector OffsetTarget = bRelaxed ? FVector(0.f, 0.f, DefaultCameraOffset.Z) : DefaultCameraOffset;
-	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, ArmTarget, DeltaSeconds, bRelaxed ? 4.f : 10.f);
-	CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, OffsetTarget, DeltaSeconds, 6.f);
-	FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, bAiming ? 60.f : 85.f, DeltaSeconds, 10.f));
+	const float ArmTarget = bAiming ? DefaultArmLength * AimArm : (bRelaxed ? DefaultArmLength * (1.1f + 0.1f * SprintAlpha) : DefaultArmLength);
+	FVector OffsetTarget = bRelaxed ? FVector(0.f, 0.f, DefaultCameraOffset.Z) : DefaultCameraOffset;
+	if (bScoped)
+	{
+		// Eye level: from the capsule centre most of the way up to the top of the head.
+		OffsetTarget = FVector(0.f, 0.f, GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() * 0.45f);
+	}
+	const float Blend = bScoped ? 18.f : (bRelaxed ? 4.f : 10.f);
+	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, ArmTarget, DeltaSeconds, Blend);
+	CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, OffsetTarget, DeltaSeconds, bScoped ? 18.f : 6.f);
+	CameraBoom->bEnableCameraLag = !bScoped;
+	const float FOVTarget = bAiming ? AimFOV : 85.f + 7.f * SprintAlpha;
+	FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, FOVTarget, DeltaSeconds, bScoped ? 14.f : 10.f));
+
+	ScopeAlpha = FMath::FInterpTo(ScopeAlpha, bScoped ? 1.f : 0.f, DeltaSeconds, 12.f);
+	const bool bHide = ScopeAlpha > 0.6f;
+	if (bHide != bHiddenForScope)
+	{
+		// Looking down the scope from inside the head: hide our own body from our own camera only.
+		bHiddenForScope = bHide;
+		TArray<USceneComponent*> Attached;
+		GetMesh()->GetChildrenComponents(true, Attached);
+		GetMesh()->SetOwnerNoSee(bHide);
+		for (USceneComponent* Child : Attached)
+		{
+			if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Child))
+			{
+				Primitive->SetOwnerNoSee(bHide);
+			}
+		}
+	}
+}
+
+float AMetalBotCharacter::GetLookSensitivityScale() const
+{
+	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
+	return (bAiming && Slot && Slot->Data) ? Slot->Data->AimSensitivity : 1.f;
+}
+
+bool AMetalBotCharacter::CanSprint() const
+{
+	return Archetype && Archetype->SprintSpeed > 0.f;
+}
+
+bool AMetalBotCharacter::CanSneak() const
+{
+	return Archetype && Archetype->CrouchSpeed > 0.f;
+}
+
+void AMetalBotCharacter::SetWantsSprint(bool bNewWantsSprint)
+{
+	bWantsSprint = bNewWantsSprint;
+	if (bWantsSprint && bIsCrouched)
+	{
+		// Breaking into a run stands the robot up.
+		UnCrouch();
+	}
+}
+
+void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
+{
+	if (!CanSneak() || bDead || bDormant)
+	{
+		return;
+	}
+	if (bNewSneaking)
+	{
+		bWantsSprint = false;
+		Crouch();
+	}
+	else
+	{
+		UnCrouch();
+	}
+}
+
+void AMetalBotCharacter::BuildJetpack()
+{
+	const USkeletalMesh* Body = GetMesh()->GetSkeletalMeshAsset();
+	if (!JetpackParts.IsEmpty() || Archetype == nullptr || !Archetype->bHasJetpack || Body == nullptr || JetPodMesh == nullptr || JetFlameMesh == nullptr)
+	{
+		return;
+	}
+	const FMetalBotRig& Rig = GetRig();
+	const int32 BoneIndex = Body->GetRefSkeleton().FindBoneIndex(Rig.Pelvis);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+	// Everything is placed in body-mesh space of the bind pose (+Y forward, +Z up, -X right) and then made
+	// relative to the pelvis, so the pack rides along with the body, the double-jump flip included.
+	const FTransform BoneInBody = FAnimationRuntime::GetComponentSpaceTransformRefPose(Body->GetRefSkeleton(), BoneIndex);
+	UMaterialInterface* Dark = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Metalization/Materials/MI_Env_Dark.MI_Env_Dark"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	UMaterialInterface* Glow = MetalAssets::GetGlowMaterial();
+	auto Attach = [this, &BoneInBody, &Rig](USceneComponent* Component, const FTransform& InBody)
+	{
+		Component->SetupAttachment(GetMesh(), Rig.Pelvis);
+		Component->SetRelativeTransform(InBody.GetRelativeTransform(BoneInBody));
+		Component->RegisterComponent();
+	};
+	auto Part = [this, Dark](UStaticMesh* Shape)
+	{
+		UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(this);
+		Component->SetStaticMesh(Shape);
+		Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (Dark)
+		{
+			Component->SetMaterial(0, Dark);
+		}
+		JetpackParts.Add(Component);
+		return Component;
+	};
+	// The engine cylinder and cone are 100 cm across and 100 cm tall around their pivot; the cone's tip is up.
+	for (const float Side : {1.f, -1.f})
+	{
+		const FVector Pod = Rig.JetpackOffset + FVector(Rig.JetpackSpread * Side, 0.f, 0.f);
+		Attach(Part(JetPodMesh), FTransform(FQuat::Identity, Pod, FVector(0.09f, 0.09f, 0.24f)));
+		// Strap holding the pod to the back, and a flared nozzle under it.
+		Attach(Part(JetPodMesh),
+			FTransform(FQuat(FVector::XAxisVector, UE_HALF_PI), Pod + FVector(0.f, 4.f, 6.f), FVector(0.04f, 0.04f, 0.08f)));
+		const FVector Nozzle = Pod - FVector(0.f, 0.f, 12.f + 3.f);
+		Attach(Part(JetFlameMesh), FTransform(FQuat::Identity, Nozzle, FVector(0.085f, 0.085f, 0.06f)));
+
+		// Flame: a cone pointing down from the nozzle, hung off a pivot that is stretched while it burns.
+		// Attached at unit size first to learn the relative scale that means "1" in body space: the imported
+		// skeleton's bones carry a scale, so the flame can't be sized with absolute relative scales.
+		USceneComponent* Pivot = NewObject<USceneComponent>(this);
+		Attach(Pivot, FTransform(FQuat::Identity, Nozzle - FVector(0.f, 0.f, 3.f)));
+		JetPivotUnitScale = Pivot->GetRelativeScale3D();
+		Pivot->SetRelativeScale3D(JetPivotUnitScale * FVector(0.07f, 0.07f, 0.01f));
+		UStaticMeshComponent* Flame = NewObject<UStaticMeshComponent>(this);
+		Flame->SetStaticMesh(JetFlameMesh);
+		Flame->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Flame->SetCastShadow(false);
+		Flame->SetupAttachment(Pivot);
+		Flame->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -50.f), FQuat(FVector::XAxisVector, UE_PI));
+		if (Glow)
+		{
+			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Glow, this);
+			MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(1.f, 0.55f, 0.15f));
+			MID->SetScalarParameterValue(TEXT("Intensity"), 3.f);
+			Flame->SetMaterial(0, MID);
+			JetFlameMaterials.Add(MID);
+		}
+		Flame->RegisterComponent();
+		Flame->SetVisibility(false);
+		Pivot->SetVisibility(false, true);
+		JetFlamePivots.Add(Pivot);
+	}
+	JetLight = NewObject<UPointLightComponent>(this);
+	JetLight->SetLightColor(FLinearColor(1.f, 0.55f, 0.2f));
+	JetLight->SetAttenuationRadius(450.f);
+	JetLight->SetCastShadows(false);
+	JetLight->SetIntensity(0.f);
+	Attach(JetLight, FTransform(Rig.JetpackOffset - FVector(0.f, 4.f, 30.f)));
+}
+
+void AMetalBotCharacter::FireJetpack()
+{
+	if (JetFlamePivots.IsEmpty() || bDead)
+	{
+		return;
+	}
+	JetFireEnd = GetWorld()->GetTimeSeconds() + 0.55f;
+	for (USceneComponent* Pivot : JetFlamePivots)
+	{
+		Pivot->SetVisibility(true, true);
+		AMetalFX::SpawnBurst(GetWorld(), Pivot->GetComponentLocation() - FVector(0.f, 0.f, 10.f), FLinearColor(1.f, 0.6f, 0.2f), 18.f, 0.2f);
+	}
+}
+
+void AMetalBotCharacter::TickJetpack(float Now)
+{
+	if (JetFlamePivots.IsEmpty() || JetFireEnd <= 0.f)
+	{
+		return;
+	}
+	// A hard kick that tails off: full length at ignition, gone after ~0.55 s (or as soon as it lands).
+	const float Alpha = FMath::Clamp((JetFireEnd - Now) / 0.55f, 0.f, 1.f);
+	const bool bBurning = Alpha > 0.02f && !bDead && !bDormant && GetCharacterMovement()->IsFalling();
+	for (int32 Index = 0; Index < JetFlamePivots.Num(); ++Index)
+	{
+		USceneComponent* Pivot = JetFlamePivots[Index];
+		if (!bBurning)
+		{
+			Pivot->SetVisibility(false, true);
+			continue;
+		}
+		const float Flicker = 0.85f + 0.15f * FMath::Sin(Now * 55.f + Index * 1.7f);
+		const float Length = (8.f + 42.f * FMath::Sqrt(Alpha)) * Flicker;
+		const float Width = 0.07f * (0.7f + 0.3f * Alpha);
+		Pivot->SetRelativeScale3D(JetPivotUnitScale * FVector(Width, Width, Length / 100.f));
+		if (JetFlameMaterials.IsValidIndex(Index))
+		{
+			JetFlameMaterials[Index]->SetScalarParameterValue(TEXT("Intensity"), 2.f + 4.f * Alpha);
+		}
+	}
+	if (JetLight)
+	{
+		JetLight->SetIntensity(bBurning ? 600.f * Alpha : 0.f);
+	}
+	if (!bBurning)
+	{
+		JetFireEnd = 0.f;
+	}
+}
+
+void AMetalBotCharacter::PlaySound(FName Name, float Volume) const
+{
+	MetalAudio::PlayAt(this, Name, GetActorLocation(), Volume);
+}
+
+void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
+{
+	if (Archetype == nullptr || bDead)
+	{
+		bSprinting = false;
+		return;
+	}
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	const bool bPlayer = IsPlayerControlled();
+	const FVector Velocity2D(GetVelocity().X, GetVelocity().Y, 0.f);
+	const float Speed = Velocity2D.Size();
+	const float Now = GetWorld()->GetTimeSeconds();
+
+	if (bPlayer)
+	{
+		// Sprint only while running forward-ish with nothing else going on. In the air, keep the momentum.
+		const FVector ViewForward = GetController() ? FRotator(0.f, GetController()->GetControlRotation().Yaw, 0.f).Vector() : GetActorForwardVector();
+		const bool bForward = Speed > 50.f && FVector::DotProduct(Velocity2D / Speed, ViewForward) > 0.3f;
+		const bool bFree = !bAiming && !bFireHeld && Now - LastFireTime > 0.4f && !IsSwappingWeapon() && !IsStunned() && !bDormant;
+		if (Move->IsFalling())
+		{
+			bSprinting = bSprinting && bWantsSprint;
+		}
+		else
+		{
+			bSprinting = bWantsSprint && CanSprint() && !bIsCrouched && bFree && bForward;
+		}
+		// Also restores full speed to a hijacked robot that was walking at its slow patrol pace.
+		Move->MaxWalkSpeed = bSprinting ? Archetype->SprintSpeed : Archetype->WalkSpeed;
+	}
+	else
+	{
+		bSprinting = false;
+	}
+
+	CrouchAlpha = FMath::FInterpTo(CrouchAlpha, bIsCrouched ? 1.f : 0.f, DeltaSeconds, 10.f);
+	const float SprintRange = FMath::Max(1.f, Archetype->SprintSpeed - Archetype->WalkSpeed);
+	const float SprintTarget = bSprinting ? FMath::Clamp((Speed - Archetype->WalkSpeed * 0.8f) / SprintRange, 0.f, 1.f) : 0.f;
+	SprintAlpha = FMath::FInterpTo(SprintAlpha, SprintTarget, DeltaSeconds, 6.f);
+
+	// Footsteps every half stride. Sneaking is near silent; walking and especially sprinting carry to enemies.
+	if (Move->IsMovingOnGround() && Speed > 40.f && !bDormant)
+	{
+		StepDistance += Speed * DeltaSeconds;
+		const float Scale = GetMesh()->GetRelativeScale3D().X;
+		const float StepLength = FMath::Max(40.f, GetRig().StrideLength * Scale * 0.5f * (1.f + 0.4f * SprintAlpha));
+		if (StepDistance >= StepLength)
+		{
+			StepDistance = 0.f;
+			const bool bHeavy = Scale > 1.5f || Archetype->CapsuleHalfHeight > 100.f;
+			const float Volume = bIsCrouched ? 0.12f : (bPlayer ? 0.55f : 0.4f);
+			const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+			MetalAudio::PlayAt(this, bHeavy ? TEXT("footstep_heavy") : (bSprinting ? TEXT("footstep_sprint") : TEXT("footstep")), Feet, Volume, 0.12f);
+			if (bPlayer && !bIsCrouched)
+			{
+				AMetalBotAIController::ReportNoise(this, Feet, bSprinting ? 1300.f : 450.f);
+			}
+		}
+	}
+	else
+	{
+		StepDistance = 0.f;
+	}
+
+	// AI marksmen show where they are aiming with a laser sight.
+	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
+	const bool bLaser = !bPlayer && bHasAITarget && !bDormant && !IsStunned() && !bWeaponDisabled && Slot && Slot->Data && Slot->Data->bLaserSight;
+	if (bLaser)
+	{
+		const FVector Muzzle = GetMuzzleLocation();
+		const FVector Direction = (AITargetPoint - Muzzle).GetSafeNormal();
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalLaserSight), false, this);
+		FHitResult Hit;
+		const FVector End = Muzzle + Direction * Slot->Data->Range;
+		const FVector Impact = GetWorld()->LineTraceSingleByChannel(Hit, Muzzle, End, ECC_Visibility, Params) ? FVector(Hit.ImpactPoint) : End;
+		if (LaserSight == nullptr)
+		{
+			LaserSight = AMetalFX::SpawnBeam(GetWorld(), Muzzle, Impact, FLinearColor(1.f, 0.05f, 0.05f), 0.6f, 0.f);
+		}
+		else
+		{
+			LaserSight->SetBeamEndpoints(Muzzle, Impact);
+		}
+	}
+	else if (LaserSight)
+	{
+		LaserSight->Destroy();
+		LaserSight = nullptr;
+	}
 }
 
 void AMetalBotCharacter::OnJumped_Implementation()
@@ -966,6 +1576,12 @@ void AMetalBotCharacter::OnJumped_Implementation()
 	if (JumpCurrentCount >= 2)
 	{
 		FlipStartTime = GetWorld()->GetTimeSeconds();
+		PlaySound(TEXT("double_jump"), 0.8f);
+		FireJetpack();
+	}
+	else
+	{
+		PlaySound(TEXT("jump"), 0.6f);
 	}
 }
 
@@ -997,7 +1613,10 @@ void AMetalBotCharacter::TickFlip(float Now)
 	// rotation keeps the pivot at the centre instead of at the robot's feet.
 	const FQuat Flip(FVector::RightVector, FMath::DegreesToRadians(Angle));
 	const FQuat Turn = MeshTilt * Flip;
-	GetMesh()->SetRelativeLocationAndRotation(Turn.RotateVector(MeshBaseLocation), Turn * MeshBaseRotation);
+	// Crouching shortens the capsule around its bottom, so its centre drops: raise the mesh by the same
+	// amount to keep the feet on the floor (the animator bends the legs).
+	const float CrouchLift = (bIsCrouched && Archetype) ? Archetype->CapsuleHalfHeight - GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() : 0.f;
+	GetMesh()->SetRelativeLocationAndRotation(Turn.RotateVector(MeshBaseLocation + FVector(0.f, 0.f, CrouchLift)), Turn * MeshBaseRotation);
 }
 
 void AMetalBotCharacter::Landed(const FHitResult& Hit)
@@ -1007,6 +1626,10 @@ void AMetalBotCharacter::Landed(const FHitResult& Hit)
 	if (UMetalBotAnimInstance* Anim = Cast<UMetalBotAnimInstance>(GetMesh()->GetAnimInstance()))
 	{
 		Anim->PlayLand(FMath::Clamp(-LowestFallSpeed / 1400.f, 0.25f, 1.f));
+	}
+	if (LowestFallSpeed < -500.f)
+	{
+		PlaySound(TEXT("land"), FMath::Clamp(-LowestFallSpeed / 1400.f, 0.3f, 1.f));
 	}
 	LowestFallSpeed = 0.f;
 }
@@ -1110,6 +1733,9 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		SetMaterialScalar(TEXT("HackGlow"), 0.65f + 0.35f * FMath::Sin(Now * 6.f));
 	}
 
+	TickLocomotion(DeltaSeconds);
+	TickWeaponSwap(Now);
+	TickJetpack(Now);
 	TickActionCamera(DeltaSeconds);
 	TickFlip(Now);
 	if (GetCharacterMovement()->IsFalling())
@@ -1122,7 +1748,7 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		FinishReload();
 	}
 
-	if (bFireHeld && !bDead && !bDormant && !IsStunned() && !IsReloading() && Now >= NextFireTime)
+	if (bFireHeld && !bDead && !bDormant && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
 	{
 		FireOnce();
 		const FMetalWeaponSlot* Slot = GetCurrentWeapon();

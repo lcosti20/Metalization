@@ -57,3 +57,18 @@ Fill in the archetype's `Rig`:
 - `StrideLength` (cm per two steps) so feet don't slide; `LegSwingDegrees`, `KneeBendDegrees` (negative for reverse knees), `BobHeight`, `ArmSwingDegrees` (0 keeps fixed gun arms still).
 - `AimPitchWeight`, `bAimFromShoulder`, `bAimWithBothArms` to match how it holds its gun.
 - For flyers, the four arm bones and the spread / sweep / fold angles.
+
+## Sprint, crouch and weapon swap
+
+- **Sprint.** `SprintAlpha` (from the character) adds lean, lengthens the stride used to advance the gait (so
+  the feet don't slide) and swings the legs and arms further.
+- **Crouch.** `CrouchAlpha` bends the thighs 55° and the knees 100°, hunches the pelvis forward and drops it
+  by `FMetalBotRig::CrouchDrop`. The character raises the mesh by the capsule's shrink, so the result stays
+  grounded.
+- **Weapon swap.** `NativeUpdateAnimation` turns `GetSwapProgress()` into three curves:
+  - `SwapReach`: the off hand swings forward and across to the gun arm, which lifts towards it;
+  - `SwapTwist`: both forearms roll as the gun comes off and goes on;
+  - `SwapStow`: the off arm swings up past vertical, the forearm folds behind the shoulder to the back rack,
+    and the torso and head turn with it.
+
+  While the off hand is busy, it skips the run and jump arm motion (`LeftArmFree`).

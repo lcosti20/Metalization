@@ -42,7 +42,7 @@ sequenceDiagram
     Note over P,T: timer runs (enemies) or open-ended (allies)
     P->>B: Possess, SetDormant(false)
     alt enemy
-        P->>T: SelfDestruct(1.2 s)
+        P->>T: SetHijacked(false), new AI, Stun(RebootTime)
     else ally
         P->>T: SetDormant(true) (idle, linkable again)
     end
@@ -52,7 +52,7 @@ sequenceDiagram
 
 **Who can be taken.** `AMetalBotCharacter::CanBeHackedBy` has two rules:
 
-- **Enemies** need `bHackable`. This is a *hijack*: timed by the archetype's `PossessionDuration`, the robot joins the Heroes and glows, and when the link ends it self-destructs, damaging whatever is near it.
+- **Enemies** need `bHackable`. This is a *hijack*: timed by the archetype's `PossessionDuration`, the robot joins the Heroes and glows. When the link ends (F, the timer, or the player's body dying) a robot that is still alive goes back to its own side: it gets a fresh AI controller and is stunned for `RebootTime` (2 s) while it "reboots". Disconnecting never destroys it; only losing its health does.
 - **Same-team robots** need `bAllyHackable` and must have no controller (an idle parked Stalker). This is a *link*: no time limit, no self-destruct, no beam. When it ends the robot goes dormant and can be linked again.
 
 **Starting** (`BeginPossession`): the target's AI controller is unpossessed and destroyed, the body is powered down where it stands (it can still be shot), the controller possesses the target, and the control rotation is reset to the target's facing.
@@ -68,3 +68,43 @@ Every tick the controller finds the nearest unused `AMetalControlConsole` within
 ## Pause
 
 `OpenPauseMenu` releases held buttons (their release events would be lost while the menu has input), creates `UMetalPauseMenu`, pauses the game and switches to UI-only input with the cursor shown. `ClosePauseMenu` reverses it. While the menu is open it handles its own back keys.
+
+## Sprint, sneak and the scope
+
+- **Sprint (Shift).** `AMetalPlayerController::SprintPressed` calls `AMetalBotCharacter::SetWantsSprint`.
+  `TickLocomotion` only sprints while running forward on the ground and not aiming, firing (or within 0.4 s
+  of a shot), swapping or stunned. It sets `MaxWalkSpeed` to the archetype's `SprintSpeed`. While a player
+  drives a robot, `TickLocomotion` also puts back the robot's full walk speed (a hijacked robot that was
+  patrolling no longer crawls).
+- **Sneak (hold Ctrl, toggle C).** `SetSneaking` uses the engine's crouch. `ApplyArchetype` turns crouching
+  on for archetypes with a `CrouchSpeed` and shrinks the capsule to `CrouchHeightFraction`. `TickFlip` raises
+  the mesh by the amount the capsule shrank, so the feet stay on the floor. Sprinting stands the robot up.
+- **Noise.** Every half stride the player's footsteps report noise to the AI (`ReportNoise`): walking 450,
+  sprinting 1300, sneaking none. So do gunshots (the weapon's `NoiseRadius`).
+- **Scope.** A weapon's `AimFOV`, `AimArmLengthScale` and `bScopeOverlay` drive `TickActionCamera`. With
+  arm length 0 the camera moves to eye level. Once the scope is mostly up, the robot's meshes are hidden from
+  its own camera (`SetOwnerNoSee`). `AimSensitivity` slows the look input
+  (`GetLookSensitivityScale`, applied in `AMetalPlayerController::Look`).
+- **Hitscan aim.** A player's hitscan shots are traced along the camera's aim ray and only drawn from the
+  muzzle, so a gun poking into a ledge can't block the shot.
+- **Grenade lob.** Player grenades lob onto the crosshair: `SuggestProjectileVelocity_CustomArc` within
+  22 m, with the fuse set to land first.
+
+## Weapon-arm swap
+
+When a player-driven robot with `bAnimatedWeaponSwap` changes weapon, `EquipWeapon` starts a timed swap
+instead of swapping at once. `TickWeaponSwap` then runs the beats:
+
+| Time | Beat | Robot |
+|---|---|---|
+| 0.28 | Detach | Gun shown in the off hand (`CarriedGun`); the forearm ends in a bare mount |
+| 0.5 | Rack | The old gun goes on the back rack and the new one is drawn |
+| 0.8 | Attach | `CurrentWeapon` switches and the new gun is bonemerged |
+
+- **Firing** is blocked until the swap ends.
+- **Changing your mind** mid-swap retargets it.
+- **Being killed or tethering away** finishes the swap instantly.
+- **Placement.** `PlaceWeaponOnBone` attaches a held mesh, with no leader pose, so that its grip (the weapon
+  bone in the bind pose) lands on a body bone. `RefreshRack` shows the two most recently stowed guns, using
+  `FMetalBotRig::RackOffset` and `BackBone`.
+- **Poses.** See [Animation.md](Animation.md).

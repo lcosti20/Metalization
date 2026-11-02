@@ -7,6 +7,9 @@ public class Metalization : ModuleRules
 	public Metalization(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		// Each .cpp keeps small file-local helpers (palette colours, etc.) in anonymous namespaces; unity
+		// builds glue files together and make those collide depending on how files happen to be grouped.
+		bUseUnity = false;
 
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",

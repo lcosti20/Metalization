@@ -41,17 +41,31 @@ Run everything with the editor **closed**:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
-# -SkipBlender / -SkipImport / -SkipGameplay to re-run individual stages, -Blend <file> to export another .blend
+# -SkipBlender / -SkipImport / -SkipGameplay to re-run individual stages, -Source <folder> to export another model folder
+# -Full re-imports everything and rebuilds every map; -Adopt records the current Content as up to date
 ```
 
 | Stage | Script | Output |
 |---|---|---|
 | 1 | `blender_export.py` (Blender 5.2, headless) | `Saved/AssetPipeline/`: FBX per character, part, and weapon-on-holder; `manifest.json` |
+| 1b | `generate_sfx.py` | `Saved/AssetPipeline/Audio/*.wav` |
+| 1c | `import_plan.py` | Decides what changed since the last import (`import_state.json`), deletes those stale assets, writes `import_plan.json` |
 | 2 | `ue_import_assets.py` (UE commandlet) | `/Game/Metalization/{Materials,Characters,Weapons,Props,Ships}` |
 | 3 | `ue_setup_gameplay.py` | `/Game/Metalization/Data` (weapons, archetypes), `/Game/Metalization/Maps/MZ_Outpost_Demo` and `MZ_Arena` |
 | 4 | `ue_validate.py` | Size, material-slot, and usage-flag checks, plus ship collision, sockets and portal sizes (`PASSED` / list of problems) |
 
-Before stage 2, the runner deletes the generated `Characters`, `Weapons`, `Props`, `Textures` and `Materials/Instances` folders. Reimporting over an existing mesh keeps its old material slots, and deleting assets from the commandlet leaves the files on disk.
+**Incremental runs.** Only what changed is re-imported and only maps whose inputs changed are rebuilt, so a commit after a pipeline run contains just the assets that really changed:
+
+- **Fingerprints.** `blender_export.py` writes a content fingerprint for every FBX into the manifest: geometry, UVs, normals, weights, material slots, bones, plus the exporter script. FBX files can't be compared directly, because they embed the export time and per-run object ids.
+- **Planning.** `import_plan.py` turns those fingerprints into a hash per generated unit:
+  - a character with its parts;
+  - each weapon on each holder, which also depends on the holder, because a re-imported character gets a new skeleton;
+  - each prop, ship part, material instance, texture and sound.
+
+  It compares them with `Tools/AssetPipeline/import_state.json`, which is committed so it travels with the Content it describes. For every changed, new or missing unit it deletes the old `.uasset` files: re-importing over a mesh keeps its old material slots, and the commandlet can't delete files. Units that no longer exist are removed. The importer then imports only those units and saves only dirty assets.
+- **Maps.** `ue_setup_gameplay.py` hashes each map's level script, plus the model sizes and ship sockets the Outpost and Space maps place things by, and rebuilds only maps whose hash changed or that are missing. `MZ_LEVELS` still forces specific maps.
+- **Forcing.** `-Full` gives the old behaviour: wipe the generated folders, re-import everything and rebuild every map. Any change to `ue_import_assets.py` re-imports everything anyway.
+- **Adopting.** `-Adopt` declares the current Content up to date without importing anything. Use it after pulling Content someone else generated, if `import_state.json` wasn't committed with it.
 
 Key decisions:
 - **Materials**: graybox materials have no textures and set the master material's `Tint` (and `Color` on the light master) to their flat colour. The master `M_MZ_Base` also supports packed textures for future art (metallic = 1 − R, roughness = 1 − G of the base colour, emission = base × self-illum mask). Every robot material has `HitFlash` and `HackGlow` parameters that gameplay drives.
@@ -60,7 +74,12 @@ Key decisions:
 - **Level geometry** uses the template's prototype grid (`T_GridChecker_A`, green channel as a subtle shade) under the `MI_Env_*` tints.
 - The level scripts regenerate the maps in place, so **make manual layout changes on a copy of the map**.
 
-### 3a. Graybox models (`Art/Graybox/Metalization_Graybox.blend`)
+### 3a. Graybox models (`Art/Graybox/`, one .blend per model)
+
+The models are split into one Blender file per model (see [Art/Graybox/README.md](../Art/Graybox/README.md)).
+`blender_export.py` assembles them into one scene, rebuilding the collection layout described below from
+the folders, before exporting. Materials shared by several models live in `Shared/GB_Materials.blend` and
+are linked into the model files.
 
 The source of truth for every model. Layout the exporter expects:
 
@@ -72,7 +91,7 @@ The source of truth for every model. Layout the exporter expects:
 
 Bodies are one bevelled box per bone, rigidly skinned to it. Gameplay depends on the bone names (`bip_head`, `bip_pelvis`, `bip_hip_L/R`, `bip_upperArm/lowerArm_L/R`, `weapon_bone`, `minigun_R/L`, `ankle_1_L/R`, `hip_L/R`), so keep them when replacing art. Materials are flat colours: Heroes in blues/greens, Villains in reds/oranges, a lighter accent on head/hands/feet, a glowing visor on the front of the player's head, and one colour per weapon family.
 
-To replace a graybox with authored art, model it in `Metalization_Graybox.blend` on the same armature (or edit the boxes), then run `run_pipeline.ps1`.
+To replace a graybox with authored art, model it in its file under `Art/Graybox/` on the same armature (or edit the boxes), then run `run_pipeline.ps1`.
 
 ---
 
@@ -152,7 +171,7 @@ To check a packaged build, package Development with `RunUAT.bat BuildCookRun -pr
 ### Verified by automated runs
 - All 27 characters import at correct scale with every material slot assigned (`ue_validate.py`: PASSED).
 - Combat: the Laser hits and damages Shooters. AI spots, alerts its squad, strafes and returns fire.
-- Hack Tether: hijack a Shooter, fight as it, disconnect (host self-destructs, control returns to the player). Same for the Brute, whose miniguns destroyed a Soldier.
+- Hack Tether: hijack a Shooter, fight as it, disconnect (control returns to the player; the host reboots and rejoins its side). Same for the Brute, whose miniguns destroyed a Soldier.
 - Gate puzzle: hijack a gate guard through the energy fence, operate the console, gate opens, objective advances.
 - Death → "SCRAPPED!" → respawn. Weapon pickup (Shotgun) is added and equipped. Extraction → mission-complete screen.
 
@@ -230,7 +249,7 @@ The list comes from **Project Settings > Game > Metalization Levels** (`UMetalLe
 1. **Feel pass**: sounds (MetaSounds), Niagara muzzle/impact/explosion effects to replace the `AMetalFX` placeholders, camera shake, and tuning the procedural gait per robot in the archetype assets.
 2. **Authored animation**: proper rigs (Control Rig, or our own models) and Anim Blueprints. Keep the procedural animator as a fallback.
 3. **More hacking verbs**: robots that open specific doors, ride lifts, turret possession, possession-only routes.
-4. **Items and vehicles**: model them in the graybox .blend and add them to `blender_export.py`.
+4. **Items and vehicles**: model them as new files under `Art/Graybox/` and add them to `blender_export.py`.
 5. **AI depth**: move the C++ state machine into StateTree/Behavior Tree assets, add cover selection with EQS, snipers, and commanders who buff squads.
 6. **Progression**: SaveGame for checkpoints, campaign state, and weapon upgrades across missions.
 7. **Replace the graybox models** with authored art (§3a). The pipeline is model-agnostic. New characters need an FBX, an archetype asset, and a rig profile.

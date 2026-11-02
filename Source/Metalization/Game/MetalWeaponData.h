@@ -117,6 +117,45 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	FLinearColor TracerColor = FLinearColor(1.f, 0.4f, 0.1f);
 
+	/** Spread (cone half-angle) when fired without aiming. Negative = same as SpreadDegrees. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	float HipSpreadDegrees = -1.f;
+
+	/** Camera field of view while aiming this weapon (the default action camera uses 60). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aim")
+	float AimFOV = 60.f;
+
+	/** Camera distance while aiming, as a fraction of the robot's normal distance. 0 = scope at eye level. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aim")
+	float AimArmLengthScale = 0.55f;
+
+	/** Draws a scope overlay and hides the robot's own body while aiming (sniper). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aim")
+	bool bScopeOverlay = false;
+
+	/** Mouse/stick look speed multiplier while aiming. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aim")
+	float AimSensitivity = 1.f;
+
+	/** AI holding this weapon shows a laser sight while it has a target, so players can read where it aims. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Aim")
+	bool bLaserSight = false;
+
+	/** Enemies within this distance hear a shot and come to investigate. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Stealth")
+	float NoiseRadius = 2200.f;
+
+	/** Sound library names (see UMetalSoundLibrary). None = silent. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	FName FireSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	FName ReloadSound = TEXT("reload");
+
+	/** Played where a shot lands (hitscan) or a projectile hits/explodes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	FName ImpactSound = TEXT("impact");
+
 	/** Static mesh used for pickups and thrown grenades. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visual")
 	TObjectPtr<UStaticMesh> PropMesh;

@@ -30,7 +30,7 @@ Instead of entering vehicles, the player **hacks Stalkers** (flying X-armed robo
 
 ## 2. Graybox capital ship (Blender)
 
-Built (see Progress). Layout in `Art/Graybox/Metalization_Graybox.blend`: `Ships/<group>/<part>`, one collection per static mesh. A part collection holds:
+Built (see Progress). Layout: `Art/Graybox/Ships/<group>/<part>.blend`, one file (and collection) per static mesh. A part collection holds:
 - its render meshes (joined at export)
 - `UCX_*` boxes or convex hulls for collision
 - a `PIVOT_*` empty (the mesh origin)

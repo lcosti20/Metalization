@@ -61,3 +61,22 @@ powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Sce
 ```
 
 Screenshots land in `Saved\Screenshots\WindowsEditor` and the log in `Saved\smoke_<scenario>.log`. Add `-Packaged` to run the scenario in the packaged Development build instead.
+
+### Production Alpha scenarios
+
+These run on `MZ_ProductionAlpha` (and `MZ_Title`). Most jump ahead with `-MetalObjective=N` and teleport to
+the beat:
+
+- `alpha`: sprint the trench.
+- `bridge`: double jump.
+- `lift`: ride the cliff lift.
+- `swap`: Repeater pickup and three swaps, filmed from a fixed side camera.
+- `bunker`: clears the earlier squad, then lobs grenades.
+- `sneak`: crawl pipe.
+- `sniper`: scope from the perch.
+- `hack`: guard, console, gate and reinforcements.
+- `title`: the title screen.
+- `jetpack` (Outpost): double jumps in the hangar to show the jetpack firing.
+
+The autopilot also has steps for sprint, sneak, aim and scope, next weapon, grenades and aiming at
+marksmen. Its log adds sprint, sneak, swap and scope state for the player and suspicion for every robot.

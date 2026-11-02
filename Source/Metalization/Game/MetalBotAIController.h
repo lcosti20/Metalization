@@ -67,6 +67,28 @@ public:
 	UFUNCTION(BlueprintPure, Category="Metalization|AI")
 	EMetalAIState GetState() const { return State; }
 
+	/**
+	 * A sound the player made (gunshot, footstep, explosion). Every enemy AI within Radius that isn't already
+	 * fighting turns towards it and walks over to investigate.
+	 *
+	 * @param Instigator Robot that made the noise; only its enemies react.
+	 * @param Location   Where the noise came from.
+	 * @param Radius     How far it carries, cm.
+	 */
+	static void ReportNoise(AMetalBotCharacter* Instigator, const FVector& Location, float Radius);
+
+	/**
+	 * @return 0..1 how close this robot is to spotting the player it can see: it fills while the player is in
+	 * view (faster up close, slower when they sneak) and reaching 1 starts a fight.
+	 */
+	float GetSuspicion() const { return Suspicion; }
+
+	/** @return World time this robot last went from unaware to fighting the player, for the HUD's "!". */
+	float GetAlertTime() const { return AlertTime; }
+
+	/** @return The enemy this robot is fighting, or null. */
+	AMetalBotCharacter* GetTarget() const { return Target.Get(); }
+
 	/** Senses on a timer, then runs the current state's Tick* function. Idle while stunned or dormant. */
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -158,4 +180,25 @@ private:
 	bool bTargetVisible = false;
 	/** Robots only retreat once per life. */
 	bool bHasRetreated = false;
+
+	/**
+	 * Hears a noise: investigates it unless already fighting.
+	 *
+	 * @param Location Where it came from.
+	 */
+	void HearNoise(const FVector& Location);
+
+	/**
+	 * Fills the suspicion meter for a player in view, and attacks when it is full.
+	 *
+	 * @param Suspect  The player-driven robot in view.
+	 * @param Distance Distance to it, cm.
+	 */
+	void BuildSuspicion(AMetalBotCharacter* Suspect, float Distance);
+
+	/** 0..1, see GetSuspicion. */
+	float Suspicion = 0.f;
+	float AlertTime = -100.f;
+	/** Last Sense() saw a player-driven suspect (so suspicion shouldn't decay). */
+	bool bSuspectInView = false;
 };

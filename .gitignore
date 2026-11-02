@@ -29,3 +29,6 @@ __pycache__/
 *.exe
 *.o
 *.obj
+
+# Blender backup files
+*.blend[0-9]*
