@@ -1,5 +1,7 @@
 #include "MetalGate.h"
 
+#include "MetalAudio.h"
+
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
@@ -27,6 +29,10 @@ void AMetalGate::BeginPlay()
 
 void AMetalGate::Open()
 {
+	if (!bOpening)
+	{
+		MetalAudio::PlayAt(this, TEXT("gate_open"), GetActorLocation(), 1.f, 0.f);
+	}
 	bOpening = true;
 }
 

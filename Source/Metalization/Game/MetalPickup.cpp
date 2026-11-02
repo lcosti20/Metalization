@@ -1,5 +1,6 @@
 #include "MetalPickup.h"
 
+#include "MetalAudio.h"
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
@@ -137,6 +138,7 @@ void AMetalPickup::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* O
 			GameMode->ShowMessage(FText::GetEmpty(), Message, 2.f);
 		}
 		AMetalFX::SpawnBurst(GetWorld(), GetActorLocation(), GetColor(), 40.f, 0.25f);
+		MetalAudio::PlayAt(this, TEXT("pickup"), GetActorLocation(), 0.8f, 0.f);
 		Destroy();
 	}
 }

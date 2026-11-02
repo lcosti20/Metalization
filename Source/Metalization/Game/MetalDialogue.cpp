@@ -1,5 +1,6 @@
 #include "MetalDialogue.h"
 
+#include "MetalAudio.h"
 #include "MetalTypes.h"
 
 void UMetalDialogueSubsystem::PlayDialogue(const TArray<FMetalDialogueLine>& Lines)
@@ -20,6 +21,7 @@ void UMetalDialogueSubsystem::PlayLine(const FMetalDialogueLine& Line)
 	{
 		LineTime = 0.f;
 		OpenTime = 0.f;
+		MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.6f);
 	}
 	Queue.Add(Line);
 	UE_LOG(LogMetal, Log, TEXT("Dialogue queued: %s: %s"), *Line.Speaker.ToString(), *Line.Line.ToString());
@@ -38,6 +40,10 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 	{
 		Queue.RemoveAt(0);
 		LineTime = 0.f;
+		if (Queue.Num() > 0)
+		{
+			MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.4f);
+		}
 	}
 }
 
