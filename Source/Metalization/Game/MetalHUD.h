@@ -89,4 +89,31 @@ private:
 	 * @param bEdgeArrow Keep the marker on screen when the point is outside the view.
 	 */
 	void DrawMarker(const FVector& World, const FString& Label, const FLinearColor& Color, float UI, bool bEdgeArrow);
+
+	/**
+	 * Sniper scope: everything outside a circle goes black, with a fine crosshair and a range readout.
+	 *
+	 * @param Bot   The scoped robot (for the range to the aim point).
+	 * @param Alpha 0..1 scope blend.
+	 * @param UI    Resolution scale factor.
+	 */
+	void DrawScope(const class AMetalBotCharacter* Bot, float Alpha, float UI);
+
+	/**
+	 * "?" over enemies that are getting suspicious (filling up as they get closer to spotting the player) and
+	 * "!" over ones that just spotted them.
+	 *
+	 * @param Viewer The player's robot.
+	 * @param UI     Resolution scale factor.
+	 */
+	void DrawAwareness(const class AMetalBotCharacter* Viewer, float UI);
+
+	/**
+	 * End-of-mission results panel: time, kills, deaths, accuracy and the restart / menu keys.
+	 *
+	 * @param GameMode The finished mission's game mode.
+	 * @param PC       The player (for accuracy).
+	 * @param UI       Resolution scale factor.
+	 */
+	void DrawResults(const class AMetalGameMode* GameMode, const class AMetalPlayerController* PC, float UI);
 };

@@ -91,6 +91,15 @@ public:
 	/** @return Villains killed by the player this mission. */
 	int32 GetKills() const { return Kills; }
 
+	/** @return Times the player was scrapped this mission. */
+	int32 GetDeaths() const { return Deaths; }
+
+	/** @return The level's mission, or null. */
+	AMetalMission* GetMission() const { return Mission; }
+
+	/** Opens the title screen map (MZ_Title), or reloads this level if there is none. */
+	void ReturnToTitle();
+
 	/** @return Seconds since the level started, frozen once the mission is complete. */
 	float GetMissionTime() const;
 
@@ -150,7 +159,24 @@ private:
 	float MissionStartTime = 0.f;
 	float MissionEndTime = 0.f;
 	int32 Kills = 0;
+	int32 Deaths = 0;
 	FDelegateHandle BotDiedHandle;
+};
+
+/**
+ * The Production Alpha mission (MZ_ProductionAlpha): the full HUD with the action camera, so the robot
+ * faces where it runs and sprinting reads well.
+ */
+UCLASS()
+class AMetalAlphaGameMode : public AMetalGameMode
+{
+	GENERATED_BODY()
+
+public:
+	AMetalAlphaGameMode()
+	{
+		bActionCamera = true;
+	}
 };
 
 /** Free-roam prototype arena (MZ_Arena): action camera, no mission, clean HUD. */

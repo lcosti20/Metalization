@@ -9,6 +9,7 @@
 #include "MetalTypes.h"
 #include "MetalBotCharacter.generated.h"
 
+class AMetalFX;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class UMetalBotAnimInstance;
@@ -270,6 +271,63 @@ public:
 	/** @return True while the aim button is held. */
 	bool IsAiming() const { return bAiming; }
 
+	// --- Sprint / sneak -------------------------------------------------------------------------
+
+	/**
+	 * Holds or releases the sprint button. The robot only actually sprints while it can: moving forward on
+	 * the ground, not aiming, shooting, sneaking or swapping weapons (see IsSprinting).
+	 *
+	 * @param bNewWantsSprint True while the button is held.
+	 */
+	void SetWantsSprint(bool bNewWantsSprint);
+
+	/** @return True while running at sprint speed. Sprinting is loud and easy to spot. */
+	UFUNCTION(BlueprintPure, Category="Metalization")
+	bool IsSprinting() const { return bSprinting; }
+
+	/**
+	 * Crouches into a sneak (slow, quiet, hard to spot) or stands back up. Ignored by robots that can't crouch.
+	 *
+	 * @param bNewSneaking True to sneak.
+	 */
+	void SetSneaking(bool bNewSneaking);
+
+	/** @return True while crouched. */
+	UFUNCTION(BlueprintPure, Category="Metalization")
+	bool IsSneaking() const { return bIsCrouched; }
+
+	/** @return True if this robot's archetype can sprint / crouch at all. */
+	bool CanSprint() const;
+	bool CanSneak() const;
+
+	/** @return 0 standing .. 1 fully crouched, for the animator. */
+	float GetCrouchAlpha() const { return CrouchAlpha; }
+
+	/** @return 0 at walk speed .. 1 at sprint speed, for the animator and camera. */
+	float GetSprintAlpha() const { return SprintAlpha; }
+
+	// --- Weapon swap ------------------------------------------------------------------------------
+
+	/** @return True while an acted-out weapon swap is playing (the robot can't fire). */
+	bool IsSwappingWeapon() const { return SwapStartTime >= 0.f; }
+
+	/** @return 0..1 progress through the acted-out swap, or -1 when not swapping. */
+	float GetSwapProgress() const;
+
+	/** @return Slot the current swap will equip, or INDEX_NONE. */
+	int32 GetSwapTargetSlot() const { return IsSwappingWeapon() ? SwapTargetSlot : INDEX_NONE; }
+
+	// --- Aim / scope ---------------------------------------------------------------------------------
+
+	/** @return 0..1 how far the camera has zoomed into a scoped weapon's sight (drives the HUD overlay). */
+	float GetScopeAlpha() const { return ScopeAlpha; }
+
+	/** @return Look speed multiplier from the aimed weapon (sniper scopes slow the mouse down). */
+	float GetLookSensitivityScale() const;
+
+	/** World time of the last shot, for noise/visibility checks. */
+	float GetLastFireTime() const { return LastFireTime; }
+
 	/** Player robot in a level whose game mode uses the action camera (see AMetalGameMode::bActionCamera). */
 	virtual bool UsesActionCamera() const;
 
@@ -381,6 +439,9 @@ protected:
 	/** Applies the archetype, sets health, spawns extra body parts and grants the starting loadout. */
 	virtual void BeginPlay() override;
 
+	/** Removes the laser sight beam. */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	/** Starts the forward flip on a mid-air (second) jump. */
 	virtual void OnJumped_Implementation() override;
 
@@ -464,6 +525,61 @@ protected:
 
 	/** Repaints the Body/Accent material slots with the archetype's colours for the current team, if it has any. */
 	void ApplyTeamColors();
+
+	/** Picks walk/sprint/crouch speed for player-driven robots, emits footstep sounds and noise. */
+	void TickLocomotion(float DeltaSeconds);
+
+	/** Advances an acted-out weapon swap through its detach / rack / attach beats. */
+	void TickWeaponSwap(float Now);
+
+	/** Shows the most recently stowed weapons on the back rack. */
+	void RefreshRack();
+
+	/**
+	 * Puts a weapon's held mesh in a stand-alone component (no leader pose) so that its grip sits on a bone.
+	 *
+	 * @param Component  CarriedGun or a rack slot.
+	 * @param Slot       Weapon slot to show, or INDEX_NONE to hide the component.
+	 * @param Bone       Body bone to attach to.
+	 * @param GripInBody Wanted transform of the weapon grip in body-mesh space (bind pose), see the .cpp.
+	 */
+	void PlaceWeaponOnBone(USkeletalMeshComponent* Component, int32 Slot, FName Bone, const FTransform& GripInBody);
+
+	/** Plays a library sound at this robot (see MetalAudio). */
+	void PlaySound(FName Name, float Volume = 1.f) const;
+
+	/** Gun held in the off hand during an acted-out swap. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USkeletalMeshComponent> CarriedGun;
+
+	/** Stowed weapons shown on the back (player only). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USkeletalMeshComponent> RackGunA;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USkeletalMeshComponent> RackGunB;
+
+	/** Beam from the muzzle to the aim point while an AI aims a weapon with bLaserSight. */
+	UPROPERTY(Transient)
+	TObjectPtr<AMetalFX> LaserSight;
+
+	/** The robot's own meshes are hidden from its camera while looking down a scope. */
+	bool bHiddenForScope = false;
+	bool bWantsSprint = false;
+	bool bSprinting = false;
+	float CrouchAlpha = 0.f;
+	float SprintAlpha = 0.f;
+	/** Distance walked since the last footstep. */
+	float StepDistance = 0.f;
+	float ScopeAlpha = 0.f;
+	/** World time the acted-out swap started, or -1. */
+	float SwapStartTime = -1.f;
+	int32 SwapFromSlot = INDEX_NONE;
+	int32 SwapTargetSlot = INDEX_NONE;
+	/** 0 reaching, 1 gun off, 2 racked/drawn, 3 attached. */
+	int32 SwapStage = 0;
+	/** Slots most recently stowed first; the first two are drawn on the rack. */
+	TArray<int32> RackOrder;
 
 	/** Spring arm holding the third-person camera. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")

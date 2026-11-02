@@ -96,12 +96,13 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	AimPitch = FMath::FInterpTo(AimPitch, Bot->GetAimPitch(), DeltaSeconds, 18.f);
 	CombatAlpha = FMath::FInterpTo(CombatAlpha, Bot->IsInCombatStance() ? 1.f : 0.f, DeltaSeconds, 8.f);
 	LandAlpha = FMath::FInterpTo(LandAlpha, 0.f, DeltaSeconds, 7.f);
-	// Running freely the robot leans into its stride.
-	Lean = FMath::FInterpTo(Lean, 9.f * MoveAlpha * (1.f - CombatAlpha), DeltaSeconds, 6.f);
+	// Running freely the robot leans into its stride, more so when sprinting.
+	const float SprintAlpha = Bot->GetSprintAlpha();
+	Lean = FMath::FInterpTo(Lean, (9.f * (1.f - CombatAlpha) + 9.f * SprintAlpha) * MoveAlpha, DeltaSeconds, 6.f);
 
 	// Advance the gait by distance rather than time, so the feet don't slide at any speed: one full
-	// phase (0..1) is one stride of two steps.
-	const float Stride = FMath::Max(10.f, Rig.StrideLength * Scale);
+	// phase (0..1) is one stride of two steps. Sprinting lengthens the stride instead of blurring the legs.
+	const float Stride = FMath::Max(10.f, Rig.StrideLength * Scale * (1.f + 0.4f * SprintAlpha));
 	GaitPhase = FMath::Fmod(GaitPhase + GroundSpeed * DeltaSeconds / Stride, 1.f);
 
 	FMetalBotAnimProxy& Proxy = GetProxyOnGameThread<FMetalBotAnimProxy>();
@@ -125,6 +126,21 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	State.Lean = Lean;
 	State.BoostAlpha = BoostAlpha;
 	State.ParkedAlpha = ParkedAlpha;
+	State.CrouchAlpha = Bot->GetCrouchAlpha();
+	State.SprintAlpha = SprintAlpha;
+
+	// Weapon swap beats (see AMetalBotCharacter::TickWeaponSwap): reach to the gun arm and twist the gun off
+	// (0-0.3), swing it over the shoulder to the rack and pull the new one (0.3-0.6), bring it round and
+	// twist it on (0.6-0.9).
+	const float Swap = Bot->GetSwapProgress();
+	State.SwapReach = State.SwapStow = State.SwapTwist = 0.f;
+	if (Swap >= 0.f)
+	{
+		auto In = [Swap](float A, float B) { return FMath::SmoothStep(A, B, Swap); };
+		State.SwapReach = In(0.f, 0.18f) * (1.f - In(0.30f, 0.40f)) + In(0.60f, 0.74f) * (1.f - In(0.86f, 1.f));
+		State.SwapStow = In(0.32f, 0.47f) * (1.f - In(0.53f, 0.68f));
+		State.SwapTwist = In(0.14f, 0.28f) * (1.f - In(0.30f, 0.36f)) + In(0.70f, 0.80f) * (1.f - In(0.80f, 0.90f));
+	}
 }
 
 FAnimInstanceProxy* UMetalBotAnimInstance::CreateAnimInstanceProxy()
@@ -198,8 +214,12 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	Add(ForearmL, FQuat::Slerp(FQuat::Identity, Rig.ForearmLReady.Quaternion(), Upright));
 	Add(ForearmR, FQuat::Slerp(FQuat::Identity, Rig.ForearmRReady.Quaternion(), Upright));
 
+	// The off hand is busy during a weapon swap: it skips the run/jump arm motion.
+	const float LeftArmFree = 1.f - FMath::Max(S.SwapReach, S.SwapStow);
+
 	// Walk cycle: legs swing along the movement direction, knees fold while the leg travels forward.
-	const float Swing = Rig.LegSwingDegrees * S.MoveAlpha;
+	// Sprinting swings them further; sneaking takes short, careful steps.
+	const float Swing = Rig.LegSwingDegrees * S.MoveAlpha * (1.f + 0.35f * S.SprintAlpha) * (1.f - 0.4f * S.CrouchAlpha);
 	Add(ThighL, SwingToward(S.MoveDirection, Swing * Sin));
 	Add(ThighR, SwingToward(S.MoveDirection, -Swing * Sin));
 	Add(KneeL, SwingToward(S.MoveDirection, -Rig.KneeBendDegrees * S.MoveAlpha * FMath::Max(0.f, Cos)));
@@ -217,10 +237,10 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	Add(Pelvis, PitchUp(-S.Lean));
 	Add(ThighL, SwingToward(FVector::ForwardVector, S.Lean));
 	Add(ThighR, SwingToward(FVector::ForwardVector, S.Lean));
-	const float Pump = Rig.ArmSwingDegrees * 1.6f * S.MoveAlpha * ArmsRelaxed;
-	Add(UpperArmL, SwingToward(FVector::ForwardVector, -Pump * Sin));
+	const float Pump = Rig.ArmSwingDegrees * 1.6f * S.MoveAlpha * ArmsRelaxed * (1.f + 0.6f * S.SprintAlpha);
+	Add(UpperArmL, SwingToward(FVector::ForwardVector, -Pump * Sin * LeftArmFree));
 	Add(UpperArmR, SwingToward(FVector::ForwardVector, (Rig.ArmSwingDegrees * S.MoveAlpha * ArmsRelaxed + Pump) * Sin));
-	Add(ForearmL, SwingToward(FVector::ForwardVector, 45.f * S.MoveAlpha * ArmsRelaxed));
+	Add(ForearmL, SwingToward(FVector::ForwardVector, 45.f * S.MoveAlpha * ArmsRelaxed * LeftArmFree));
 	Add(ForearmR, SwingToward(FVector::ForwardVector, 45.f * S.MoveAlpha * ArmsRelaxed));
 
 	// Jumping / falling: tuck one leg, extend the other; arms fling out for balance when not shooting.
@@ -229,7 +249,7 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	Add(KneeL, SwingToward(FVector::ForwardVector, -Rig.KneeBendDegrees * 1.4f * S.InAirAlpha));
 	Add(KneeR, SwingToward(FVector::ForwardVector, -Rig.KneeBendDegrees * 0.6f * S.InAirAlpha));
 	const float Fling = 50.f * S.InAirAlpha * ArmsRelaxed * (1.f - S.FlipTuck);
-	Add(UpperArmL, SwingToward(FVector(0.2f, -1.f, 0.f).GetSafeNormal(), Fling));
+	Add(UpperArmL, SwingToward(FVector(0.2f, -1.f, 0.f).GetSafeNormal(), Fling * LeftArmFree));
 	Add(UpperArmR, SwingToward(FVector(0.2f, 1.f, 0.f).GetSafeNormal(), Fling));
 
 	// Double-jump flip: curl into a ball.
@@ -254,6 +274,43 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 		PelvisOffset.Z -= 9.f * S.LandAlpha;
 	}
 
+	// Sneaking: sink into a deep crouch with the body hunched forward over bent legs. The capsule shrinks
+	// around its bottom and the character raises the mesh to match, so the pelvis drops to stay grounded.
+	if (S.CrouchAlpha > KINDA_SMALL_NUMBER)
+	{
+		const float C = S.CrouchAlpha;
+		const float KneeSign = Rig.KneeBendDegrees >= 0.f ? 1.f : -1.f;
+		Add(ThighL, SwingToward(FVector::ForwardVector, 55.f * KneeSign * C));
+		Add(ThighR, SwingToward(FVector::ForwardVector, 55.f * KneeSign * C));
+		Add(KneeL, SwingToward(FVector::ForwardVector, -100.f * KneeSign * C));
+		Add(KneeR, SwingToward(FVector::ForwardVector, -100.f * KneeSign * C));
+		Add(Pelvis, PitchUp(-14.f * C));
+		Add(Head, PitchUp(10.f * C));
+		PelvisOffset.Z -= Rig.CrouchDrop * C;
+	}
+
+	// Weapon swap, off hand: reach across to the gun arm, twist, then swing up over the shoulder to the back
+	// rack and back. The gun arm lifts towards the hand and rolls with the twist.
+	if (S.SwapReach > KINDA_SMALL_NUMBER || S.SwapStow > KINDA_SMALL_NUMBER)
+	{
+		const float R = S.SwapReach * Upright;
+		const float W = S.SwapStow * Upright;
+		// Across the body to the gun-arm wrist: the upper arm swings forward and in, the forearm turns in.
+		Add(UpperArmL, Yaw(55.f * R) * SwingToward(FVector::RightVector, 22.f * R) * SwingToward(FVector::ForwardVector, 70.f * R));
+		Add(ForearmL, Yaw(80.f * R));
+		Add(ForearmR, Yaw(-30.f * R) * PitchUp(10.f * R));
+		// Over the shoulder: the upper arm swings up past vertical and the forearm folds down behind the back.
+		Add(UpperArmL, SwingToward(FVector(0.f, 0.3f, 0.f) + FVector::ForwardVector, 160.f * W));
+		Add(ForearmL, SwingToward(FVector::ForwardVector, 70.f * W));
+		Add(Pelvis, Yaw(-14.f * W));
+		Add(Head, Yaw(-25.f * W) * PitchUp(-8.f * R));
+	}
+	if (S.SwapTwist > KINDA_SMALL_NUMBER)
+	{
+		Add(ForearmR, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(75.f * S.SwapTwist)));
+		Add(ForearmL, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-60.f * S.SwapTwist)));
+	}
+
 	// Aim: the weapon arm follows the camera (or AI) pitch.
 	const float Aim = (S.AimPitch * Rig.AimPitchWeight * S.CombatAlpha + 9.f * S.Recoil) * Upright;
 	const int32 AimR = Rig.bAimFromShoulder ? UpperArmR : ForearmR;
@@ -265,7 +322,7 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	}
 	else
 	{
-		Add(UpperArmL, SwingToward(FVector::ForwardVector, -Rig.ArmSwingDegrees * S.MoveAlpha * Sin));
+		Add(UpperArmL, SwingToward(FVector::ForwardVector, -Rig.ArmSwingDegrees * S.MoveAlpha * Sin * LeftArmFree));
 	}
 	Add(Head, PitchUp(S.AimPitch * 0.35f * S.CombatAlpha * Upright));
 	PelvisOffset.X -= 1.5f * S.Recoil;

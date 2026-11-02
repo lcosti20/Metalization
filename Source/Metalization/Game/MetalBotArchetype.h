@@ -78,6 +78,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	int32 MaxJumps = 1;
 
+	/** Top speed while the sprint button is held. 0 = this robot can't sprint. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float SprintSpeed = 0.f;
+
+	/** Top speed while sneaking (crouched). 0 = this robot can't crouch. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float CrouchSpeed = 0.f;
+
+	/** Capsule half height while crouched, as a fraction of CapsuleHalfHeight. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
+	float CrouchHeightFraction = 0.65f;
+
+	/**
+	 * Weapon swaps are acted out (twist the gun arm off, rack it on the back, snap the new one on) instead of
+	 * swapping instantly. Only applies while a player drives the robot.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	bool bAnimatedWeaponSwap = false;
+
+	/** Seconds the acted-out weapon swap takes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	float WeaponSwapDuration = 0.8f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	TArray<FMetalHitZone> HitZones;
 

@@ -8,6 +8,7 @@
 #include "MetalMission.generated.h"
 
 class AMetalGameMode;
+class UMetalWeaponData;
 class UBillboardComponent;
 
 /** What the player has to do to complete an objective. Checked by AMetalMission::IsObjectiveComplete. */
@@ -48,6 +49,14 @@ struct FMetalObjective
 	/** Played when the objective becomes active. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Objective")
 	TArray<FMetalDialogueLine> StartDialogue;
+
+	/** Control tip shown on the HUD while the objective is active, e.g. "Hold [Shift] to sprint". */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Objective")
+	FText Hint;
+
+	/** Point the HUD's objective marker at the target (zone, console or the nearest tagged robot). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Objective")
+	bool bShowMarker = true;
 };
 
 /**
@@ -75,6 +84,31 @@ public:
 	/** Played after the last objective. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mission")
 	TArray<FMetalDialogueLine> CompletionDialogue;
+
+	/**
+	 * Replaces the player's archetype loadout at the start of the mission (so a tutorial can hand weapons
+	 * out one at a time). Empty keeps the archetype's starting weapons.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mission")
+	TArray<TObjectPtr<UMetalWeaponData>> PlayerStartingWeapons;
+
+	/** Grenades the player starts with; negative keeps the archetype's count. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mission")
+	int32 PlayerStartingGrenades = -1;
+
+	/** @return The active objective's control tip, or empty. */
+	FText GetCurrentHint() const;
+
+	/**
+	 * Where the HUD's objective marker should point.
+	 *
+	 * @param OutLocation World position of the marker.
+	 * @return False when the active objective has no marker (or there is none).
+	 */
+	bool GetObjectiveMarker(FVector& OutLocation) const;
+
+	/** @return Index of the active objective (INDEX_NONE before the start, Objectives.Num() when done). */
+	int32 GetCurrentObjectiveIndex() const { return CurrentObjective; }
 
 	/**
 	 * Shows the mission banner and activates the first objective (or the one given by -MetalObjective=N
@@ -118,4 +152,6 @@ private:
 	TWeakObjectPtr<AMetalGameMode> GameMode;
 	int32 CurrentObjective = INDEX_NONE;
 	float NextCheckTime = 0.f;
+	/** PlayerStartingWeapons has been given to the first player pawn. */
+	bool bLoadoutApplied = false;
 };

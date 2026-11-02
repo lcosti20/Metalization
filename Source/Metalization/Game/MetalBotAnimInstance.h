@@ -54,6 +54,14 @@ struct FMetalBotAnimState
 	/** Flying robots: arms sweep back with boost and fold while parked. */
 	float BoostAlpha = 0.f;
 	float ParkedAlpha = 0.f;
+	/** 1 fully crouched (sneaking). */
+	float CrouchAlpha = 0.f;
+	/** 0 at walk speed .. 1 at full sprint. */
+	float SprintAlpha = 0.f;
+	/** Acted-out weapon swap: off hand reaching to the gun arm, swinging over the shoulder, twisting. */
+	float SwapReach = 0.f;
+	float SwapStow = 0.f;
+	float SwapTwist = 0.f;
 };
 
 /**

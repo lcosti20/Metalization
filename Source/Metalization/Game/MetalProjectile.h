@@ -35,6 +35,13 @@ public:
 	 */
 	void Launch(const UMetalWeaponData* Weapon, float InDamage, const FVector& Velocity);
 
+	/**
+	 * Overrides a thrown weapon's fuse (set by Launch), e.g. to let a long lob land before it goes off.
+	 *
+	 * @param Seconds Time until it detonates.
+	 */
+	void SetFuse(float Seconds) { FuseTime = Seconds; }
+
 	/** Counts down a grenade's fuse. */
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -70,4 +77,6 @@ private:
 	FLinearColor Color = FLinearColor::White;
 	float Scale = 1.f;
 	bool bDetonated = false;
+	/** Sound library name played on a direct (non-explosive) hit. */
+	FName ImpactSound;
 };

@@ -1,5 +1,7 @@
 #include "MetalProjectile.h"
 
+#include "MetalAudio.h"
+#include "MetalBotAIController.h"
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
 #include "MetalWeaponData.h"
@@ -47,6 +49,7 @@ void AMetalProjectile::Launch(const UMetalWeaponData* Weapon, float InDamage, co
 	ExplosionRadius = Weapon->ExplosionRadius;
 	StunDuration = Weapon->StunDuration;
 	Color = Weapon->TracerColor;
+	ImpactSound = Weapon->ImpactSound;
 	Scale = FMath::Max(0.1f, Weapon->ProjectileScale);
 	Collision->SetSphereRadius(6.f * Scale);
 
@@ -162,6 +165,12 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 			}
 		}
 		AMetalFX::SpawnBurst(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		MetalAudio::PlayAt(this, StunDuration > 0.f ? TEXT("emp_blast") : TEXT("explosion"), Location, 1.f, 0.08f);
+		// Explosions are heard a long way off.
+		if (AMetalBotCharacter* Thrower = Cast<AMetalBotCharacter>(GetInstigator()); Thrower && Thrower->IsPlayerControlled())
+		{
+			AMetalBotAIController::ReportNoise(Thrower, Location, 1800.f);
+		}
 	}
 	else
 	{
@@ -171,6 +180,7 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 				InstigatorController, this, UDamageType::StaticClass());
 		}
 		AMetalFX::SpawnBurst(World, Location, Color, 18.f * Scale, 0.15f);
+		MetalAudio::PlayAt(this, ImpactSound, Location, 0.5f, 0.1f);
 	}
 	Destroy();
 }

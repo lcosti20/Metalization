@@ -1,5 +1,6 @@
 #include "MetalBotAIController.h"
 
+#include "MetalAudio.h"
 #include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
 #include "EngineUtils.h"
@@ -44,6 +45,11 @@ void AMetalBotAIController::SetState(EMetalAIState NewState)
 		State = NewState;
 		StateStartTime = GetWorld()->GetTimeSeconds();
 		NextMoveTime = 0.f;
+		if (NewState == EMetalAIState::Patrol)
+		{
+			// Done looking at whatever caught its attention.
+			ClearFocus(EAIFocusPriority::Gameplay);
+		}
 		if (AMetalBotCharacter* Bot = GetBot())
 		{
 			Bot->StopFire();
@@ -91,6 +97,13 @@ void AMetalBotAIController::EnterCombat(AMetalBotCharacter* Enemy, bool bAlertSq
 		return;
 	}
 	Bot->bDocileUntilAttacked = false;
+	if (State != EMetalAIState::Combat && Enemy && Enemy->IsPlayerControlled())
+	{
+		// Caught the player: the HUD shows a "!" over this robot for a moment.
+		AlertTime = GetWorld()->GetTimeSeconds();
+		MetalAudio::PlayAt(this, TEXT("alert"), Bot->GetEyesLocation(), 0.8f, 0.f);
+	}
+	Suspicion = 0.f;
 	Target = Enemy;
 	LastSeenTime = GetWorld()->GetTimeSeconds();
 	SetState(EMetalAIState::Combat);
@@ -157,6 +170,7 @@ void AMetalBotAIController::Sense()
 	const float CosHalfAngle = FMath::Cos(FMath::DegreesToRadians(Bot->Archetype->SightHalfAngle));
 	AMetalBotCharacter* Best = nullptr;
 	float BestDistance = Bot->Archetype->SightRange;
+	float BestRealDistance = 0.f;
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 	{
 		AMetalBotCharacter* Other = *It;
@@ -165,13 +179,35 @@ void AMetalBotAIController::Sense()
 			continue;
 		}
 		const FVector ToOther = Other->GetActorLocation() - Eyes;
-		// Powered-down bodies count as further away, so active threats win.
-		const float Distance = ToOther.Size() * (Other->IsDormant() ? 2.f : 1.f);
-		const bool bInCone = FVector::DotProduct(ToOther / FMath::Max(Distance, 1.f), Forward) > CosHalfAngle;
-		if (Distance < BestDistance && (bInCone || Distance < ProximityAwareness) && HasLineOfSight(Other))
+		const float RealDistance = ToOther.Size();
+		// Powered-down bodies count as further away, so active threats win. A sneaking robot is a small,
+		// still shape: it is only seen at about 60% of the usual range and isn't felt behind the back.
+		const float Distance = RealDistance * (Other->IsDormant() ? 2.f : 1.f) * (Other->IsSneaking() ? 1.7f : 1.f);
+		const float Proximity = Other->IsSneaking() ? ProximityAwareness * 0.35f : ProximityAwareness;
+		const bool bInCone = FVector::DotProduct(ToOther / FMath::Max(RealDistance, 1.f), Forward) > CosHalfAngle;
+		if (Distance < BestDistance && (bInCone || RealDistance < Proximity) && HasLineOfSight(Other))
 		{
 			Best = Other;
 			BestDistance = Distance;
+			BestRealDistance = RealDistance;
+		}
+	}
+
+	// The player isn't spotted at a glance: suspicion builds while they stay in view (see BuildSuspicion).
+	// Other robots - including the player's allies - are fought on sight.
+	const bool bSuspect = Best && Best->IsPlayerControlled() && State != EMetalAIState::Combat;
+	bSuspectInView = bSuspect;
+	if (bSuspect)
+	{
+		BuildSuspicion(Best, BestRealDistance);
+		return;
+	}
+	if (Suspicion > 0.f)
+	{
+		Suspicion = FMath::Max(0.f, Suspicion - SenseInterval * 0.25f);
+		if (Suspicion <= 0.f && State == EMetalAIState::Patrol)
+		{
+			ClearFocus(EAIFocusPriority::Gameplay);
 		}
 	}
 	// Only switch targets when not already fighting, or when the current target is a powered-down body
@@ -181,6 +217,95 @@ void AMetalBotAIController::Sense()
 	if (Best && (State != EMetalAIState::Combat || Current == nullptr || bCurrentIsHarmless))
 	{
 		EnterCombat(Best, Current == nullptr);
+	}
+}
+
+void AMetalBotAIController::BuildSuspicion(AMetalBotCharacter* Suspect, float Distance)
+{
+	AMetalBotCharacter* Bot = GetBot();
+	const float Now = GetWorld()->GetTimeSeconds();
+	// Seconds of continuous sight before attacking: under half a second up close, ~3.5 s at the edge of
+	// sight. Sneaking stretches that, sprinting and shooting shorten it, and a robot of our own side
+	// (hijacked by the player) passes at a glance unless it does something stupid.
+	float Seconds = FMath::GetMappedRangeValueClamped(FVector2D(300.f, Bot->Archetype->SightRange), FVector2D(0.4f, 3.5f), Distance);
+	if (Suspect->IsSneaking())
+	{
+		Seconds *= 2.5f;
+	}
+	if (Suspect->IsSprinting())
+	{
+		Seconds *= 0.6f;
+	}
+	if (Now - Suspect->GetLastFireTime() < 1.5f)
+	{
+		Seconds *= 0.25f;
+	}
+	if (Suspect->IsHijacked() && Suspect->GetBaseTeam() == Bot->GetTeam())
+	{
+		Seconds *= 4.f;
+	}
+	const float Before = Suspicion;
+	Suspicion = FMath::Min(1.f, Suspicion + SenseInterval / FMath::Max(Seconds, 0.05f));
+	LastKnownLocation = Suspect->GetActorLocation();
+	if (Suspicion >= 1.f)
+	{
+		EnterCombat(Suspect, true);
+		return;
+	}
+	if (Before <= 0.f)
+	{
+		MetalAudio::PlayAt(this, TEXT("suspicion"), Bot->GetEyesLocation(), 0.6f, 0.f);
+	}
+	// Something's there: stop and stare, and past halfway walk over to get a better look.
+	SetFocus(Suspect);
+	if (State == EMetalAIState::Patrol)
+	{
+		StopMovement();
+		if (Suspicion > 0.5f)
+		{
+			SetState(EMetalAIState::Investigate);
+		}
+	}
+}
+
+void AMetalBotAIController::HearNoise(const FVector& Location)
+{
+	AMetalBotCharacter* Bot = GetBot();
+	if (Bot == nullptr || !Bot->IsAlive() || Bot->bPassive || Bot->bDocileUntilAttacked || Bot->IsDormant()
+		|| State == EMetalAIState::Combat || State == EMetalAIState::Retreat || State == EMetalAIState::Dead)
+	{
+		return;
+	}
+	LastKnownLocation = Location;
+	Suspicion = FMath::Max(Suspicion, 0.35f);
+	SetFocalPoint(Location);
+	if (State == EMetalAIState::Investigate)
+	{
+		// Already checking something out: head for the new noise instead and keep looking a while longer.
+		StateStartTime = GetWorld()->GetTimeSeconds();
+		MoveToLocation(Location, 100.f);
+	}
+	else
+	{
+		SetState(EMetalAIState::Investigate);
+	}
+}
+
+void AMetalBotAIController::ReportNoise(AMetalBotCharacter* Instigator, const FVector& Location, float Radius)
+{
+	UWorld* World = Instigator ? Instigator->GetWorld() : nullptr;
+	if (World == nullptr || Radius <= 0.f)
+	{
+		return;
+	}
+	const float RadiusSq = FMath::Square(Radius);
+	for (TActorIterator<AMetalBotAIController> It(World); It; ++It)
+	{
+		const AMetalBotCharacter* Listener = It->GetBot();
+		if (Listener && Listener->IsHostileTo(Instigator) && FVector::DistSquared(Listener->GetActorLocation(), Location) < RadiusSq)
+		{
+			It->HearNoise(Location);
+		}
 	}
 }
 
@@ -247,6 +372,7 @@ void AMetalBotAIController::TickInvestigate(float Now)
 	if (Now - StateStartTime < 0.1f)
 	{
 		MoveToLocation(LastKnownLocation, 100.f);
+		SetFocalPoint(LastKnownLocation);
 	}
 	// Look around at the last known position for a few seconds, then go back to patrolling.
 	if (GetMoveStatus() == EPathFollowingStatus::Idle && Now - StateStartTime > 6.f)

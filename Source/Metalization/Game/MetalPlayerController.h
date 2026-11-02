@@ -82,6 +82,16 @@ public:
 	/** Called by the possessed robot when it takes damage, for the HUD damage flash. */
 	void NotifyDamageTaken();
 
+	/**
+	 * Counts one trigger pull of the player's gun for the end-of-mission accuracy.
+	 *
+	 * @param bHit True if any pellet of it hit a robot.
+	 */
+	void NotifyShotFired(bool bHit) { ShotsFired++; ShotsHit += bHit ? 1 : 0; }
+
+	/** @return Share of shots that hit a robot (0..1), or -1 before the first shot. */
+	float GetAccuracy() const { return ShotsFired > 0 ? static_cast<float>(ShotsHit) / ShotsFired : -1.f; }
+
 	/** @return World time of the last confirmed hit. */
 	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }
 
@@ -143,6 +153,17 @@ private:
 
 	/** @param Value 2D mouse/stick delta: X yaws, Y pitches. */
 	void Look(const FInputActionValue& Value);
+
+	/** Holds / releases sprint (Shift). */
+	void SprintPressed();
+	void SprintReleased();
+
+	/** Hold-to-sneak (Ctrl). */
+	void SneakPressed();
+	void SneakReleased();
+
+	/** Toggle sneak (C / right stick click). */
+	void SneakToggled();
 
 	/** Jumps (a second press in mid-air is the double jump). */
 	void JumpPressed();
@@ -256,6 +277,8 @@ private:
 	float PossessionDuration = 0.f;
 	float LastHitConfirmTime = -100.f;
 	float LastDamageTime = -100.f;
+	int32 ShotsFired = 0;
+	int32 ShotsHit = 0;
 	/** Set around Possess() calls made by the tether, so OnPossess doesn't mistake the host for the body. */
 	bool bSwitchingBodies = false;
 	bool bAllyLink = false;
