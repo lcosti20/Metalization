@@ -9,7 +9,8 @@ MetalizationEditor target so the C++ classes the data assets use exist.
 Stages:
     1. blender_export.py    Art/Graybox/Metalization_Graybox.blend -> Saved/AssetPipeline (FBX, manifest.json)
     2. ue_import_assets.py  materials, skeletal/static meshes (characters, weapons, props, ships) under /Game/Metalization
-    3. ue_setup_gameplay.py weapon + robot data assets, the MZ_Outpost_Demo map and MZ_Arena (ue_setup_arena.py)
+    1b. generate_sfx.py     synthesized sound effects -> Saved/AssetPipeline/Audio (WAV)
+    3. ue_setup_gameplay.py weapon + robot data assets, DA_Sounds, the maps (MZ_ProductionAlpha, MZ_Title, MZ_Outpost_Demo, ...)
     4. ue_validate.py       sanity checks (sizes, material slots, skeletal-mesh usage flags)
 #>
 param(
@@ -48,10 +49,18 @@ if (-not $SkipBlender) {
     if ($LASTEXITCODE -ne 0) { throw "Blender export failed" }
 }
 if (-not $SkipImport) {
+    # Sound effects are synthesized (no source files): standard-library Python, so the engine's own runs it.
+    Write-Host "== generate_sfx.py" -ForegroundColor Cyan
+    $Python = Join-Path (Split-Path (Split-Path (Split-Path $Editor))) "Binaries\ThirdParty\Python3\Win64\python.exe"
+    if (-not (Test-Path $Python)) { $Python = "python" }
+    & $Python (Join-Path $Tools "generate_sfx.py") (Join-Path $Out "Audio") | Select-String "\[MZSfx\] DONE"
+    if ($LASTEXITCODE -ne 0) { throw "Sound generation failed" }
+}
+if (-not $SkipImport) {
     # Everything here is regenerated from the manifest. Reimporting over an existing mesh keeps its old
     # material slots, and deleting assets from the commandlet doesn't remove the files, so clear them on disk.
     $Generated = Join-Path $Project "Content\Metalization"
-    foreach ($folder in "Characters", "Weapons", "Props", "Ships", "Textures", "Materials\Instances") {
+    foreach ($folder in "Characters", "Weapons", "Props", "Ships", "Textures", "Materials\Instances", "Audio") {
         $path = Join-Path $Generated $folder
         if (Test-Path $path) { Remove-Item -Recurse -Force $path }
     }

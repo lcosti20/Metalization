@@ -15,6 +15,7 @@ Creates, under /Game/Metalization:
     Weapons/<Name>/SK_<Name>_On<Holder>  weapons bonemerged onto a holder's skeleton
     Props/SM_<Name>                   weapons and grenades as static meshes (pickups)
     Ships/SM_<Part>                   capital ship pieces and the hangar kit (UCX collision + sockets)
+    Audio/SW_<Name>                   sound effects from generate_sfx.py (names ending _loop loop)
 
 Safe to re-run: existing assets are updated in place. run_pipeline.ps1 clears the generated folders first,
 because reimporting over a mesh keeps its old material slots (which breaks switching models).
@@ -413,6 +414,38 @@ def import_weapons(manifest, instances, skeletons):
     log(f"weapon followers: {count}")
 
 
+def import_audio():
+    """Every WAV from generate_sfx.py becomes /Game/Metalization/Audio/SW_<Name>."""
+    folder = os.path.join(PIPELINE_DIR, "Audio")
+    if not os.path.isdir(folder):
+        log("WARNING no Saved/AssetPipeline/Audio - run generate_sfx.py (the game will be silent)")
+        return
+    tasks = []
+    for file in sorted(os.listdir(folder)):
+        if not file.endswith(".wav"):
+            continue
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", os.path.join(folder, file))
+        task.set_editor_property("destination_path", f"{ROOT}/Audio")
+        task.set_editor_property("destination_name", "SW_" + pascal(file[:-4]))
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("automated", True)
+        task.set_editor_property("save", False)
+        tasks.append(task)
+    asset_tools.import_asset_tasks(tasks)
+    count = 0
+    for file in sorted(os.listdir(folder)):
+        if not file.endswith(".wav"):
+            continue
+        wave = load(f"{ROOT}/Audio/SW_{pascal(file[:-4])}")
+        if wave is None:
+            unreal.log_error(f"[MZImport] FAILED to import {file}")
+            continue
+        wave.set_editor_property("looping", file.endswith("_loop.wav"))
+        count += 1
+    log(f"sounds: {count}")
+
+
 def import_ships(manifest, instances):
     """Ship pieces: static meshes whose UCX_ hulls become simple collision, plus the sockets from the manifest."""
     for part, s in manifest.get("ships", {}).items():
@@ -441,6 +474,7 @@ def main():
     skeletons = import_characters(manifest, instances)
     import_weapons(manifest, instances, skeletons)
     import_ships(manifest, instances)
+    import_audio()
     eal.save_directory(ROOT, only_if_is_dirty=False, recursive=True)
     log("DONE")
 
