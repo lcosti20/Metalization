@@ -41,7 +41,7 @@ Run everything with the editor **closed**:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\run_pipeline.ps1
-# -SkipBlender / -SkipImport / -SkipGameplay to re-run individual stages, -Blend <file> to export another .blend
+# -SkipBlender / -SkipImport / -SkipGameplay to re-run individual stages, -Source <folder> to export another model folder
 ```
 
 | Stage | Script | Output |
@@ -60,7 +60,12 @@ Key decisions:
 - **Level geometry** uses the template's prototype grid (`T_GridChecker_A`, green channel as a subtle shade) under the `MI_Env_*` tints.
 - The level scripts regenerate the maps in place, so **make manual layout changes on a copy of the map**.
 
-### 3a. Graybox models (`Art/Graybox/Metalization_Graybox.blend`)
+### 3a. Graybox models (`Art/Graybox/`, one .blend per model)
+
+The models are split into one Blender file per model (see [Art/Graybox/README.md](../Art/Graybox/README.md)).
+`blender_export.py` assembles them into one scene, rebuilding the collection layout described below from
+the folders, before exporting. Materials shared by several models live in `Shared/GB_Materials.blend` and
+are linked into the model files.
 
 The source of truth for every model. Layout the exporter expects:
 
@@ -72,7 +77,7 @@ The source of truth for every model. Layout the exporter expects:
 
 Bodies are one bevelled box per bone, rigidly skinned to it. Gameplay depends on the bone names (`bip_head`, `bip_pelvis`, `bip_hip_L/R`, `bip_upperArm/lowerArm_L/R`, `weapon_bone`, `minigun_R/L`, `ankle_1_L/R`, `hip_L/R`), so keep them when replacing art. Materials are flat colours: Heroes in blues/greens, Villains in reds/oranges, a lighter accent on head/hands/feet, a glowing visor on the front of the player's head, and one colour per weapon family.
 
-To replace a graybox with authored art, model it in `Metalization_Graybox.blend` on the same armature (or edit the boxes), then run `run_pipeline.ps1`.
+To replace a graybox with authored art, model it in its file under `Art/Graybox/` on the same armature (or edit the boxes), then run `run_pipeline.ps1`.
 
 ---
 
@@ -230,7 +235,7 @@ The list comes from **Project Settings > Game > Metalization Levels** (`UMetalLe
 1. **Feel pass**: sounds (MetaSounds), Niagara muzzle/impact/explosion effects to replace the `AMetalFX` placeholders, camera shake, and tuning the procedural gait per robot in the archetype assets.
 2. **Authored animation**: proper rigs (Control Rig, or our own models) and Anim Blueprints. Keep the procedural animator as a fallback.
 3. **More hacking verbs**: robots that open specific doors, ride lifts, turret possession, possession-only routes.
-4. **Items and vehicles**: model them in the graybox .blend and add them to `blender_export.py`.
+4. **Items and vehicles**: model them as new files under `Art/Graybox/` and add them to `blender_export.py`.
 5. **AI depth**: move the C++ state machine into StateTree/Behavior Tree assets, add cover selection with EQS, snipers, and commanders who buff squads.
 6. **Progression**: SaveGame for checkpoints, campaign state, and weapon upgrades across missions.
 7. **Replace the graybox models** with authored art (§3a). The pipeline is model-agnostic. New characters need an FBX, an archetype asset, and a rig profile.

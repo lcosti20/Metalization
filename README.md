@@ -58,14 +58,14 @@ While flying a Stalker:
 
 - Engine: Unreal Engine 5.8
 - Primary language: C++ (all gameplay code is in `Source/Metalization/Game/`)
-- Art: graybox models from a single Blender 5.2 file, imported by a scripted asset pipeline
+- Art: graybox models, one Blender 5.2 file per model, imported by a scripted asset pipeline
 - Platform: PC (keyboard/mouse and gamepad)
 
 ## Repository Structure
 
 ```text
 Metalization/
-├── Art/Graybox/                # Metalization_Graybox.blend, the source of every model
+├── Art/Graybox/                # One .blend per model (Characters/, Weapons/, Grenades/, Ships/, Shared/); see its README
 ├── Config/                     # Unreal project configuration (maps to cook, Level Select list)
 ├── Content/
 │   ├── Metalization/           # Generated game assets: characters, weapons, props, ships, data assets, maps

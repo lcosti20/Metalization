@@ -1,12 +1,19 @@
 """
 Stage 1 of the Metalization asset pipeline: Blender -> FBX/PNG + manifest.json
 
-Run headless (see run_pipeline.ps1):
-    blender.exe -b "<...>/Art/Graybox/Metalization_Graybox.blend" --python blender_export.py -- <output_dir>
+Run headless (see run_pipeline.ps1), with no .blend open:
+    blender.exe -b --factory-startup --python blender_export.py -- <output_dir> [<source_dir>]
 
-Expected layout: Characters/{Heroes,Villains}/<character> (armature "<hero|villain>_<id>_ARM", body =
-first sub-collection, then optional parts), Weapons/<weapon>, Grenades/<grenade>, and Ships/<group>/<part>
-(static meshes: capital ship pieces, hangar kit; collections ending in _Preview are skipped).
+<source_dir> (default Art/Graybox) holds one .blend per model; each file contains one collection with the
+same name as the file (see Art/Graybox/README.md):
+    Characters/{Heroes,Villains}/<character>.blend   armature "<hero|villain>_<id>_ARM", body = first
+                                                     sub-collection, then optional parts
+    Weapons/<weapon>.blend, Grenades/<grenade>.blend
+    Ships/<group>/<part>.blend                       static meshes (capital ship pieces, hangar kit);
+                                                     <...>_Preview.blend files are skipped
+    Shared/GB_Materials.blend                        materials several models link to
+assemble() appends every model into one scene, recreating the collection tree above (folders become
+collections), and the rest of the script works on that scene.
 
 What it produces in <output_dir>:
     Characters/<id>.fbx            body skeletal mesh (armature + first sub-collection's meshes)
@@ -19,7 +26,7 @@ What it produces in <output_dir>:
     Textures/<image>.png           every image referenced by an exported material (none for the graybox)
     manifest.json                  materials, textures, characters, bones, parts, weapons
 
-The .blend is never saved; all edits happen in memory.
+Nothing is saved back to the .blend files; all edits happen in memory.
 """
 import bpy
 import json
@@ -29,9 +36,13 @@ import sys
 from mathutils import Matrix, Vector
 
 BLEND_ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-OUT_DIR = os.path.abspath(BLEND_ARGS[0] if BLEND_ARGS else os.path.join(os.path.dirname(bpy.data.filepath), "_export"))
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+OUT_DIR = os.path.abspath(BLEND_ARGS[0] if BLEND_ARGS else os.path.join(PROJECT_DIR, "Saved", "AssetPipeline"))
+SOURCE_DIR = os.path.abspath(BLEND_ARGS[1] if len(BLEND_ARGS) > 1 else os.path.join(PROJECT_DIR, "Art", "Graybox"))
+# Top-level folders of SOURCE_DIR that hold models; each becomes a collection of the same name.
+MODEL_FOLDERS = ("Characters", "Weapons", "Grenades", "Ships")
 
-# Weapons that the player and the enemy shooters can hold. Keys are the collection names in the .blend.
+# Weapons that the player and the enemy shooters can hold. Keys are the model collection (= file) names.
 WEAPON_COLLECTIONS = {
     "Laser Level 1": "laser_l1",
     "Laser Level 2": "laser_l2",
@@ -199,6 +210,63 @@ def export_fbx(path, objects, armature=True):
         embed_textures=False,
     )
     log("wrote", os.path.relpath(path, OUT_DIR))
+
+
+# --------------------------------------------------------------------------------------------
+# Assembling the scene from the per-model .blend files
+# --------------------------------------------------------------------------------------------
+def folder_collection(parts):
+    """The collection for a folder path under SOURCE_DIR (e.g. ["Characters", "Heroes"]), created on demand."""
+    parent = bpy.context.scene.collection
+    for name in parts:
+        col = bpy.data.collections.get(name)
+        if col is None:
+            col = bpy.data.collections.new(name)
+        if col.name not in parent.children:
+            parent.children.link(col)
+        parent = col
+    return parent
+
+
+def merge_duplicate_materials():
+    """Two files carrying their own copy of a material arrive as "X" and "X.001"; keep one."""
+    for mat in list(bpy.data.materials):
+        base = re.sub(r"\.\d{3}$", "", mat.name)
+        original = bpy.data.materials.get(base)
+        if base != mat.name and original is not None and original != mat:
+            mat.user_remap(original)
+            bpy.data.materials.remove(mat)
+
+
+def assemble():
+    """Appends every model file under SOURCE_DIR into an empty scene, recreating the collection tree."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    count = 0
+    for top in MODEL_FOLDERS:
+        for dirpath, dirnames, files in os.walk(os.path.join(SOURCE_DIR, top)):
+            dirnames.sort()
+            folders = os.path.relpath(dirpath, SOURCE_DIR).split(os.sep)
+            for file in sorted(files):
+                name, ext = os.path.splitext(file)
+                if ext != ".blend" or name.endswith("_Preview"):
+                    continue
+                path = os.path.join(dirpath, file)
+                with bpy.data.libraries.load(path, link=False) as (src, dst):
+                    if name not in src.collections:
+                        log("SKIP (no collection named like the file)", os.path.relpath(path, SOURCE_DIR))
+                        continue
+                    dst.collections = [name]
+                folder_collection(folders).children.link(dst.collections[0])
+                count += 1
+    # Shared materials come in linked from Shared/GB_Materials.blend: make them local like everything else.
+    for mat in bpy.data.materials:
+        if mat.library is not None:
+            mat.make_local()
+    merge_duplicate_materials()
+    for lib in list(bpy.data.libraries):
+        bpy.data.libraries.remove(lib)
+    log("assembled", count, "models from", SOURCE_DIR)
+    return count
 
 
 def make_all_visible():
@@ -436,6 +504,8 @@ def export_ships(manifest):
 
 
 def main():
+    if assemble() == 0:
+        raise SystemExit(f"No model .blend files found under {SOURCE_DIR}")
     os.makedirs(OUT_DIR, exist_ok=True)
     if bpy.context.object and bpy.context.object.mode != "OBJECT":
         bpy.ops.object.mode_set(mode="OBJECT")
@@ -444,7 +514,7 @@ def main():
     for o in bpy.data.objects:
         if o.type == "ARMATURE":
             o.data.pose_position = "REST"
-    manifest = {"source": os.path.basename(bpy.data.filepath), "characters": {}, "weapons": {}, "props": {},
+    manifest = {"source": os.path.relpath(SOURCE_DIR, PROJECT_DIR).replace("\\", "/"), "characters": {}, "weapons": {}, "props": {},
                 "ships": {}, "materials": materials, "textures": textures}
     export_characters(manifest)
     export_weapons(manifest)

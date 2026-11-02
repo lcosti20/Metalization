@@ -7,7 +7,7 @@ Close the Unreal Editor first (the commandlet needs exclusive access to the asse
 MetalizationEditor target so the C++ classes the data assets use exist.
 
 Stages:
-    1. blender_export.py    Art/Graybox/Metalization_Graybox.blend -> Saved/AssetPipeline (FBX, manifest.json)
+    1. blender_export.py    Art/Graybox/**/*.blend (one file per model) -> Saved/AssetPipeline (FBX, manifest.json)
     2. ue_import_assets.py  materials, skeletal/static meshes (characters, weapons, props, ships) under /Game/Metalization
     1b. generate_sfx.py     synthesized sound effects -> Saved/AssetPipeline/Audio (WAV)
     3. ue_setup_gameplay.py weapon + robot data assets, DA_Sounds, the maps (MZ_ProductionAlpha, MZ_Title, MZ_Outpost_Demo, ...)
@@ -16,7 +16,7 @@ Stages:
 param(
     [string]$Blender = "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe",
-    [string]$Blend = "",
+    [string]$Source = "",
     [switch]$SkipBlender,
     [switch]$SkipImport,
     [switch]$SkipGameplay
@@ -25,7 +25,7 @@ $ErrorActionPreference = "Stop"
 $Tools = $PSScriptRoot
 $Project = (Resolve-Path (Join-Path $Tools "..\..")).Path
 $UProject = Join-Path $Project "Metalization.uproject"
-if (-not $Blend) { $Blend = Join-Path $Project "Art\Graybox\Metalization_Graybox.blend" }
+if (-not $Source) { $Source = Join-Path $Project "Art\Graybox" }
 $Out = Join-Path $Project "Saved\AssetPipeline"
 $EditorLog = Join-Path $Project "Saved\Logs\Metalization.log"
 
@@ -45,7 +45,7 @@ if (Get-Process -Name "UnrealEditor" -ErrorAction SilentlyContinue) {
 if (-not $SkipBlender) {
     Write-Host "== blender_export.py" -ForegroundColor Cyan
     if (Test-Path $Out) { Remove-Item -Recurse -Force $Out }
-    & $Blender -b $Blend --python (Join-Path $Tools "blender_export.py") -- $Out | Select-String "\[MZExport\] DONE"
+    & $Blender -b --factory-startup --python (Join-Path $Tools "blender_export.py") -- $Out $Source | Select-String "\[MZExport\] (assembled|DONE)"
     if ($LASTEXITCODE -ne 0) { throw "Blender export failed" }
 }
 if (-not $SkipImport) {
