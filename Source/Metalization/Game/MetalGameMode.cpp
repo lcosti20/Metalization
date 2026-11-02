@@ -1,6 +1,7 @@
 #include "MetalGameMode.h"
 
 #include "MetalDevAutopilot.h"
+#include "MetalDialogue.h"
 #include "MetalPlayerCharacter.h"
 #include "MetalHUD.h"
 #include "MetalMission.h"
@@ -57,20 +58,23 @@ void AMetalGameMode::ShowMessage(const FText& Speaker, const FText& Text, float 
 	// Notices are short status lines and only the latest matters; dialogue must all be read, so it queues.
 	if (Speaker.IsEmpty())
 	{
-		Notice = {Speaker, Text, Duration};
+		Notice = {Text, Duration};
 		NoticeTimeLeft = Duration;
 		return;
 	}
-	DialogueQueue.Add({Speaker, Text, Duration});
-	if (DialogueQueue.Num() == 1)
+	if (UMetalDialogueSubsystem* Dialogue = GetWorld()->GetSubsystem<UMetalDialogueSubsystem>())
 	{
-		DialogueTimeLeft = Duration;
+		FMetalDialogueLine Line;
+		Line.Speaker = Speaker;
+		Line.Line = Text;
+		Line.Duration = Duration;
+		Dialogue->PlayLine(Line);
 	}
 }
 
 void AMetalGameMode::ShowBanner(const FText& Text, float Duration)
 {
-	Banner = {FText::GetEmpty(), Text, Duration};
+	Banner = {Text, Duration};
 	BannerTimeLeft = Duration;
 }
 
@@ -79,15 +83,6 @@ void AMetalGameMode::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	NoticeTimeLeft -= DeltaSeconds;
 	BannerTimeLeft -= DeltaSeconds;
-	if (DialogueQueue.Num() > 0)
-	{
-		DialogueTimeLeft -= DeltaSeconds;
-		if (DialogueTimeLeft <= 0.f)
-		{
-			DialogueQueue.RemoveAt(0);
-			DialogueTimeLeft = DialogueQueue.Num() > 0 ? DialogueQueue[0].Duration : 0.f;
-		}
-	}
 }
 
 FText AMetalGameMode::GetObjectiveText() const

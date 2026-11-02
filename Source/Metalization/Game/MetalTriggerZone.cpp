@@ -62,8 +62,20 @@ void AMetalTriggerZone::OnOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 {
 	AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(OtherActor);
 	const AMetalPlayerController* PC = Bot ? Cast<AMetalPlayerController>(Bot->GetController()) : nullptr;
+	if (PC == nullptr)
+	{
+		return;
+	}
+	if (!bDialoguePlayed && Dialogue.Num() > 0)
+	{
+		bDialoguePlayed = true;
+		if (UMetalDialogueSubsystem* DialogueSystem = GetWorld()->GetSubsystem<UMetalDialogueSubsystem>())
+		{
+			DialogueSystem->PlayDialogue(Dialogue);
+		}
+	}
 	// Hijacked robots don't count: respawning puts the player's own body at the checkpoint.
-	if (!bIsCheckpoint || bTriggered || PC == nullptr || PC->GetPlayerBody() != Bot)
+	if (!bIsCheckpoint || bTriggered || PC->GetPlayerBody() != Bot)
 	{
 		return;
 	}

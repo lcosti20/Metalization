@@ -329,11 +329,13 @@ def pickup(label, ptype, loc, amount, weapon=None):
     return actor
 
 
-def zone_actor(label, center, extent, checkpoint=False, rgb=(0.1, 0.8, 1.0)):
+def zone_actor(label, center, extent, checkpoint=False, rgb=(0.1, 0.8, 1.0), dialogue=(), marker=True):
     actor = spawn(unreal.MetalTriggerZone, center, label=label, folder="Mission")
     actor.get_component_by_class(unreal.BoxComponent).set_box_extent(unreal.Vector(*extent))
     actor.set_editor_property("is_checkpoint", checkpoint)
     actor.set_editor_property("marker_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    actor.set_editor_property("show_marker", marker)
+    actor.set_editor_property("dialogue", list(dialogue))
     return actor
 
 
@@ -510,6 +512,10 @@ def build_level(archetypes, w, manifest):
     guards = [bot("Shooter_GateGuard_1", archetypes["shooter"], (10050, -700, 0), 180.0, ("GateGuard",), 150.0),
               bot("Shooter_GateGuard_2", archetypes["shooter"], (10150, 650, 0), 180.0, ("GateGuard",), 150.0)]
     light("GateLight", (9300, 0, 600), (1.0, 0.3, 0.1), 12000.0, 1800.0)
+    # Radio call the first time the player drops into the yard.
+    zone_actor("Dialogue_GateYard", (7900, 0, 150), (150, 1400, 150), marker=False, dialogue=[
+        line("Guide", "Heads up - two more shooters dug in by the gate. Clear 'em out before you go poking at that fence."),
+    ])
 
     # --- E: Boss arena ----------------------------------------------------------------------
     zone_actor("Checkpoint_Arena", (10750, 0, 150), (150, 1400, 150), checkpoint=True)

@@ -10,11 +10,9 @@
 class AMetalMission;
 class AMetalPlayerController;
 
-/** One line of on-screen text shown by the HUD: dialogue, a system notice or a banner. */
+/** One line of on-screen text shown by the HUD: a system notice or a banner. Dialogue lives in UMetalDialogueSubsystem. */
 struct FMetalMessage
 {
-	/** Who is talking; empty for system notices and banners. */
-	FText Speaker;
 	FText Text;
 	/** Seconds the message stays up. */
 	float Duration = 3.f;
@@ -35,7 +33,8 @@ public:
 	AMetalGameMode();
 
 	/**
-	 * Dialogue (with a speaker) is queued; system notices (no speaker) replace the current notice.
+	 * Dialogue (with a speaker) is queued on UMetalDialogueSubsystem; system notices (no speaker) replace
+	 * the current notice.
 	 *
 	 * @param Speaker  Name shown above dialogue, or empty for a notice.
 	 * @param Text     Message text. Empty text is ignored.
@@ -83,9 +82,6 @@ public:
 	/** @return The active objective's description, or empty with no mission. */
 	FText GetObjectiveText() const;
 
-	/** @return The dialogue line currently showing (front of the queue), or null. */
-	const FMetalMessage* GetDialogue() const { return DialogueQueue.Num() > 0 ? &DialogueQueue[0] : nullptr; }
-
 	/** @return The current system notice, or null if it has expired. */
 	const FMetalMessage* GetNotice() const { return NoticeTimeLeft > 0.f ? &Notice : nullptr; }
 
@@ -98,7 +94,7 @@ public:
 	/** @return Seconds since the level started, frozen once the mission is complete. */
 	float GetMissionTime() const;
 
-	/** Counts down the notice and banner timers and advances the dialogue queue. */
+	/** Counts down the notice and banner timers. */
 	virtual void Tick(float DeltaSeconds) override;
 
 	/**
@@ -139,9 +135,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AMetalMission> Mission;
 
-	/** Dialogue waiting to be shown; the front entry is on screen. */
-	TArray<FMetalMessage> DialogueQueue;
-	float DialogueTimeLeft = 0.f;
 	FMetalMessage Notice;
 	float NoticeTimeLeft = 0.f;
 	FMetalMessage Banner;
