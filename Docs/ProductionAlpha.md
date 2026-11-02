@@ -55,6 +55,22 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | Sniper rifle | RMB scope, LMB fire | `WD_Sniper`: `AimFOV` 16, `AimArmLengthScale` 0 (eye level), `bScopeOverlay`, `HipSpreadDegrees` 5; HUD `DrawScope` |
 | Anti-gravity lift | Walk in | `AMetalGravLift` (`Source/Metalization/Game/MetalGravLift.*`) |
 | Acted-out weapon swap | 1–6 / wheel / Y | `EquipWeapon` → `TickWeaponSwap`; poses in `UMetalBotAnimInstance` |
+| Jetpack | fires on the double jump | `BuildJetpack` / `FireJetpack` / `TickJetpack`; archetype `bHasJetpack`, rig `JetpackOffset` / `JetpackSpread` |
+
+### Jetpack
+
+The player wears two thruster pods on the back. They fire only on the mid-air (double) jump: a ~0.55 s
+burst of stretched glowing flames, a warm light, an ignition puff and the thruster sound. The flames die
+as soon as the robot lands. The parts are engine shapes attached to the pelvis (they follow the
+double-jump flip). Flames are sized relative to the pivot's "unit" scale, because the imported skeleton's
+bone sockets carry a scale; sizing them with absolute relative scales made them 100x too big.
+
+### Hacking: letting go
+
+Disconnecting (F, the timer running out, or the player's body dying) no longer destroys the hijacked
+robot. A robot that still has health goes back to its own side: its paint returns, it gets a fresh AI
+controller and is stunned for `RebootTime` (2 s, `AMetalPlayerController`) while it reboots. Only losing
+its health destroys a hacked robot, so a hijack is a tactical loan, not a free kill.
 
 ### Weapon-arm swap
 
@@ -97,6 +113,9 @@ instantly.
 - **Title screen.** `AMetalTitleGameMode` / `AMetalTitlePlayerController`. The menu is `UMetalPauseMenu` in
   title mode (Start Mission / Level Select / Controls / Quit) over a slow orbit of a Blue-vs-Red diorama.
 - **Pause menu.** Continue, Restart Mission, Level Select, Controls, Title Screen and Quit.
+- **HUD text size.** All HUD text is drawn at twice its font size (`AMetalHUD::TextScale`); panels are laid
+  out from measured text so nothing overlaps. Menus, the big centre banner and the "?"/"!" icons keep their
+  size.
 - **HUD additions.**
   - **Control tips:** a card under the objective (`FMetalObjective::Hint`).
   - **Objective marker:** with distance, pinned to the screen edge when off screen.

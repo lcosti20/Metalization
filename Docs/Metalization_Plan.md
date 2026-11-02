@@ -152,7 +152,7 @@ To check a packaged build, package Development with `RunUAT.bat BuildCookRun -pr
 ### Verified by automated runs
 - All 27 characters import at correct scale with every material slot assigned (`ue_validate.py`: PASSED).
 - Combat: the Laser hits and damages Shooters. AI spots, alerts its squad, strafes and returns fire.
-- Hack Tether: hijack a Shooter, fight as it, disconnect (host self-destructs, control returns to the player). Same for the Brute, whose miniguns destroyed a Soldier.
+- Hack Tether: hijack a Shooter, fight as it, disconnect (control returns to the player; the host reboots and rejoins its side). Same for the Brute, whose miniguns destroyed a Soldier.
 - Gate puzzle: hijack a gate guard through the energy fence, operate the console, gate opens, objective advances.
 - Death → "SCRAPPED!" → respawn. Weapon pickup (Shotgun) is added and equipped. Extraction → mission-complete screen.
 

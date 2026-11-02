@@ -9,7 +9,7 @@ You fight as a Hero robot armed with the **Hack Tether**: aim it at an enemy rob
 The current build is a playable prototype made of graybox models. Its pillars:
 
 - **Third-person gunplay**: over-the-shoulder camera, strafing, upgradable weapons (Laser, Repeater, Shotgun, Rocket Launcher, EMP grenades).
-- **Hacking**: hijack enemies for a limited time (they self-destruct when you let go), or link to friendly flyers with no time limit.
+- **Hacking**: hijack enemies for a limited time (when you let go they reboot and rejoin their side; only damage destroys them), or link to friendly flyers with no time limit.
 - **Robots, not soldiers**: localized damage (shoot a gun arm off and the robot charges in to melee), EMP stuns, a different body plan for every robot.
 - **Space battles**: two capital ships with destructible subsystems, hangars you fly in and out of through portals, AI pilots and turrets, and reinforcement tickets.
 - **Data-driven content**: robots, weapons and ship classes are Data Assets, not hard-coded actors.

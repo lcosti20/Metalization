@@ -42,7 +42,7 @@ sequenceDiagram
     Note over P,T: timer runs (enemies) or open-ended (allies)
     P->>B: Possess, SetDormant(false)
     alt enemy
-        P->>T: SelfDestruct(1.2 s)
+        P->>T: SetHijacked(false), new AI, Stun(RebootTime)
     else ally
         P->>T: SetDormant(true) (idle, linkable again)
     end
@@ -52,7 +52,7 @@ sequenceDiagram
 
 **Who can be taken.** `AMetalBotCharacter::CanBeHackedBy` has two rules:
 
-- **Enemies** need `bHackable`. This is a *hijack*: timed by the archetype's `PossessionDuration`, the robot joins the Heroes and glows, and when the link ends it self-destructs, damaging whatever is near it.
+- **Enemies** need `bHackable`. This is a *hijack*: timed by the archetype's `PossessionDuration`, the robot joins the Heroes and glows. When the link ends (F, the timer, or the player's body dying) a robot that is still alive goes back to its own side: it gets a fresh AI controller and is stunned for `RebootTime` (2 s) while it "reboots". Disconnecting never destroys it; only losing its health does.
 - **Same-team robots** need `bAllyHackable` and must have no controller (an idle parked Stalker). This is a *link*: no time limit, no self-destruct, no beam. When it ends the robot goes dormant and can be linked again.
 
 **Starting** (`BeginPossession`): the target's AI controller is unpossessed and destroyed, the body is powered down where it stands (it can still be shot), the controller possesses the target, and the control rotation is reset to the target's facing.

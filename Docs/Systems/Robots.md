@@ -112,7 +112,7 @@ When a zone's accumulated damage passes its `Durability`, `BreakZone` runs once:
 | Hijacked | `SetHijacked` (Hack Tether) | Team becomes Heroes, hack glow pulses on the materials |
 | Weapon disabled | `BreakZone` | Melee only |
 
-`SelfDestruct(Delay)` powers the robot down and, after the delay, deals radial damage around it and kills it. Hijacked enemies do this when the link ends.
+`SelfDestruct(Delay)` powers the robot down and, after the delay, deals radial damage around it and kills it. (Hijacked enemies used to do this when the link ended; since the Production Alpha they reboot and rejoin their side instead.)
 
 ## Movement feel
 

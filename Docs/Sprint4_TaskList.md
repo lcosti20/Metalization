@@ -26,6 +26,8 @@ complex, and four new mechanics are added.
 - [x] Trench artillery barrage (`AMetalBarrage`) as the reason to sprint
 - [x] Grenades lob onto the crosshair (ballistic arc, fuse waits for landing)
 - [x] Player hitscan traced along the camera ray (fixes shots blocked at ledges)
+- [x] Jetpack on the player's back that fires on the double jump
+- [x] Hacking rebalance: letting go returns the robot to its side after a reboot stun instead of destroying it
 
 ## UI
 
@@ -36,6 +38,7 @@ complex, and four new mechanics are added.
 - [x] HUD: suspicion "?" meters and "!" alerts over enemies
 - [x] HUD: "SWAPPING ARM..." state and swap target in the weapon list
 - [x] Results panel: time, kills, deaths, accuracy
+- [x] HUD text doubled in size for readability, with layouts measured from the text
 
 ## Sound FX
 
@@ -62,3 +65,4 @@ complex, and four new mechanics are added.
 - Thrown grenades could never land 10 m away (fixed-speed throw); they now lob onto the aim point.
 - The forward-post squads started fighting before the player arrived; they're now spaced beyond each other's sight.
 - The gate guard patrolled behind the solid gate door, so the tether lost sight of him; he now waits behind the fence.
+- Jetpack flames whited out the screen: bone sockets carry a scale, so the flames were 100x too big; they are now sized relative to the bone's unit scale.

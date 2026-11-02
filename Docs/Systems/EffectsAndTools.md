@@ -76,6 +76,7 @@ the beat:
 - `sniper`: scope from the perch.
 - `hack`: guard, console, gate and reinforcements.
 - `title`: the title screen.
+- `jetpack` (Outpost): double jumps in the hangar to show the jetpack firing.
 
 The autopilot also has steps for sprint, sneak, aim and scope, next weapon, grenades and aiming at
 marksmen. Its log adds sprint, sneak, swap and scope state for the player and suspicion for every robot.
