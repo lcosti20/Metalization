@@ -1,6 +1,6 @@
 # Player control and the Hack Tether
 
-Files: `MetalPlayerController.h/.cpp`, `MetalPlayerCharacter.h/.cpp`
+Files: `MetalPlayerController.h/.cpp`, `MetalPlayerCharacter.h/.cpp`, `MetalHackPuzzle.h/.cpp`
 
 `AMetalPlayerController` turns input into robot commands, runs the Hack Tether, finds consoles to interact with, and opens the pause menu.
 
@@ -60,6 +60,28 @@ sequenceDiagram
 **Ending** (`EndPossession`) happens when the player presses F again, the hijack timer runs out (checked in `Tick`), or the host dies (`OnBotDied`). Control returns to the body if it is still alive.
 
 **Player death.** If the player's body dies (even mid-hijack, since the body stays vulnerable), `OnBotDied` ends any link and calls `AMetalGameMode::PlayerDied`.
+
+## Hack puzzle
+
+Added after the Production Alpha playtest, where hacking was too easy. With `bRequireHackPuzzle` on (the default), pressing F at an *enemy* opens `UMetalHackPuzzle` instead of hijacking at once; ally links skip it.
+
+```mermaid
+flowchart LR
+    F[F at enemy] --> W[OpenHackPuzzle: window, mouse freed, faint beam]
+    W -->|correct wiring, Save & Compile / Ctrl+S| S[BeginPossession]
+    W -->|any other wiring| X[RaiseFirewall FirewallTime = 4 s]
+    W -->|X / Esc / B| C[cancel, no penalty]
+    W -->|target dies, is lost or >1.25x range, body dies, pause| C
+```
+
+- **The window** is one `UUserWidget` drawn entirely in `NativePaint` (no widget assets): a tab named `BP_<Unit>Controller` (the robot's display name with spaces removed), an [X] in the top-right corner, a grid, nodes and spline wires styled after the real editor. "Save & Compile" appears next to the tab after the first change (a wire edit or moving a node).
+- **The graph** is five nodes: `Event: On Target` (exec, target) -> `Switch Team` (exec), `target` -> `Get Value: team` -> `Switch Team.team`, `red` -> `Call Ceasefire`, `blue` -> `Call Shoot`. It is solved when the links are exactly that set with red and blue swapped. `Scramble` tries 200 random layouts and keeps the most tangled one (crossing wires plus wires running right to left) whose nodes don't overlap by more than 20%.
+- **Editing.** Drag a node anywhere on it. Drag from an output pin to an input to wire it; grabbing a wired input picks that wire up by its end. Inputs and exec outputs take one wire (a new one replaces the old), data outputs can feed several. Alt+click (gamepad X) breaks a pin's links.
+- **Gamepad.** The left stick moves a virtual cursor (`NativeOnAnalogValueChanged`, `NativeTick`); A acts as the mouse button, Y compiles, B cancels.
+- **The world keeps running.** The body stands still and can be shot, and the target keeps fighting; that time is the cost of a hack. `Tick` cancels the puzzle if the target stops being hackable or gets beyond 1.25x `TetherRange`.
+- **Firewall.** `AMetalBotCharacter::RaiseFirewall` makes `CanBeHackedBy` false until it drops (`bIgnoreFirewall` skips that check). The hack glow stutters meanwhile, the HUD shows "FIREWALL <name> 3.2s" under the crosshair (`GetFirewalledCandidate`), and pressing F says how long is left.
+- **Press = prompt.** `TetherPressed` falls back to the last tick's `HackCandidate` when a fresh search finds nothing, so a robot walking out of the 7-degree cone in the same frame as the press is still taken.
+- **Testing.** The autopilot steps `SolveHack`, `FailHack` and `CancelHack` act on the open puzzle (`DevRewire`, `Compile`, `Cancel`); smoke scenario `hackfail` runs all three outcomes. The log lines start with `[Hack]`.
 
 ## Interaction
 

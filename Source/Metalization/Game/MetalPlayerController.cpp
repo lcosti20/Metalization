@@ -5,6 +5,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
 #include "MetalFX.h"
+#include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
 #include "MetalStalker.h"
 #include "EngineUtils.h"
@@ -471,6 +472,11 @@ void AMetalPlayerController::OpenPauseMenu()
 	{
 		return;
 	}
+	if (HackPuzzle)
+	{
+		UE_LOG(LogMetal, Log, TEXT("[Hack] puzzle cancelled: pause menu opened"));
+		CloseHackPuzzle();
+	}
 	// Button releases won't arrive while the menu has the input: let go of everything now.
 	if (AMetalBotCharacter* Bot = GetBot())
 	{
@@ -552,7 +558,7 @@ void AMetalPlayerController::NotifyDamageTaken()
 	LastDamageTime = GetWorld()->GetTimeSeconds();
 }
 
-AMetalBotCharacter* AMetalPlayerController::FindHackCandidate() const
+AMetalBotCharacter* AMetalPlayerController::FindHackCandidate(bool bFirewalled) const
 {
 	const AMetalBotCharacter* Body = PlayerBody.Get();
 	if (Body == nullptr || GetPawn() != Body || !CanAct())
@@ -570,7 +576,8 @@ AMetalBotCharacter* AMetalPlayerController::FindHackCandidate() const
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 	{
 		AMetalBotCharacter* Candidate = *It;
-		if (!Candidate->CanBeHackedBy(Body) || FVector::Dist(Candidate->GetActorLocation(), Body->GetActorLocation()) > TetherRange)
+		const bool bWanted = bFirewalled ? Candidate->IsFirewalled() && Candidate->CanBeHackedBy(Body, true) : Candidate->CanBeHackedBy(Body);
+		if (!bWanted || FVector::Dist(Candidate->GetActorLocation(), Body->GetActorLocation()) > TetherRange)
 		{
 			continue;
 		}
@@ -593,18 +600,161 @@ AMetalBotCharacter* AMetalPlayerController::FindHackCandidate() const
 
 void AMetalPlayerController::TetherPressed()
 {
+	if (HackPuzzle)
+	{
+		// The puzzle window has the input; this only happens from scripted calls.
+		return;
+	}
+	// The target the HUD showed last frame counts too: a walking robot can drift out of the narrow cone between
+	// that frame and the press, and the prompt on screen should be what the button does.
+	AMetalBotCharacter* Target = Host.IsValid() ? nullptr : FindHackCandidate();
+	if (Target == nullptr && HackCandidate.IsValid() && PlayerBody.IsValid() && GetPawn() == PlayerBody.Get() && HackCandidate->CanBeHackedBy(PlayerBody.Get())
+		&& FVector::Dist(HackCandidate->GetActorLocation(), PlayerBody->GetActorLocation()) <= TetherRange)
+	{
+		Target = HackCandidate.Get();
+	}
 	if (Host.IsValid())
 	{
 		EndPossession();
 	}
-	else if (AMetalBotCharacter* Target = FindHackCandidate())
+	else if (Target)
 	{
-		BeginPossession(Target);
+		// Enemies have to be rewired first; friendly links (parked flyers) connect straight away.
+		const AMetalBotCharacter* Body = PlayerBody.Get();
+		if (bRequireHackPuzzle && Body && Target->GetTeam() != Body->GetTeam())
+		{
+			OpenHackPuzzle(Target);
+		}
+		else
+		{
+			BeginPossession(Target);
+		}
+	}
+	else if (AMetalBotCharacter* Walled = FindHackCandidate(true))
+	{
+		UE_LOG(LogMetal, Log, TEXT("[Hack] refused: %s firewall up, %.1fs left"), *Walled->GetName(), Walled->GetFirewallTimeRemaining());
+		if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Name"), Walled->GetDisplayName());
+			Args.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(Walled->GetFirewallTimeRemaining())));
+			GameMode->ShowMessage(FText::GetEmpty(), FText::Format(NSLOCTEXT("Metalization", "Firewalled", "FIREWALL: {Name} is blocking the Hack Tether ({Seconds}s)."), Args), 1.5f);
+		}
+		MetalAudio::Play2D(this, TEXT("tether_fail"), 0.6f);
 	}
 	else if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>(); GameMode && GetPawn() == PlayerBody.Get())
 	{
+		UE_LOG(LogMetal, Log, TEXT("[Hack] no target in reach"));
 		GameMode->ShowMessage(FText::GetEmpty(), NSLOCTEXT("Metalization", "NoTetherTarget", "Hack Tether: no robot in range."), 1.5f);
 		MetalAudio::Play2D(this, TEXT("tether_fail"), 0.6f);
+	}
+}
+
+void AMetalPlayerController::OpenHackPuzzle(AMetalBotCharacter* Target)
+{
+	AMetalBotCharacter* Body = PlayerBody.Get();
+	if (Body == nullptr || Target == nullptr || HackPuzzle)
+	{
+		return;
+	}
+	// Button releases won't reach the game while the window has the input: let go of everything now.
+	Body->StopFire();
+	Body->SetAiming(false);
+	Body->SetWantsSprint(false);
+
+	// "BP_<Unit>Controller", from the robot's name with anything that isn't a letter or digit dropped.
+	FString UnitName;
+	for (const TCHAR Char : Target->GetDisplayName().ToString())
+	{
+		if (FChar::IsAlnum(Char))
+		{
+			UnitName.AppendChar(Char);
+		}
+	}
+	const FString BlueprintName = FString::Printf(TEXT("BP_%sController"), UnitName.IsEmpty() ? TEXT("Unit") : *UnitName);
+
+	HackTarget = Target;
+	HackPuzzle = CreateWidget<UMetalHackPuzzle>(this, UMetalHackPuzzle::StaticClass());
+	const int32 Seed = FMath::Rand();
+	TWeakObjectPtr<AMetalPlayerController> WeakThis(this);
+	HackPuzzle->Init(BlueprintName, Seed, [WeakThis](EMetalHackResult Result)
+	{
+		if (AMetalPlayerController* Self = WeakThis.Get())
+		{
+			Self->OnHackPuzzleFinished(static_cast<uint8>(Result));
+		}
+	});
+	// Under the pause menu (100), over the HUD.
+	HackPuzzle->AddToViewport(50);
+	FInputModeUIOnly Mode;
+	Mode.SetWidgetToFocus(HackPuzzle->TakeWidget());
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(Mode);
+	bShowMouseCursor = true;
+
+	// A faint beam while the upload runs; BeginPossession swaps it for the full one.
+	TetherBeam = AMetalFX::SpawnBeam(GetWorld(), Body->GetMuzzleLocation(), Target->GetActorLocation(), TetherColor * 0.5f, 0.6f, 0.f);
+	MetalAudio::Play2D(this, TEXT("radio_blip"), 0.8f);
+	UE_LOG(LogMetal, Log, TEXT("[Hack] puzzle opened on %s (%s, seed %d)"), *Target->GetName(), *BlueprintName, Seed);
+}
+
+void AMetalPlayerController::CloseHackPuzzle()
+{
+	if (HackPuzzle == nullptr)
+	{
+		return;
+	}
+	HackPuzzle->RemoveFromParent();
+	HackPuzzle = nullptr;
+	HackTarget.Reset();
+	if (TetherBeam && !Host.IsValid())
+	{
+		TetherBeam->Destroy();
+		TetherBeam = nullptr;
+	}
+	SetInputMode(FInputModeGameOnly());
+	bShowMouseCursor = false;
+}
+
+void AMetalPlayerController::OnHackPuzzleFinished(uint8 InResult)
+{
+	const EMetalHackResult Result = static_cast<EMetalHackResult>(InResult);
+	AMetalBotCharacter* Target = HackTarget.Get();
+	const AMetalBotCharacter* Body = PlayerBody.Get();
+	const FString BlueprintName = HackPuzzle ? HackPuzzle->GetBlueprintName() : FString();
+	const FString Wiring = HackPuzzle ? HackPuzzle->DescribeLinks() : FString();
+	CloseHackPuzzle();
+	AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>();
+
+	switch (Result)
+	{
+	case EMetalHackResult::Success:
+		// Re-checked: the target may have been killed or hacked away during the frame the window closed.
+		if (Target && Body && Target->CanBeHackedBy(Body))
+		{
+			UE_LOG(LogMetal, Log, TEXT("[Hack] compiled OK: %s"), *BlueprintName);
+			MetalAudio::Play2D(this, TEXT("console_granted"), 0.6f);
+			BeginPossession(Target);
+		}
+		break;
+	case EMetalHackResult::Failed:
+		UE_LOG(LogMetal, Log, TEXT("[Hack] compile failed: %s, firewall up for %.0fs (wiring: %s)"), *BlueprintName, FirewallTime, *Wiring);
+		if (Target)
+		{
+			Target->RaiseFirewall(FirewallTime);
+			AMetalFX::SpawnBurst(GetWorld(), Target->GetActorLocation(), FLinearColor(1.f, 0.2f, 0.1f), 90.f, 0.4f);
+		}
+		MetalAudio::Play2D(this, TEXT("console_denied"), 0.8f);
+		if (GameMode)
+		{
+			GameMode->ShowMessage(FText::GetEmpty(), FText::Format(NSLOCTEXT("Metalization", "CompileFailed", "COMPILE ERROR in {0}: firewall up for {1}s."),
+				FText::FromString(BlueprintName), FText::AsNumber(FMath::RoundToInt(FirewallTime))), 2.5f);
+		}
+		break;
+	case EMetalHackResult::Cancelled:
+		UE_LOG(LogMetal, Log, TEXT("[Hack] cancelled: %s"), *BlueprintName);
+		MetalAudio::Play2D(this, TEXT("tether_release"), 0.6f);
+		break;
 	}
 }
 
@@ -723,6 +873,7 @@ void AMetalPlayerController::OnBotDied(AMetalBotCharacter* Bot, AController* Kil
 	}
 	if (Bot == PlayerBody.Get())
 	{
+		CloseHackPuzzle();
 		if (Host.IsValid())
 		{
 			EndPossession();
@@ -756,7 +907,30 @@ void AMetalPlayerController::Tick(float DeltaSeconds)
 		SetControlRotation(FRotator(-12.f, GetControlRotation().Yaw, 0.f));
 	}
 
-	HackCandidate = FindHackCandidate();
+	// While the puzzle is up, the hack drops if the target is lost: killed, hacked or firewalled some other way, or out of reach.
+	if (HackPuzzle)
+	{
+		AMetalBotCharacter* Target = HackTarget.Get();
+		AMetalBotCharacter* Body = PlayerBody.Get();
+		if (Target == nullptr || Body == nullptr || GetPawn() != Body || !Target->CanBeHackedBy(Body)
+			|| FVector::Dist(Target->GetActorLocation(), Body->GetActorLocation()) > TetherRange * 1.25f)
+		{
+			UE_LOG(LogMetal, Log, TEXT("[Hack] puzzle cancelled: lost the target"));
+			CloseHackPuzzle();
+			MetalAudio::Play2D(this, TEXT("tether_fail"), 0.6f);
+			if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
+			{
+				GameMode->ShowMessage(FText::GetEmpty(), NSLOCTEXT("Metalization", "HackLost", "Hack Tether: lost the target."), 1.5f);
+			}
+		}
+		else if (TetherBeam)
+		{
+			TetherBeam->SetBeamEndpoints(Body->GetMuzzleLocation(), Target->GetActorLocation());
+		}
+	}
+
+	HackCandidate = HackPuzzle ? nullptr : FindHackCandidate();
+	FirewalledCandidate = HackPuzzle || HackCandidate.IsValid() ? nullptr : FindHackCandidate(true);
 
 	// Nearest console in reach that hasn't been used yet; drives the HUD prompt and InteractPressed.
 	NearbyConsole.Reset();

@@ -125,6 +125,12 @@ void AMetalHUD::DrawHUD()
 			const TCHAR* Verb = Candidate->GetTeam() == Bot->GetTeam() ? TEXT("PILOT") : TEXT("HACK");
 			DrawTextShadowed(FString::Printf(TEXT("[F] %s %s"), Verb, *Candidate->GetDisplayName().ToString().ToUpper()), CX, CY + 30.f * UI, Cyan, Medium, UI, true);
 		}
+		else if (const AMetalBotCharacter* Walled = PC->GetFirewalledCandidate())
+		{
+			// A failed hack left this one firewalled: say how long until the tether works on it again.
+			DrawTextShadowed(FString::Printf(TEXT("FIREWALL  %s  %.1fs"), *Walled->GetDisplayName().ToString().ToUpper(), Walled->GetFirewallTimeRemaining()),
+				CX, CY + 30.f * UI, Danger, Medium, UI, true);
+		}
 
 		// Health.
 		const float BarW = 360.f * UI;

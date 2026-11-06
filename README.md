@@ -11,7 +11,7 @@ You fight as a Hero robot armed with the **Hack Tether**: aim it at an enemy rob
 The current build is a playable prototype made of graybox models. Its pillars:
 
 - **Third-person gunplay**: over-the-shoulder camera, strafing, upgradable weapons (Laser, Repeater, Shotgun, Rocket Launcher, EMP grenades).
-- **Hacking**: hijack enemies for a limited time (when you let go they reboot and rejoin their side; only damage destroys them), or link to friendly flyers with no time limit.
+- **Hacking**: hijack enemies for a limited time (when you let go they reboot and rejoin their side; only damage destroys them), or link to friendly flyers with no time limit. Hijacking an enemy first means rewiring its fake Blueprint in a quick puzzle while the fight goes on; a wrong compile makes it put up a 4-second firewall.
 - **Robots, not soldiers**: localized damage (shoot a gun arm off and the robot charges in to melee), EMP stuns, a different body plan for every robot.
 - **Space battles**: two capital ships with destructible subsystems, hangars you fly in and out of through portals, AI pilots and turrets, and reinforcement tickets.
 - **Data-driven content**: robots, weapons and ship classes are Data Assets, not hard-coded actors.
@@ -42,11 +42,15 @@ Switch levels in game from the pause menu (Esc, P or Start > Level Select).
 | Reload | R | X |
 | EMP grenade | G | RB |
 | Hack Tether (hack / disconnect) | F | LB |
+| Hack window: drag nodes and wires | Drag with LMB (Alt+click a pin breaks its links) | Left stick cursor, hold A to drag (X breaks links) |
+| Hack window: Save & Compile / cancel | Ctrl+S or the button / the [X] or Esc | Y / B |
 | Use console | E | B |
 | Pause menu | Esc or P (Esc also ends Play-In-Editor, so use P there) | Start |
 | Replay after a mission | Enter | Pause menu > Restart Mission |
 
 Anti-grav lifts need no button: walk into the glowing beam.
+
+The hack window: hacking an enemy opens a `BP_<Unit>Controller` graph with the nodes scattered. Untangle it and swap the Switch Team outputs (red to Call Shoot, blue to Call Ceasefire), then Save & Compile. Any other wiring fails and firewalls the robot for 4 seconds; the [X] cancels with no penalty.
 
 While flying a Stalker:
 

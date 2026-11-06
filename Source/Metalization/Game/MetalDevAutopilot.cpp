@@ -7,6 +7,7 @@
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
 #include "MetalHangar.h"
+#include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
@@ -31,7 +32,8 @@ namespace
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
-		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1 };
+		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
+		SolveHack, FailHack, CancelHack };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -51,11 +53,11 @@ namespace
 		static const TMap<FString, TArray<FAutopilotStep>> Map = {
 			// Shoot, hijack the nearest enemy robot, fight with it, disconnect.
 			{TEXT("combat"), {{1.5f, EStep::AimEnemy}, {1.6f, EStep::Fire}, {4.5f, EStep::StopFire}, {5.0f, EStep::AimHackable},
-				{5.6f, EStep::Tether}, {7.0f, EStep::AimEnemy}, {7.1f, EStep::Fire}, {10.0f, EStep::StopFire}, {10.5f, EStep::Tether}}},
+				{5.6f, EStep::Tether}, {6.0f, EStep::SolveHack}, {7.0f, EStep::AimEnemy}, {7.1f, EStep::Fire}, {10.0f, EStep::StopFire}, {10.5f, EStep::Tether}}},
 			// Hijack a guard through the energy fence, use the console, disconnect.
-			{TEXT("gate"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
+			{TEXT("gate"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
 			// Hijack the Brute boss and turn its miniguns on the Soldiers.
-			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire}, {8.0f, EStep::StopFire}}},
+			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire}, {8.0f, EStep::StopFire}}},
 			// Free-roam movement in the arena: run, double-jump flip, turn, then shoot (action camera).
 			{TEXT("arena"), {{1.0f, EStep::Run}, {2.0f, EStep::Jump}, {2.35f, EStep::Jump}, {3.6f, EStep::TurnLeft}, {4.4f, EStep::Jump},
 				{5.4f, EStep::TurnRight}, {6.4f, EStep::Stop}, {7.0f, EStep::AimEnemy}, {7.2f, EStep::Fire}, {8.5f, EStep::StopFire}}},
@@ -102,7 +104,13 @@ namespace
 				{5.0f, EStep::Fire}, {5.1f, EStep::StopFire}, {6.0f, EStep::StopAim}}},
 			// Hack the gate guard through the shield fence, walk it to the console, open the gate (and the Blue
 			// hangar), let go, then watch the reinforcements head for the command yard.
-			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
+			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact},
+			{7.5f, EStep::Tether}}},
+		// Hack puzzle outcomes on the gate guard: a wrong compile raises its firewall, the tether is refused
+		// while it is up, [X] cancels without one, and the right wiring hijacks it.
+		{TEXT("hackfail"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.2f, EStep::FailHack}, {2.8f, EStep::Tether},
+			{6.6f, EStep::AimGateGuard}, {7.0f, EStep::Tether}, {7.4f, EStep::CancelHack}, {7.6f, EStep::AimGateGuard}, {8.0f, EStep::Tether},
+			{8.6f, EStep::SolveHack}, {11.0f, EStep::Tether}}},
 			// Collapsed bridge: run at the gap, jump at the edge, jump again at the top onto the higher ledge.
 			{TEXT("bridge"), {{0.5f, EStep::Run}, {0.82f, EStep::Jump}, {1.25f, EStep::Jump}, {2.6f, EStep::Stop}}},
 			// Bunker: grab the grenades, lob EMP grenades over the wall, then shoot whoever comes out.
@@ -297,7 +305,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
 		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue"),
 			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
-			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad")};
+			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
+			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -312,6 +321,29 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			PC->GetHackCandidate() ? *PC->GetHackCandidate()->GetName() : TEXT("none"));
 		PC->ToggleTether();
 		AimTarget.Reset();
+		if (const UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hack puzzle open: %s (%s)"), *Puzzle->GetBlueprintName(), *Puzzle->DescribeLinks());
+		}
+		break;
+	case EStep::SolveHack:
+	case EStep::FailHack:
+		if (UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			Puzzle->DevRewire(Action == EStep::SolveHack);
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    rewired: %s (solved=%d)"), *Puzzle->DescribeLinks(), Puzzle->IsSolved());
+			Puzzle->Compile();
+		}
+		else
+		{
+			UE_LOG(LogMetal, Warning, TEXT("[Autopilot]    no hack puzzle open"));
+		}
+		break;
+	case EStep::CancelHack:
+		if (UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			Puzzle->Cancel();
+		}
 		break;
 	case EStep::Interact:    PC->Interact(); break;
 	case EStep::Run:         bRunning = true; break;

@@ -129,6 +129,7 @@ One line per header in `Game/`; the header's own top comment and class comments 
 | `MetalProjectile.h` | `AMetalProjectile` | Bolts, rockets and grenades | [Robots](Systems/Robots.md) |
 | `MetalBotAnimInstance.h` | `FMetalBotAnimState`, `FMetalBotAnimProxy`, `UMetalBotAnimInstance` | Procedural pose from the robot's state, built on a worker thread | [Animation](Systems/Animation.md) |
 | `MetalPlayerController.h` | `AMetalPlayerController` | Input (built in code), Hack Tether, consoles, pause | [PlayerAndHacking](Systems/PlayerAndHacking.md) |
+| `MetalHackPuzzle.h` | `EMetalHackResult`, `EMetalHackPinType`, `FMetalHackNode`, `FMetalHackPin`, `UMetalHackPuzzle` | The fake Blueprint window the player rewires to finish a hack | [PlayerAndHacking](Systems/PlayerAndHacking.md) |
 | `MetalBotAIController.h` | `EMetalAIState`, `AMetalBotAIController` | Walking robot brain: patrol, investigate, combat, retreat; hearing | [AI](Systems/AI.md) |
 | `MetalFlyerAIController.h` | `EMetalPilotRole`, `AMetalFlyerAIController` | Stalker pilots: dogfight, raid ship parts, route through portals | [AI](Systems/AI.md) |
 | `MetalStalker.h` | `UMetalFlightMovementComponent`, `AMetalStalker` | Flying robot: hover-gunship movement, boost, dodge, banking | [Flight](Systems/Flight.md) |

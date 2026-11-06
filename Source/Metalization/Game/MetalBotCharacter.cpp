@@ -312,9 +312,9 @@ void AMetalBotCharacter::Heal(float Amount)
 	}
 }
 
-bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
+bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall) const
 {
-	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled())
+	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled() || (!bIgnoreFirewall && IsFirewalled()))
 	{
 		return false;
 	}
@@ -326,6 +326,18 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 		return Archetype->bAllyHackable && GetController() == nullptr;
 	}
 	return Archetype->bHackable && Hacker->IsHostileTo(this);
+}
+
+void AMetalBotCharacter::RaiseFirewall(float Duration)
+{
+	FirewallEndTime = GetWorld()->GetTimeSeconds() + Duration;
+	bFirewallGlow = true;
+}
+
+float AMetalBotCharacter::GetFirewallTimeRemaining() const
+{
+	const UWorld* World = GetWorld();
+	return World ? FMath::Max(0.f, FirewallEndTime - World->GetTimeSeconds()) : 0.f;
 }
 
 EMetalTeam AMetalBotCharacter::GetBaseTeam() const
@@ -1740,6 +1752,12 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 	if (bHijacked && !bDead)
 	{
 		SetMaterialScalar(TEXT("HackGlow"), 0.65f + 0.35f * FMath::Sin(Now * 6.f));
+	}
+	else if (bFirewallGlow && !bDead)
+	{
+		// A firewall after a failed hack: the hack glow stutters on and off until it drops.
+		bFirewallGlow = IsFirewalled();
+		SetMaterialScalar(TEXT("HackGlow"), bFirewallGlow && FMath::Frac(Now * 5.f) < 0.35f ? 0.8f : 0.f);
 	}
 
 	// Movement state first (sprint, crouch, footsteps), then the things that pose or move the body, and the

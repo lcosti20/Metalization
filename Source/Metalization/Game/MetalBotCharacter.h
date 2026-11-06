@@ -196,10 +196,11 @@ public:
 	 * Enemy robots can be hijacked (a timed link, then they reboot back onto their own side). Friendly robots built for it
 	 * (bAllyHackable, e.g. parked Stalkers) accept an open-ended link instead.
 	 *
-	 * @param Hacker The robot firing the Hack Tether.
+	 * @param Hacker           The robot firing the Hack Tether.
+	 * @param bIgnoreFirewall  Answer as if no firewall were up (to tell "firewalled" apart from "not hackable at all").
 	 * @return True if Hacker may take control of this robot now.
 	 */
-	bool CanBeHackedBy(const AMetalBotCharacter* Hacker) const;
+	bool CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall = false) const;
 
 	/**
 	 * Marks the robot as under the player's control: it joins the Heroes and its hack glow pulses.
@@ -213,6 +214,20 @@ public:
 
 	/** @return Seconds a hijack link to this robot lasts (from the archetype). */
 	float GetPossessionDuration() const;
+
+	/**
+	 * Blocks the Hack Tether for a while after a failed hack (the robot "puts up a firewall").
+	 * CanBeHackedBy returns false until it drops, and the hack glow stutters meanwhile.
+	 *
+	 * @param Duration Seconds the firewall stays up.
+	 */
+	void RaiseFirewall(float Duration);
+
+	/** @return Seconds left on the firewall, or 0 when the robot can be hacked again. */
+	float GetFirewallTimeRemaining() const;
+
+	/** @return True while a firewall from a failed hack is up. */
+	bool IsFirewalled() const { return GetFirewallTimeRemaining() > 0.f; }
 
 	/**
 	 * Powers the robot down, then after Delay it explodes, damaging nearby enemies of its current team.
@@ -678,6 +693,10 @@ protected:
 	/** Switched off: no firing, moving or footsteps (see SetDormant). */
 	bool bDormant = false;
 	bool bHijacked = false;
+	/** World time the firewall from a failed hack drops (see RaiseFirewall). */
+	float FirewallEndTime = -1.f;
+	/** The firewall was up last tick, so the glow is reset once when it drops. */
+	bool bFirewallGlow = false;
 	bool bWeaponDisabled = false;
 	bool bFireHeld = false;
 	bool bAiming = false;

@@ -269,6 +269,7 @@ void UMetalPauseMenu::BuildTree()
 		{TEXT("R / X"), TEXT("Reload")},
 		{TEXT("G / RB"), TEXT("Throw EMP grenade")},
 		{TEXT("F / LB"), TEXT("Hack Tether: take over a robot / let go")},
+		{TEXT("Ctrl+S / Y"), TEXT("Hack window: Save & Compile (drag wires with the mouse, or left stick + A)")},
 		{TEXT("E / B"), TEXT("Use console")},
 		{TEXT("Esc, P / Start"), TEXT("Menu")},
 	};
