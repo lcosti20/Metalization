@@ -39,8 +39,8 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | 6 | Forward post | Shooting, **weapon-arm swap** | A Blue squad holds the sandbags while a Red squad waits beyond sight range. A Repeater lies by the sandbags, and picking it up plays the first acted-out arm swap. Pushing forward pulls the Reds into a firefight with you and the Blues. |
 | 7 | Bunker | Grenades | Three Reds hunker behind a chest-high wall, with only their heads showing. Grab grenades and lob one (it arcs onto the crosshair); the EMP blast stuns them all. |
 | 8 | Patrol yard | **Sneaking** | A walled yard with four patrols under red spotlights and low walls. A crawl pipe on the left only fits a crouched robot. Suspicion meters show who's getting curious; being spotted brings the yard running (no mission fail). **Checkpoint.** |
-| 9 | Sniper perch | Lift + **sniper** | A lift to a tower perch with the sniper rifle. Three Red marksmen with red laser sights cover the valley from their towers. |
-| 10 | Shield gate | Hacking | A Red-only energy fence. The Hack Tether goes through it to take over the guard. |
+| 9 | Sniper perch | Lift + **sniper** | A lift to a tower perch with the sniper rifle. Three Red marksmen with red laser sights cover the valley from their towers. **Checkpoint** on the perch. |
+| 10 | Shield gate | Hacking | A Red-only energy fence. The Hack Tether goes through it to take over the guard. **Checkpoint** across the valley just short of the fence. |
 | 11 | Gate console | Consoles | Walk the hijacked Red to the Red-only console. Reds barely suspect one of their own. The console opens the gate and the Blue reinforcement hangar. |
 | 12 | Command yard | Everything | Blue reinforcements storm in. Reds, a catwalk reached by lift and a Brute commander. A rocket launcher waits by the gate. |
 | 13 | Extraction | — | Reach the pad, then the results screen. |

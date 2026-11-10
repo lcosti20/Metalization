@@ -499,7 +499,7 @@ def build_alpha(archetypes, w):
     lift("Lift_Perch", (23200, 330, UP), PERCH - UP + 80, (0.0, 1.0, 0.0))
     pickup("Pickup_Sniper", unreal.MetalPickupType.WEAPON, (23380, 1000, PERCH), 1.0, w["Sniper"])
     pickup("Pickup_Health_Perch", unreal.MetalPickupType.HEALTH, (23050, 750, PERCH), 40.0)
-    zone_perch = zone("Zone_Perch", (23200, 1000, PERCH + 120), (220, 380, 120), rgb=(0.3, 0.9, 1.0))
+    zone_perch = zone("Zone_Perch", (23200, 1000, PERCH + 120), (220, 380, 120), checkpoint=True, rgb=(0.3, 0.9, 1.0))
 
     # --- Valley floor (sections 10-13) and the way down -------------------------------------------
     VX0 = 23500
@@ -516,6 +516,8 @@ def build_alpha(archetypes, w):
 
     # --- 10/11. Shield gate, console and the Blue reinforcement hangar ---------------------------
     GX = 31000
+    # Checkpoint across the valley just short of the fence (west of the hack test's start spot at GX - 350).
+    zone("Checkpoint_Gate", (GX - 700, 0, 150), (200, Y, 150), checkpoint=True)
     main_gate = gate("ShieldGate", (GX, 0, 0), 0.0, "MI_Alpha_Red")
     block("ShieldGate_Lintel", GX - 60, GX + 60, -320, 320, 450, 520, "MI_Alpha_Red")
     for side, (y0, y1) in (("N", (300, 1000)), ("S", (-1000, -300))):
