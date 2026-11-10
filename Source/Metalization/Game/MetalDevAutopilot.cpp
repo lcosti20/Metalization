@@ -35,7 +35,7 @@ namespace
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
-		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint };
+		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -121,6 +121,8 @@ namespace
 				{6.0f, EStep::AimEnemy}, {6.2f, EStep::Fire}, {11.0f, EStep::StopFire}}},
 			// Jetpack: stand still and double jump (the thrusters only fire on the mid-air jump).
 			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
+			// Low-health warning: drop to 20% (red flash and double beep every second), then heal to stop it.
+			{TEXT("lowhealth"), {{0.5f, EStep::DropToLowHealth}, {3.6f, EStep::HealFully}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
 			// Checkpoint snapshot: scrap a guard, step into the patrol yard checkpoint, scrap another, then get
@@ -322,7 +324,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
 			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
 			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
-			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint")};
+			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
+			TEXT("drop to low health"), TEXT("heal fully")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -437,6 +440,12 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		}
 		break;
 	}
+	case EStep::DropToLowHealth:
+		Me->RestoreHealth(Me->GetMaxHealth() * 0.2f);
+		break;
+	case EStep::HealFully:
+		Me->Heal(Me->GetMaxHealth());
+		break;
 	case EStep::SelfDestruct:
 		UGameplayStatics::ApplyDamage(Me, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
 		break;
@@ -618,7 +627,8 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
-				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d suspicion=%.2f"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()), AI->GetSuspicion());
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d suspicion=%.2f speed=%.0f loc=%s"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()),
+					AI->GetSuspicion(), It->GetVelocity().Size2D(), *It->GetActorLocation().ToCompactString());
 			}
 			else if (const AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(It->GetController()))
 			{

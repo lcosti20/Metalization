@@ -1746,16 +1746,51 @@ void AMetalBotCharacter::SetMaterialScalar(FName Parameter, float Value)
 	}
 }
 
+void AMetalBotCharacter::SetMaterialVector(FName Parameter, const FLinearColor& Value)
+{
+	for (UMaterialInstanceDynamic* MID : DynamicMaterials)
+	{
+		if (MID)
+		{
+			MID->SetVectorParameterValue(Parameter, Value);
+		}
+	}
+}
+
+void AMetalBotCharacter::TickLowHealthWarning(float Now)
+{
+	const bool bLow = IsPlayerControlled() && !bDead && !bDormant && Health <= MaxHealth * LowHealthFraction;
+	if (!bLow)
+	{
+		// Healing or switching bodies stops the warning; dropping low again warns straight away.
+		NextLowHealthPulseTime = 0.f;
+		return;
+	}
+	if (Now >= NextLowHealthPulseTime)
+	{
+		NextLowHealthPulseTime = Now + 1.f;
+		// Above 1 so the red holds at full for a beat before fading: about 0.25 s in all (see Tick).
+		LowHealthFlash = 1.25f;
+		MetalAudio::Play2D(this, TEXT("low_health"), 0.6f);
+		UE_LOG(LogMetal, Log, TEXT("%s low health warning (%.0f / %.0f)"), *GetName(), Health, MaxHealth);
+	}
+}
+
 void AMetalBotCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	const float Now = GetWorld()->GetTimeSeconds();
 
 	// Material feedback: the hit flash fades out in about 1/6 s, and a hijacked robot's hack glow pulses.
-	if (HitFlash > 0.f)
+	TickLowHealthWarning(Now);
+	if (HitFlash > 0.f || LowHealthFlash > 0.f)
 	{
 		HitFlash = FMath::Max(0.f, HitFlash - DeltaSeconds * 6.f);
-		SetMaterialScalar(TEXT("HitFlash"), HitFlash);
+		LowHealthFlash = FMath::Max(0.f, LowHealthFlash - DeltaSeconds * 5.f);
+		// Both flashes share the material's HitFlash parameter; whichever is brighter picks the colour.
+		const bool bLowHealthShows = LowHealthFlash > HitFlash;
+		SetMaterialVector(TEXT("HitFlashColor"), bLowHealthShows ? FLinearColor(3.f, 0.05f, 0.03f) : FLinearColor(2.f, 0.8f, 0.3f));
+		SetMaterialScalar(TEXT("HitFlash"), FMath::Max(HitFlash, FMath::Min(1.f, LowHealthFlash)));
 	}
 	if (bHijacked && !bDead)
 	{

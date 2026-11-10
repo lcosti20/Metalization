@@ -159,6 +159,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	float GetMaxHealth() const { return MaxHealth; }
 
+	/** Health fraction at or below which the player's robot flashes red and beeps. */
+	static constexpr float LowHealthFraction = 0.25f;
+
 	/** @return True while an EMP stun is active: the robot can't move or shoot. */
 	bool IsStunned() const;
 
@@ -527,6 +530,12 @@ protected:
 	 */
 	void SetMaterialScalar(FName Parameter, float Value);
 
+	/** Sets a vector parameter on every dynamic material of the robot ("HitFlashColor"). */
+	void SetMaterialVector(FName Parameter, const FLinearColor& Value);
+
+	/** The player's low-health warning: a red body flash and a double beep, repeated every second. */
+	void TickLowHealthWarning(float Now);
+
 	/** Players turn with the controller (strafe); AI turns smoothly towards its focus point. */
 	virtual void ConfigureRotationForController();
 
@@ -717,6 +726,10 @@ protected:
 	float StunEndTime = 0.f;
 	/** 1 right after a hit, fading to 0; drives the HitFlash material parameter. */
 	float HitFlash = 0.f;
+	/** 1.25 at each low-health pulse (held at 1 briefly), fading to 0; drives HitFlash in red while it outshines the hit flash. */
+	float LowHealthFlash = 0.f;
+	/** World time of the next low-health pulse, or 0 while health isn't low (the first pulse is immediate). */
+	float NextLowHealthPulseTime = 0.f;
 	float LastDamageTakenTime = -100.f;
 	/** Camera distance and offset from the archetype; the action camera blends around these. */
 	float DefaultArmLength = 300.f;

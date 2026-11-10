@@ -143,7 +143,9 @@ void AMetalHUD::DrawHUD()
 		const float HealthFraction = Bot->GetHealth() / FMath::Max(1.f, Bot->GetMaxHealth());
 		const FString Name = Bot->GetDisplayName().ToString().ToUpper() + (Bot->IsHijacked() ? TEXT("  (HIJACKED)") : TEXT(""));
 		DrawTextShadowed(Name, BarX, BarY - NameH - 4.f * UI, Bot->IsHijacked() ? Cyan : Amber, Medium, UI);
-		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthFraction < 0.3f ? Danger : FLinearColor(0.3f, 1.f, 0.4f));
+		// The bar's hue slides from its healthy green at full health, through yellow and orange, to red when empty.
+		const FLinearColor HealthColor = FLinearColor::LerpUsingHSV(Danger, FLinearColor(0.3f, 1.f, 0.4f), FMath::Clamp(HealthFraction, 0.f, 1.f));
+		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthColor);
 		// Stance: sneaking keeps you hidden, sprinting is loud.
 		if (Bot->IsSneaking())
 		{

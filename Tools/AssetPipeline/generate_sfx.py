@@ -326,6 +326,9 @@ def build(name, rng):
         return mix(squelch, (env(osc(0.06, 1800, "sine"), 0.002, curve=4), 0.03, 0.5))
     if name == "ui_move":
         return env(osc(0.035, 1500, "triangle"), 0.001, curve=6)
+    if name == "low_health":
+        # Two quick high beeps, repeated by the player's robot every second while health is low.
+        return crush(tones([1568, 1568], "square", 0.07, 0.06, 3), 7, 2)
     if name == "ui_select":
         return tones([1100, 1650], "triangle", 0.05, 0.0, 5)
     if name == "ambience_loop":
@@ -355,6 +358,8 @@ SOUNDS = [
     "alert", "suspicion", "tether_link", "tether_release", "tether_fail", "console_granted", "console_denied",
     "gate_open", "pickup", "checkpoint", "objective_complete", "mission_complete", "player_down", "radio_blip",
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
+    # New sounds go last: each sound's random seed is its index, so inserting would change the others.
+    "low_health",
 ]
 
 

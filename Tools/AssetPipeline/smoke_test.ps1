@@ -24,6 +24,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     -Scenario bunker  lob EMP grenades into the bunker and shoot the Reds it flushes out
     -Scenario checkpoint  scrap a guard, enter the yard checkpoint, scrap another, die: the reload keeps the first gone, brings the second back
     -Scenario jetpack double jump in the Outpost hangar, filmed from behind (jetpack flames, back rack)
+    -Scenario lowhealth  drop to 20% health in the Outpost hangar: red flash + double beep each second, then heal
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
 Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
@@ -34,7 +35,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "title", "bridge", "bunker", "jetpack", "checkpoint")]
+                 "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -62,6 +63,7 @@ $setups = @{
     "hackfail" = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=1.9,2.5,3.0,7.2,8.3,9.5", "-MetalQuitAt=12")
     "title"  = @("-MetalShots=1.5,4", "-MetalQuitAt=5")
     "jetpack" = @("-MetalTeleport=-300,0,120,0", "-MetalCam=-620,-260,190,-4,38", "-MetalShots=0.8,1.36,1.45,1.6,3.38", "-MetalQuitAt=5")
+    "lowhealth" = @("-MetalTeleport=-300,0,120,0", "-MetalShots=0.53,0.9,1.53,2.53,4.2", "-MetalQuitAt=5")
     "bridge" = @("-MetalObjective=3", "-MetalTeleport=9100,0,120,0", "-MetalShots=1.0,1.4,2.0,3.0", "-MetalQuitAt=4")
     "checkpoint" = @("-MetalObjective=7", "-MetalTeleport=18600,-1225,1330,0", "-MetalShots=1.2,2.2,3.0", "-MetalQuitAt=9")
     "bunker" = @("-MetalObjective=6", "-MetalTeleport=16550,500,1330,0", "-MetalShots=1.2,2.6,4.5,8,11", "-MetalQuitAt=13")
