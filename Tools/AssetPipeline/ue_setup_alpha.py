@@ -496,6 +496,8 @@ def build_alpha(archetypes, w):
     # Only a low lip on the valley side, so shots angled down at the towers clear the edge.
     block("Perch_Lip", 23440, 23470, 600, 1400, PERCH, PERCH + 20, "MI_Env_Hazard", "Decor")
     block("Perch_Rail", 22950, 23470, 1380, 1420, PERCH, PERCH + 90, "MI_Env_Hazard", "Decor")
+    # Shields the lift from the valley so enemy snipers can't pick the player off on the way up.
+    block("Perch_Tower2", 23420, 23460, 90, 1590, UP, PERCH, "MI_Alpha_Concrete")
     lift("Lift_Perch", (23200, 330, UP), PERCH - UP + 80, (0.0, 1.0, 0.0))
     pickup("Pickup_Sniper", unreal.MetalPickupType.WEAPON, (23380, 1000, PERCH), 1.0, w["Sniper"])
     pickup("Pickup_Health_Perch", unreal.MetalPickupType.HEALTH, (23050, 750, PERCH), 40.0)
@@ -528,6 +530,9 @@ def build_alpha(archetypes, w):
         block(f"Fence_Post_{side}", GX - 60, GX + 60, y1 - 20 if y1 > 0 else y0, y1 if y1 > 0 else y0 + 20, 0, 560, "MI_Alpha_Red")
     block("GateWall_N", GX - 60, GX + 60, 1000, Y, 0, 600, "MI_Alpha_Concrete")
     block("GateWall_S", GX - 60, GX + 60, -Y, -1000, 0, 600, "MI_Alpha_Concrete")
+    # Fills the valley above the gate wall, so the brute fight past the gate can't be cheesed with the
+    # sniper rifle from back up the valley.
+    block("GateWall_S2", GX - 60, GX + 60, -1687.5, 1687.5, 500, 3200, "MI_Alpha_Concrete")
     # The guard idles behind the see-through part of the fence (not the solid door), so the tether can reach.
     guard = bot("Red_GateGuard", A["soldier"], (GX + 650, 650, 0), 180.0, ("GateGuard",), 200.0, docile=True)
     console = spawn(unreal.MetalControlConsole, (GX + 500, -1250, 0), 90.0, "GateConsole", "Gates")

@@ -188,6 +188,7 @@
   "sound:lift_enter": "4939500ecb372b9837d55795d8be55a24e015ff13e402977b930b583879dabdb",
   "sound:lift_exit": "0370eaf2cc3c819fb7b67e7ea4d654add1d186edc2ab36d25c34badac5be8f7c",
   "sound:lift_hum_loop": "3d3f3ee5e83e93da727f3561e41b671d6a105a7e9fc7b6787f326246de808888",
+  "sound:low_health": "7c4d82de733443f4e776ad1a184ccf9b2ea9a6df46ec0dc6e53ddf929b0ca5bd",
   "sound:minigun_fire": "2adab50dc67d971fb4b438b1e8960e1a4550789bd4cc664b264bc7ae99a32395",
   "sound:mission_complete": "938b83cf0a492f8127e1f1f917707f2c3c9e6b6f5953baf2e1c7534b465af012",
   "sound:objective_complete": "5f472a49c8701d76301a676b87349e3519d92b777b2c47c9173e5b45cb5be1ec",
@@ -214,7 +215,7 @@
   "sound:ui_select": "7938e0ac54cf73c7d645779fa285530891b05a752e7f451108fc5b7ca1c60fb5"
  },
  "levels": {
-  "alpha": "4b23254159ecc9f1ff64786f19f35d7acb6fd56c7cef58abfcc82656e99e739d",
+  "alpha": "95bf757e9202dc9d932fdea391a18f81b40e65a0efd6b53bc57361e17a7a7367",
   "arena": "e70aea65785067975a6f976dbb734f05f6146c54f0a488562a28c4535434eedd",
   "flight": "7a3a05c335f91bb93f3417ccc810da90664a8e437ab9317d95e24ce2921835e3",
   "outpost": "9834bdc7c14401d0b697d1fb712a9b180935e9738cc5ee7205723b3e2c2af435",
