@@ -6,7 +6,6 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/Clipping.h"
-#include "Math/RandomStream.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
 #include "Styling/CoreStyle.h"
@@ -27,6 +26,8 @@ namespace
 	constexpr float BodyPad = 6.f;
 	constexpr float PinInset = 14.f;
 	constexpr float PinHitRadius = 13.f;
+	/** A press and release closer than this (window units) is a click, which holds the wire for a second click. */
+	constexpr float ClickSlop = 6.f;
 
 	/** Node indices (the order BuildGraph adds them in). */
 	enum ENode : int32 { NEvent, NGet, NSwitch, NCeasefire, NShoot };
@@ -148,41 +149,31 @@ namespace
 		return Point.X >= Rect.Left && Point.X <= Rect.Right && Point.Y >= Rect.Top && Point.Y <= Rect.Bottom;
 	}
 
-	/** @return Twice the signed area of the triangle ABC (which side of AB the point C is on). */
-	float Orient(const FVector2f& A, const FVector2f& B, const FVector2f& C)
-	{
-		return (B.X - A.X) * (C.Y - A.Y) - (B.Y - A.Y) * (C.X - A.X);
-	}
-
-	/** @return True if segments AB and CD cross. */
-	bool SegmentsCross(const FVector2f& A, const FVector2f& B, const FVector2f& C, const FVector2f& D)
-	{
-		return Orient(A, B, C) * Orient(A, B, D) < 0.f && Orient(C, D, A) * Orient(C, D, B) < 0.f;
-	}
 }
 
 // --------------------------------------------------------------------------------------------
 // Graph
 // --------------------------------------------------------------------------------------------
 
-void UMetalHackPuzzle::Init(const FString& InBlueprintName, int32 Seed, TFunction<void(EMetalHackResult)> InOnFinished)
+void UMetalHackPuzzle::Init(const FString& InBlueprintName, TFunction<void(EMetalHackResult)> InOnFinished)
 {
 	BlueprintName = InBlueprintName;
 	OnFinished = MoveTemp(InOnFinished);
 	BuildGraph();
-	Scramble(Seed);
 	Pointer = FVector2f(WinW * 0.5f, WinH * 0.5f);
 }
 
 void UMetalHackPuzzle::BuildGraph()
 {
 	// Header colours follow the real editor: events red, pure getters green, flow control grey, calls blue.
+	// Fixed, tidy layout, centred in the graph and reading left to right: the event and Switch Team share a row
+	// (a straight exec wire), the getter sits just under the gap between them, and the two calls stack on the right.
 	Nodes = {
-		{TEXT("Event: On Target"), FLinearColor(0.55f, 0.06f, 0.05f), FVector2f::ZeroVector, 190.f, 2},
-		{TEXT("Get Value: team"), FLinearColor(0.16f, 0.4f, 0.1f), FVector2f::ZeroVector, 180.f, 1},
-		{TEXT("Switch Team"), FLinearColor(0.32f, 0.32f, 0.34f), FVector2f::ZeroVector, 170.f, 2},
-		{TEXT("Call Ceasefire"), FLinearColor(0.06f, 0.25f, 0.55f), FVector2f::ZeroVector, 170.f, 1},
-		{TEXT("Call Shoot"), FLinearColor(0.06f, 0.25f, 0.55f), FVector2f::ZeroVector, 150.f, 1},
+		{TEXT("Event: On Target"), FLinearColor(0.55f, 0.06f, 0.05f), FVector2f(105.f, 230.f), 190.f, 2},
+		{TEXT("Get Value: team"), FLinearColor(0.16f, 0.4f, 0.1f), FVector2f(345.f, 300.f), 180.f, 1},
+		{TEXT("Switch Team"), FLinearColor(0.32f, 0.32f, 0.34f), FVector2f(585.f, 230.f), 170.f, 2},
+		{TEXT("Call Ceasefire"), FLinearColor(0.06f, 0.25f, 0.55f), FVector2f(845.f, 190.f), 170.f, 1},
+		{TEXT("Call Shoot"), FLinearColor(0.06f, 0.25f, 0.55f), FVector2f(845.f, 330.f), 150.f, 1},
 	};
 	using EType = EMetalHackPinType;
 	Pins = {
@@ -199,79 +190,6 @@ void UMetalHackPuzzle::BuildGraph()
 	};
 	// The robot's own logic: hold fire on red (its own side), shoot blue.
 	Links = {{PEventExec, PSwitchExec}, {PEventTarget, PGetTarget}, {PGetTeam, PSwitchTeam}, {PSwitchRed, PCeasefire}, {PSwitchBlue, PShoot}};
-	DrawOrder = {NEvent, NGet, NSwitch, NCeasefire, NShoot};
-}
-
-void UMetalHackPuzzle::Scramble(int32 Seed)
-{
-	FRandomStream Random(Seed);
-	TArray<FVector2f> Best;
-	int32 BestScore = -1;
-	for (int32 Try = 0; Try < 200; ++Try)
-	{
-		for (int32 Node = 0; Node < Nodes.Num(); ++Node)
-		{
-			Nodes[Node].Position = FVector2f(Random.FRandRange(24.f, GraphSize.X - Nodes[Node].Width - 24.f),
-				Random.FRandRange(20.f, GraphSize.Y - NodeHeight(Node) - 20.f));
-		}
-		const int32 Score = TangleScore();
-		if (Score > BestScore)
-		{
-			BestScore = Score;
-			Best.Reset();
-			for (const FMetalHackNode& Node : Nodes)
-			{
-				Best.Add(Node.Position);
-			}
-		}
-	}
-	for (int32 Node = 0; Node < Nodes.Num() && Best.IsValidIndex(Node); ++Node)
-	{
-		Nodes[Node].Position = Best[Node];
-	}
-	// Shuffle the stacking too, so the layout doesn't always read left to right in creation order.
-	for (int32 Index = DrawOrder.Num() - 1; Index > 0; --Index)
-	{
-		DrawOrder.Swap(Index, Random.RandRange(0, Index));
-	}
-}
-
-int32 UMetalHackPuzzle::TangleScore() const
-{
-	// Nodes may overlap a little (part of the mess), but never enough to bury one.
-	for (int32 A = 0; A < Nodes.Num(); ++A)
-	{
-		for (int32 B = A + 1; B < Nodes.Num(); ++B)
-		{
-			const FVector2f MinA = Nodes[A].Position, MaxA = MinA + FVector2f(Nodes[A].Width, NodeHeight(A));
-			const FVector2f MinB = Nodes[B].Position, MaxB = MinB + FVector2f(Nodes[B].Width, NodeHeight(B));
-			const float OverlapX = FMath::Min(MaxA.X, MaxB.X) - FMath::Max(MinA.X, MinB.X);
-			const float OverlapY = FMath::Min(MaxA.Y, MaxB.Y) - FMath::Max(MinA.Y, MinB.Y);
-			const float Smaller = FMath::Min((MaxA - MinA).X * (MaxA - MinA).Y, (MaxB - MinB).X * (MaxB - MinB).Y);
-			if (OverlapX > 0.f && OverlapY > 0.f && OverlapX * OverlapY > 0.2f * Smaller)
-			{
-				return -1;
-			}
-		}
-	}
-	int32 Score = 0;
-	for (int32 I = 0; I < Links.Num(); ++I)
-	{
-		// Wires that run right to left loop back on themselves.
-		if (PinPosition(Links[I].X).X > PinPosition(Links[I].Y).X - 30.f)
-		{
-			Score++;
-		}
-		for (int32 J = I + 1; J < Links.Num(); ++J)
-		{
-			const FIntPoint L1 = Links[I], L2 = Links[J];
-			if (L1.X != L2.X && L1.Y != L2.Y && SegmentsCross(PinPosition(L1.X), PinPosition(L1.Y), PinPosition(L2.X), PinPosition(L2.Y)))
-			{
-				Score++;
-			}
-		}
-	}
-	return Score;
 }
 
 float UMetalHackPuzzle::NodeHeight(int32 Node) const
@@ -289,37 +207,19 @@ FVector2f UMetalHackPuzzle::PinPosition(int32 Pin) const
 
 int32 UMetalHackPuzzle::PinAt(const FVector2f& Point) const
 {
-	for (int32 Index = DrawOrder.Num() - 1; Index >= 0; --Index)
+	// The nodes never overlap, so the nearest pin in reach is the one.
+	int32 Best = INDEX_NONE;
+	float BestDistance = PinHitRadius;
+	for (int32 Pin = 0; Pin < Pins.Num(); ++Pin)
 	{
-		const int32 Node = DrawOrder[Index];
-		for (int32 Pin = 0; Pin < Pins.Num(); ++Pin)
+		const float Distance = FVector2f::Distance(PinPosition(Pin), Point);
+		if (Distance <= BestDistance)
 		{
-			if (Pins[Pin].Node == Node && FVector2f::Distance(PinPosition(Pin), Point) <= PinHitRadius)
-			{
-				return Pin;
-			}
-		}
-		const FMetalHackNode& N = Nodes[Node];
-		if (Inside(FSlateRect(N.Position, N.Position + FVector2f(N.Width, NodeHeight(Node))), Point))
-		{
-			return INDEX_NONE;
+			Best = Pin;
+			BestDistance = Distance;
 		}
 	}
-	return INDEX_NONE;
-}
-
-int32 UMetalHackPuzzle::NodeAt(const FVector2f& Point) const
-{
-	for (int32 Index = DrawOrder.Num() - 1; Index >= 0; --Index)
-	{
-		const int32 Node = DrawOrder[Index];
-		const FMetalHackNode& N = Nodes[Node];
-		if (Inside(FSlateRect(N.Position, N.Position + FVector2f(N.Width, NodeHeight(Node))), Point))
-		{
-			return Node;
-		}
-	}
-	return INDEX_NONE;
+	return Best;
 }
 
 bool UMetalHackPuzzle::CanConnect(int32 A, int32 B) const
@@ -399,6 +299,8 @@ void UMetalHackPuzzle::DevRewire(bool bCorrect)
 
 void UMetalHackPuzzle::Compile()
 {
+	// Compiling with a wire in hand (Ctrl+S, Y) puts a picked-up wire back first.
+	DropWire(INDEX_NONE);
 	Finish(IsSolved() ? EMetalHackResult::Success : EMetalHackResult::Failed);
 }
 
@@ -414,8 +316,8 @@ void UMetalHackPuzzle::Finish(EMetalHackResult Result)
 		return;
 	}
 	bFinished = true;
-	DragNode = INDEX_NONE;
 	DragPin = INDEX_NONE;
+	bWireSticky = false;
 	// The owner removes this widget from inside the callback, so move the callback out first.
 	if (TFunction<void(EMetalHackResult)> Callback = MoveTemp(OnFinished))
 	{
@@ -475,6 +377,7 @@ void UMetalHackPuzzle::PointerDown(bool bBreak)
 	{
 		return;
 	}
+	PressPointer = Pointer;
 	if (Inside(CloseRect(), Pointer))
 	{
 		Cancel();
@@ -486,85 +389,106 @@ void UMetalHackPuzzle::PointerDown(bool bBreak)
 		return;
 	}
 	const FSlateRect Graph = GraphRect();
-	if (!Inside(Graph, Pointer))
+	const int32 Pin = Inside(Graph, Pointer) ? PinAt(Pointer - FVector2f(Graph.Left, Graph.Top)) : INDEX_NONE;
+
+	// Second click of click-to-connect: join the held wire to this pin. Clicking empty space or the pin the
+	// wire came from just lets it go; clicking another pin it can't join lets it go and starts from that pin.
+	if (bWireSticky)
 	{
-		return;
-	}
-	const FVector2f Point = Pointer - FVector2f(Graph.Left, Graph.Top);
-	if (const int32 Pin = PinAt(Point); Pin != INDEX_NONE)
-	{
-		if (bBreak)
+		const bool bJoins = CanConnect(DragPin, Pin);
+		const bool bOwnPin = Pin == DragPin || Pin == DetachedLink.Y;
+		DropWire(Pin);
+		if (bJoins || bOwnPin || Pin == INDEX_NONE || bBreak)
 		{
-			BreakLinks(Pin);
 			return;
 		}
-		if (!Pins[Pin].bOutput)
-		{
-			// Grabbing a wired input picks that wire up by its end, so it can be moved to another pin.
-			const int32 Index = Links.IndexOfByPredicate([Pin](const FIntPoint& Link) { return Link.Y == Pin; });
-			if (Index != INDEX_NONE)
-			{
-				DragPin = Links[Index].X;
-				Links.RemoveAt(Index);
-				MarkDirty();
-				return;
-			}
-		}
-		DragPin = Pin;
+	}
+	if (Pin == INDEX_NONE)
+	{
 		return;
 	}
-	if (const int32 Node = NodeAt(Point); Node != INDEX_NONE)
+	if (bBreak)
 	{
-		DrawOrder.Remove(Node);
-		DrawOrder.Add(Node);
-		DragNode = Node;
-		GrabOffset = Point - Nodes[Node].Position;
-		GrabStart = Nodes[Node].Position;
+		BreakLinks(Pin);
+		return;
 	}
+	PickUpWire(Pin);
+}
+
+void UMetalHackPuzzle::PickUpWire(int32 Pin)
+{
+	DetachedLink = FIntPoint(INDEX_NONE, INDEX_NONE);
+	DragPin = Pin;
+	bWireSticky = false;
+	if (!Pins[Pin].bOutput)
+	{
+		// Grabbing a wired input picks that wire up by its end, so it can be moved to another pin.
+		const int32 Index = Links.IndexOfByPredicate([Pin](const FIntPoint& Link) { return Link.Y == Pin; });
+		if (Index != INDEX_NONE)
+		{
+			DetachedLink = Links[Index];
+			DragPin = DetachedLink.X;
+			Links.RemoveAt(Index);
+		}
+	}
+	MetalAudio::Play2D(this, TEXT("ui_move"), 0.35f);
+}
+
+void UMetalHackPuzzle::DropWire(int32 Target)
+{
+	if (DragPin == INDEX_NONE)
+	{
+		return;
+	}
+	if (CanConnect(DragPin, Target))
+	{
+		Connect(DragPin, Target);
+		MetalAudio::Play2D(this, TEXT("ui_move"), 0.6f);
+	}
+	else if (DetachedLink.X != INDEX_NONE)
+	{
+		// Let go over nothing: a picked-up wire snaps back rather than vanishing (Alt+click / X deletes wires).
+		Links.Add(DetachedLink);
+	}
+	DetachedLink = FIntPoint(INDEX_NONE, INDEX_NONE);
+	DragPin = INDEX_NONE;
+	bWireSticky = false;
 }
 
 void UMetalHackPuzzle::PointerUp()
 {
-	if (bFinished)
+	if (bFinished || DragPin == INDEX_NONE || bWireSticky)
 	{
 		return;
 	}
-	if (DragPin != INDEX_NONE)
+	if (FVector2f::Distance(Pointer, PressPointer) <= ClickSlop)
 	{
-		const FSlateRect Graph = GraphRect();
-		const int32 Target = PinAt(Pointer - FVector2f(Graph.Left, Graph.Top));
-		if (CanConnect(DragPin, Target))
-		{
-			Connect(DragPin, Target);
-			MetalAudio::Play2D(this, TEXT("ui_move"), 0.6f);
-		}
-		DragPin = INDEX_NONE;
+		// A click, not a drag: keep holding the wire, and the next click says where it goes.
+		bWireSticky = true;
+		return;
 	}
-	if (DragNode != INDEX_NONE)
-	{
-		if (FVector2f::Distance(Nodes[DragNode].Position, GrabStart) > 3.f)
-		{
-			MarkDirty();
-		}
-		DragNode = INDEX_NONE;
-	}
+	const FSlateRect Graph = GraphRect();
+	DropWire(PinAt(Pointer - FVector2f(Graph.Left, Graph.Top)));
 }
 
 void UMetalHackPuzzle::PointerMoved(const FVector2f& WindowPoint)
 {
 	Pointer = FVector2f(FMath::Clamp(WindowPoint.X, 0.f, WinW), FMath::Clamp(WindowPoint.Y, 0.f, WinH));
-	if (DragNode != INDEX_NONE)
-	{
-		const FSlateRect Graph = GraphRect();
-		const FVector2f Wanted = Pointer - FVector2f(Graph.Left, Graph.Top) - GrabOffset;
-		const FVector2f Max = GraphSize - FVector2f(Nodes[DragNode].Width, NodeHeight(DragNode));
-		Nodes[DragNode].Position = FVector2f(FMath::Clamp(Wanted.X, 0.f, Max.X), FMath::Clamp(Wanted.Y, 0.f, Max.Y));
-	}
 }
 
 FReply UMetalHackPuzzle::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (bFinished || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if (bFinished)
+	{
+		return FReply::Handled();
+	}
+	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		// Right-click lets go of a held wire.
+		DropWire(INDEX_NONE);
+		return FReply::Handled();
+	}
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return FReply::Handled();
 	}
@@ -605,7 +529,16 @@ FReply UMetalHackPuzzle::NativeOnKeyDown(const FGeometry& InGeometry, const FKey
 	const FKey Key = InKeyEvent.GetKey();
 	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right)
 	{
-		Cancel();
+		bGamepad = Key.IsGamepadKey();
+		// The first press lets go of a held wire; with nothing held it closes the window.
+		if (DragPin != INDEX_NONE)
+		{
+			DropWire(INDEX_NONE);
+		}
+		else
+		{
+			Cancel();
+		}
 		return FReply::Handled();
 	}
 	if (Key == EKeys::S && InKeyEvent.IsControlDown())
@@ -776,15 +709,11 @@ int32 UMetalHackPuzzle::NativePaint(const FPaintArgs& Args, const FGeometry& All
 	}
 	Layer += 2;
 
-	// Nodes, back to front, each on its own layers so the one on top hides the ones below.
-	for (const int32 Node : DrawOrder)
+	// Nodes, each on its own layers.
+	for (int32 Node = 0; Node < Nodes.Num(); ++Node)
 	{
 		const FMetalHackNode& N = Nodes[Node];
 		const FVector2f Size(N.Width, NodeHeight(Node));
-		if (Node == DragNode)
-		{
-			DrawBox(Out, Layer, Graph, N.Position - FVector2f(2.f, 2.f), Size + FVector2f(4.f, 4.f), Amber, RoundBrush());
-		}
 		DrawBox(Out, Layer + 1, Graph, N.Position, Size, FLinearColor(0.015f, 0.015f, 0.018f, 0.94f), RoundBrush());
 		DrawBox(Out, Layer + 2, Graph, N.Position, FVector2f(N.Width, HeaderH), N.HeaderColor, TopRoundBrush());
 		DrawString(Out, Layer + 3, Graph, N.Position + FVector2f(10.f, 5.f), N.Title, TitleFont, FLinearColor::White);
@@ -802,6 +731,11 @@ int32 UMetalHackPuzzle::NativePaint(const FPaintArgs& Args, const FGeometry& All
 			if (Pin == HoverPin || Pin == DragPin)
 			{
 				DrawBox(Out, Layer + 2, Graph, C - FVector2f(10.f, 10.f), FVector2f(20.f, 20.f), FLinearColor(1.f, 1.f, 1.f, 0.18f), CircleBrush());
+			}
+			else if (CanConnect(DragPin, Pin))
+			{
+				// While a wire is held, ring every pin it could join, in the wire's colour.
+				DrawBox(Out, Layer + 2, Graph, C - FVector2f(10.f, 10.f), FVector2f(20.f, 20.f), Color.CopyWithNewOpacity(0.3f), CircleBrush());
 			}
 			if (P.Type == EMetalHackPinType::Exec)
 			{
@@ -839,9 +773,12 @@ int32 UMetalHackPuzzle::NativePaint(const FPaintArgs& Args, const FGeometry& All
 
 	// Status bar with the controls for whichever device is in use.
 	DrawBox(Out, Layer, Win, FVector2f(0.f, WinH - StatusH), FVector2f(WinW, StatusH), StatusFill);
-	const FString Hint = bGamepad
-		? TEXT("Left stick: cursor     (A) hold: drag nodes and wires     (X) break a pin's links     (Y) Save & Compile     (B) cancel")
-		: TEXT("Drag a node to move it     Drag from a pin to wire it     Alt+Click a pin to break its links     Ctrl+S  Save & Compile");
+	const FString Hint = bWireSticky
+		? (bGamepad ? TEXT("Wire held:  (A) on a ringed pin to connect it     (A) on empty space or (B) to let go")
+			: TEXT("Wire held:  click a ringed pin to connect it     Click empty space, right-click or Esc to let go"))
+		: bGamepad
+		? TEXT("Left stick: cursor     (A) a pin, then (A) another pin to wire them     (X) break a pin's links     (Y) Save & Compile     (B) cancel")
+		: TEXT("Click a pin, then another pin to wire them (or drag)     Alt+Click a pin to break its links     Ctrl+S  Save & Compile");
 	DrawString(Out, Layer + 1, Win, FVector2f(12.f, WinH - StatusH + 7.f), Hint, LabelFont, TextDim);
 	Layer += 2;
 

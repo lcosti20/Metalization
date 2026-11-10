@@ -6,14 +6,15 @@
 //   [           target ] -> [ target     team ] -> [ team    red ] -> [ Call Ceasefire ]
 //                                                  [        blue ] -> [ Call Shoot ]
 //
-// The nodes start in a random, tangled arrangement. The player drags nodes around and drags wires
-// between pins; the hack succeeds when the graph is exactly the original with red and blue swapped
-// (red -> Call Shoot, blue -> Call Ceasefire). After the first edit a "Save & Compile" button appears
-// next to the tab; it (or Ctrl+S) ends the puzzle. The [X] cancels.
+// The nodes sit in a fixed, tidy left-to-right layout and can't be moved. The player rewires pins, either by
+// dragging a wire or by clicking one pin and then the pin to join it to (easier on a gamepad). The hack
+// succeeds when the graph is exactly the original with red and blue swapped (red -> Call Shoot,
+// blue -> Call Ceasefire). After the first edit a "Save & Compile" button appears next to the tab; it
+// (or Ctrl+S) ends the puzzle. The [X] cancels.
 //
 // It is not a real Blueprint: everything is drawn in NativePaint, and the world keeps running meanwhile.
 // Built in code like the pause menu, so there are no widget assets. Gamepads drive a virtual cursor with
-// the left stick (A grab/drop, X break links, Y compile, B cancel). AMetalPlayerController opens and closes it.
+// the left stick (A pick/drop a wire, X break links, Y compile, B cancel). AMetalPlayerController opens and closes it.
 
 #pragma once
 
@@ -86,13 +87,12 @@ class UMetalHackPuzzle : public UUserWidget
 
 public:
 	/**
-	 * Builds the graph in a random tangled layout. Call once, before adding the widget to the viewport.
+	 * Builds the graph in its fixed layout. Call once, before adding the widget to the viewport.
 	 *
 	 * @param InBlueprintName Tab title, e.g. "BP_ShooterController".
-	 * @param Seed            Seeds the layout.
 	 * @param InOnFinished    Called once with the result; the widget does nothing after that.
 	 */
-	void Init(const FString& InBlueprintName, int32 Seed, TFunction<void(EMetalHackResult)> InOnFinished);
+	void Init(const FString& InBlueprintName, TFunction<void(EMetalHackResult)> InOnFinished);
 
 	/** Save & Compile: finishes with Success if the wiring is right, otherwise Failed. */
 	void Compile();
@@ -135,7 +135,7 @@ protected:
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
-	/** Ctrl+S compiles, Escape cancels; gamepad A/X/Y/B act on the virtual cursor. */
+	/** Ctrl+S compiles, Escape drops a held wire or else cancels; gamepad A/X/Y/B act on the virtual cursor. */
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
@@ -143,14 +143,8 @@ protected:
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
-	/** Fills Nodes and Pins and wires the original (wrong) graph. */
+	/** Fills Nodes and Pins in their fixed layout and wires the original (wrong) graph. */
 	void BuildGraph();
-
-	/** Places the nodes at random, keeping the most tangled of many tries. */
-	void Scramble(int32 Seed);
-
-	/** @return How tangled the current layout is (crossing wires plus wires running backwards), or -1 if nodes overlap too much. */
-	int32 TangleScore() const;
 
 	/**
 	 * @param InGeometry The widget's geometry.
@@ -167,9 +161,6 @@ private:
 	/** @return The topmost pin under a graph point, or INDEX_NONE (nodes on top hide the pins under them). */
 	int32 PinAt(const FVector2f& Point) const;
 
-	/** @return The topmost node under a graph point, or INDEX_NONE. */
-	int32 NodeAt(const FVector2f& Point) const;
-
 	/** @return True if a wire may join these two pins. */
 	bool CanConnect(int32 A, int32 B) const;
 
@@ -185,14 +176,23 @@ private:
 	/** Calls the result callback once. */
 	void Finish(EMetalHackResult Result);
 
-	/** Pointer pressed (mouse button or gamepad A) at the current pointer position. */
+	/**
+	 * Pointer pressed (mouse button or gamepad A) at the current pointer position. With a wire held from an
+	 * earlier click, this is the second click: it joins the wire to the pin under the pointer, or drops it.
+	 */
 	void PointerDown(bool bBreak);
 
-	/** Pointer released: drops a dragged wire or node. */
+	/** Pointer released: joins a dragged wire, or, if the pointer barely moved, keeps holding it for a second click. */
 	void PointerUp();
 
-	/** Moves the pointer (window units) and drags whatever is held. */
+	/** Moves the pointer (window units). */
 	void PointerMoved(const FVector2f& WindowPoint);
+
+	/** Starts holding a wire from a pin (picking up the wire already on it if it is a wired input). */
+	void PickUpWire(int32 Pin);
+
+	/** Joins the held wire to a pin if they fit; otherwise drops it, putting back any wire it was picked up from. */
+	void DropWire(int32 Target);
 
 	/** Rectangles of the window's buttons, in window units. */
 	FSlateRect TabRect() const;
@@ -206,8 +206,6 @@ private:
 	TArray<FMetalHackPin> Pins;
 	/** Wires: X is the output pin, Y the input pin. */
 	TArray<FIntPoint> Links;
-	/** Node indices back to front; the last one is drawn on top. */
-	TArray<int32> DrawOrder;
 
 	/** Tab title. */
 	FString BlueprintName;
@@ -218,14 +216,14 @@ private:
 	FVector2f Pointer = FVector2f(560.f, 330.f);
 	/** Left stick, for the virtual cursor. */
 	FVector2f Stick = FVector2f::ZeroVector;
-	/** Grab offset from the dragged node's corner. */
-	FVector2f GrabOffset = FVector2f::ZeroVector;
-	/** Where the dragged node started, to tell a click from a move. */
-	FVector2f GrabStart = FVector2f::ZeroVector;
-	/** Node being dragged, or INDEX_NONE. */
-	int32 DragNode = INDEX_NONE;
-	/** Pin a wire is being dragged from, or INDEX_NONE. */
+	/** Where the pointer was pressed, to tell a click from a drag. */
+	FVector2f PressPointer = FVector2f::ZeroVector;
+	/** Pin a wire is being held from (dragged, or waiting for the second click), or INDEX_NONE. */
 	int32 DragPin = INDEX_NONE;
+	/** The wire picked up off an input to start the held wire, put back if the wire is dropped; X is INDEX_NONE if none. */
+	FIntPoint DetachedLink = FIntPoint(INDEX_NONE, INDEX_NONE);
+	/** The held wire was clicked rather than dragged: it follows the pointer until the next click. */
+	bool bWireSticky = false;
 	/** Something was changed, so Save & Compile shows. */
 	bool bDirty = false;
 	/** The last input came from a gamepad: draw the virtual cursor and gamepad hints. */

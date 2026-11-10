@@ -50,7 +50,7 @@ Switch levels in game from the pause menu (Esc, P or Start > Level Select).
 
 Anti-grav lifts need no button: walk into the glowing beam.
 
-The hack window: hacking an enemy opens a `BP_<Unit>Controller` graph with the nodes scattered. Untangle it and swap the Switch Team outputs (red to Call Shoot, blue to Call Ceasefire), then Save & Compile. Any other wiring fails and firewalls the robot for 4 seconds; the [X] cancels with no penalty.
+The hack window: hacking an enemy opens a `BP_<Unit>Controller` graph laid out left to right. Swap the Switch Team outputs (red to Call Shoot, blue to Call Ceasefire), then Save & Compile. Wire pins by dragging, or by clicking one pin and then the other (handy on a gamepad). Any other wiring fails and firewalls the robot for 4 seconds; the [X] cancels with no penalty.
 
 While flying a Stalker:
 

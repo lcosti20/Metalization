@@ -675,9 +675,8 @@ void AMetalPlayerController::OpenHackPuzzle(AMetalBotCharacter* Target)
 
 	HackTarget = Target;
 	HackPuzzle = CreateWidget<UMetalHackPuzzle>(this, UMetalHackPuzzle::StaticClass());
-	const int32 Seed = FMath::Rand();
 	TWeakObjectPtr<AMetalPlayerController> WeakThis(this);
-	HackPuzzle->Init(BlueprintName, Seed, [WeakThis](EMetalHackResult Result)
+	HackPuzzle->Init(BlueprintName, [WeakThis](EMetalHackResult Result)
 	{
 		if (AMetalPlayerController* Self = WeakThis.Get())
 		{
@@ -695,7 +694,7 @@ void AMetalPlayerController::OpenHackPuzzle(AMetalBotCharacter* Target)
 	// A faint beam while the upload runs; BeginPossession swaps it for the full one.
 	TetherBeam = AMetalFX::SpawnBeam(GetWorld(), Body->GetMuzzleLocation(), Target->GetActorLocation(), TetherColor * 0.5f, 0.6f, 0.f);
 	MetalAudio::Play2D(this, TEXT("radio_blip"), 0.8f);
-	UE_LOG(LogMetal, Log, TEXT("[Hack] puzzle opened on %s (%s, seed %d)"), *Target->GetName(), *BlueprintName, Seed);
+	UE_LOG(LogMetal, Log, TEXT("[Hack] puzzle opened on %s (%s)"), *Target->GetName(), *BlueprintName);
 }
 
 void AMetalPlayerController::CloseHackPuzzle()
