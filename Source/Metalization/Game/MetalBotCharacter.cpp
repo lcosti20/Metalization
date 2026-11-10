@@ -312,6 +312,14 @@ void AMetalBotCharacter::Heal(float Amount)
 	}
 }
 
+void AMetalBotCharacter::RestoreHealth(float NewHealth)
+{
+	if (!bDead)
+	{
+		Health = FMath::Clamp(NewHealth, 1.f, MaxHealth);
+	}
+}
+
 bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall) const
 {
 	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled() || (!bIgnoreFirewall && IsFirewalled()))

@@ -119,6 +119,17 @@ public:
 	 */
 	void StartMission(AMetalGameMode* InGameMode);
 
+	/**
+	 * Resumes the mission at a checkpoint snapshot's objective instead of StartMission: no banner, no
+	 * start dialogue, and the starting loadout is not handed out (the snapshot restores the player's own).
+	 * If that objective is already met when it is first checked (the player respawns inside the zone that
+	 * completes it), it advances without the "Objective complete" notice.
+	 *
+	 * @param InGameMode Game mode that receives messages and the completion call.
+	 * @param Index      Objective to resume at.
+	 */
+	void RestoreObjective(AMetalGameMode* InGameMode, int32 Index);
+
 	/** @return Description of the active objective, or empty when finished. */
 	FText GetCurrentObjectiveText() const;
 
@@ -159,4 +170,6 @@ private:
 	float NextCheckTime = 0.f;
 	/** PlayerStartingWeapons has been given to the first player pawn. */
 	bool bLoadoutApplied = false;
+	/** World time until which completions are silent: the first checks after RestoreObjective. */
+	float QuietUntil = -1.f;
 };

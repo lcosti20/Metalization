@@ -46,6 +46,9 @@ public:
 	/** @return True once the console has been used successfully. */
 	bool IsActivated() const { return bActivated; }
 
+	/** Puts the console back in its used state after a checkpoint reload: green screen, linked gates already open, no sound. */
+	void RestoreActivated();
+
 	/**
 	 * Tries to operate the console. The check uses the archetype's team, not the robot's current team, so
 	 * a hijacked enemy (which fights for the Heroes) still has the enemy's access.

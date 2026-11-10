@@ -193,6 +193,14 @@ public:
 	void Heal(float Amount);
 
 	/**
+	 * Sets health to a checkpoint snapshot's value (UMetalCheckpointSubsystem), capped at GetMaxHealth().
+	 * Ignored once dead.
+	 *
+	 * @param NewHealth Hit points to have.
+	 */
+	void RestoreHealth(float NewHealth);
+
+	/**
 	 * Enemy robots can be hijacked (a timed link, then they reboot back onto their own side). Friendly robots built for it
 	 * (bAllyHackable, e.g. parked Stalkers) accept an open-ended link instead.
 	 *

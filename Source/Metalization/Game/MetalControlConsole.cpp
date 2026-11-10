@@ -68,6 +68,19 @@ void AMetalControlConsole::SetScreenColor(const FLinearColor& Color)
 	Light->SetLightColor(Color);
 }
 
+void AMetalControlConsole::RestoreActivated()
+{
+	bActivated = true;
+	SetScreenColor(OpenColor);
+	for (AActor* Actor : LinkedGates)
+	{
+		if (AMetalGate* Gate = Cast<AMetalGate>(Actor))
+		{
+			Gate->OpenInstantly();
+		}
+	}
+}
+
 FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 {
 	if (bActivated)

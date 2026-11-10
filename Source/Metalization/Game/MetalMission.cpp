@@ -35,6 +35,15 @@ void AMetalMission::StartMission(AMetalGameMode* InGameMode)
 	ActivateObjective(FirstObjective);
 }
 
+void AMetalMission::RestoreObjective(AMetalGameMode* InGameMode, int32 Index)
+{
+	GameMode = InGameMode;
+	bLoadoutApplied = true;
+	QuietUntil = GetWorld()->GetTimeSeconds() + 1.f;
+	CurrentObjective = Index;
+	UE_LOG(LogMetal, Log, TEXT("Objective %d (checkpoint): %s"), Index, *GetCurrentObjectiveText().ToString());
+}
+
 FText AMetalMission::GetCurrentObjectiveText() const
 {
 	return Objectives.IsValidIndex(CurrentObjective) ? Objectives[CurrentObjective].Description : FText::GetEmpty();
@@ -191,6 +200,11 @@ void AMetalMission::Tick(float DeltaSeconds)
 	NextCheckTime = Now + 0.25f;
 	if (IsObjectiveComplete(Objectives[CurrentObjective]))
 	{
+		if (Now < QuietUntil)
+		{
+			ActivateObjective(CurrentObjective + 1);
+			return;
+		}
 		if (AMetalGameMode* GM = GameMode.Get())
 		{
 			GM->ShowMessage(FText::GetEmpty(), FText::Format(NSLOCTEXT("Metalization", "ObjectiveDone", "Objective complete: {0}"), Objectives[CurrentObjective].Description), 3.f);

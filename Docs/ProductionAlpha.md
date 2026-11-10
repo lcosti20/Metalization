@@ -20,8 +20,8 @@ a battle that uses all of them at once.
 
 Move up → read the radio and the control tip → use the new mechanic → clear the objective. That repeats 13
 times, with checkpoints along the way. The player starts with only the Laser and no grenades. The Repeater,
-grenades, sniper and rocket launcher are handed out as they become relevant. Dying respawns the player at
-the last checkpoint with their loadout. Finishing shows a results panel (time, kills, deaths, accuracy) with
+grenades, sniper and rocket launcher are handed out as they become relevant. Dying puts the whole level back
+the way it was at the last checkpoint (enemies, pickups, gates, objective and the player's loadout). Finishing shows a results panel (time, kills, deaths, accuracy) with
 Retry or the menu.
 
 ## The mission, beat by beat
@@ -141,6 +141,7 @@ Each new beat has an autopilot smoke test that drives it and records a log and s
 |---|---|
 | `alpha` | Sprint down the trench (1000 cm/s) without being hit by the barrage; jump the first barricade |
 | `bridge` | Double jump onto the higher ledge; checkpoint and next objective |
+| `checkpoint` | Scrap a guard, enter the yard checkpoint, scrap another, die. After the reload the first guard stays gone and the second is back (logs `[Checkpoint]` and the hostile count) |
 | `lift` | Ride the cliff lift from 3.3 m to the plateau at 13 m |
 | `swap` | Pick up the Repeater; swap arms three times (side camera, shots at each beat) |
 | `bunker` | Lob EMP grenades onto the Reds behind the wall, then shoot them |

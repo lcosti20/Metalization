@@ -27,6 +27,12 @@ class AMetalSpaceBattleGameMode : public AMetalGameMode
 	GENERATED_BODY()
 
 public:
+	/** Respawns the pilot into the running battle instead of reloading the level. */
+	AMetalSpaceBattleGameMode()
+	{
+		bResetLevelOnDeath = false;
+	}
+
 	/** The side the player fights for; they spawn aboard this team's ship. */
 	UPROPERTY(EditDefaultsOnly, Category="Metalization")
 	EMetalTeam PlayerTeam = EMetalTeam::Heroes;

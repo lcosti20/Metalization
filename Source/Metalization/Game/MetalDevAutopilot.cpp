@@ -7,6 +7,7 @@
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
 #include "MetalHangar.h"
+#include "MetalMission.h"
 #include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
 #include "MetalPortal.h"
@@ -14,6 +15,7 @@
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
 #include "MetalTitle.h"
+#include "MetalTriggerZone.h"
 #include "MetalWeaponData.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
@@ -33,7 +35,7 @@ namespace
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
-		SolveHack, FailHack, CancelHack };
+		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -121,6 +123,12 @@ namespace
 			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
+			// Checkpoint snapshot: scrap a guard, step into the patrol yard checkpoint, scrap another, then get
+			// scrapped. The level reloads and runs "checkpoint_restored", which counts the robots again: the
+			// first guard must stay gone and the second must be back.
+			{TEXT("checkpoint"), {{0.3f, EStep::ScrapNearestEnemy}, {0.6f, EStep::GoToCheckpoint}, {1.0f, EStep::CountRobots},
+				{1.5f, EStep::ScrapNearestEnemy}, {2.0f, EStep::CountRobots}, {2.5f, EStep::SelfDestruct}}},
+			{TEXT("checkpoint_restored"), {{0.5f, EStep::CountRobots}}},
 		};
 		return Map;
 	}
@@ -172,6 +180,12 @@ void AMetalDevAutopilot::BeginPlay()
 	{
 		Scenario = TEXT("combat");
 	}
+	// After a death reloads the level from a checkpoint, run the scenario's follow-up (or nothing) instead of starting over.
+	if (const AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>(); bAutopilot && GameMode && GameMode->IsRestoredFromCheckpoint())
+	{
+		bRestored = true;
+		Scenario = Scenarios().Contains(Scenario + TEXT("_restored")) ? Scenario + TEXT("_restored") : TEXT("title");
+	}
 	// -MetalShots=t1,t2,...: take screenshots at these times. -MetalQuitAt=t: exit the game at that time.
 	if (FParse::Value(Cmd, TEXT("MetalShots="), Value, false))
 	{
@@ -203,7 +217,8 @@ void AMetalDevAutopilot::Start()
 	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
+	// A checkpoint retry already put the player at the checkpoint.
+	if (!bRestored && FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
 	{
 		const TArray<float> V = ParseFloats(Value);
 		if (V.Num() >= 4)
@@ -306,7 +321,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue"),
 			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
 			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
-			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle")};
+			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
+			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -384,6 +400,45 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		// Their heads show over the wall: aim there, as a player would.
 		AimTarget = FindNearest(false, TEXT("Bunker"));
 		AimBone = AimTarget.IsValid() ? AimTarget->GetRig().Head : NAME_None;
+		break;
+	case EStep::CountRobots:
+	{
+		const AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>();
+		int32 Standing = 0;
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			Standing += It->IsAlive() && Me->IsHostileTo(*It) ? 1 : 0;
+		}
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hostile robots standing: %d (objective %d, at %s)"), Standing,
+			GameMode && GameMode->GetMission() ? GameMode->GetMission()->GetCurrentObjectiveIndex() : -1, *Me->GetActorLocation().ToCompactString());
+		break;
+	}
+	case EStep::ScrapNearestEnemy:
+		if (AMetalBotCharacter* Enemy = FindNearest(false, NAME_None))
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    scrapping %s"), *Enemy->GetName());
+			UGameplayStatics::ApplyDamage(Enemy, 1.e6f, PC, Me, UDamageType::StaticClass());
+		}
+		break;
+	case EStep::GoToCheckpoint:
+	{
+		const AMetalTriggerZone* Best = nullptr;
+		for (TActorIterator<AMetalTriggerZone> It(GetWorld()); It; ++It)
+		{
+			if (It->bIsCheckpoint && !It->IsCheckpointUsed() &&
+				(Best == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Best->GetActorLocation(), Me->GetActorLocation())))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			Me->TeleportTo(Best->GetActorLocation(), Me->GetActorRotation());
+		}
+		break;
+	}
+	case EStep::SelfDestruct:
+		UGameplayStatics::ApplyDamage(Me, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
 		break;
 	case EStep::ClearSquad1:
 		// Skipping ahead with -MetalObjective leaves the earlier squad standing next to the bunker.

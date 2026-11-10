@@ -1,6 +1,7 @@
 #include "MetalGameMode.h"
 
 #include "MetalAudio.h"
+#include "MetalCheckpoint.h"
 #include "MetalDevAutopilot.h"
 #include "MetalDialogue.h"
 #include "MetalPlayerCharacter.h"
@@ -19,10 +20,53 @@ AMetalGameMode::AMetalGameMode()
 	HUDClass = AMetalHUD::StaticClass();
 }
 
+void AMetalGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	UMetalCheckpointSubsystem* Checkpoints = GetGameInstance() ? GetGameInstance()->GetSubsystem<UMetalCheckpointSubsystem>() : nullptr;
+	if (Checkpoints == nullptr)
+	{
+		return;
+	}
+	// Deaths and the clock carry over on any retry, even one from before the first checkpoint.
+	if (const FMetalLevelSnapshot* Snapshot = Checkpoints->TakeRetry(GetWorld(), Deaths, CarriedMissionTime))
+	{
+		bRestoredFromCheckpoint = true;
+		RestoreSnapshot = *Snapshot;
+		bHasCheckpoint = true;
+		CheckpointTransform = Snapshot->PlayerTransform;
+		Kills = Snapshot->Kills;
+	}
+}
+
+void AMetalGameMode::StartPlay()
+{
+	if (bRestoredFromCheckpoint)
+	{
+		UMetalCheckpointSubsystem::ApplyBeforeBeginPlay(GetWorld(), RestoreSnapshot);
+	}
+	// Runs every actor's BeginPlay (this one's included), which resets health, screens and loadouts.
+	Super::StartPlay();
+	if (bRestoredFromCheckpoint)
+	{
+		UMetalCheckpointSubsystem::ApplyAfterBeginPlay(GetWorld(), RestoreSnapshot);
+	}
+}
+
+void AMetalGameMode::RestartPlayer(AController* NewPlayer)
+{
+	if (bHasCheckpoint && NewPlayer && NewPlayer->IsPlayerController())
+	{
+		RestartPlayerAtTransform(NewPlayer, CheckpointTransform);
+		return;
+	}
+	Super::RestartPlayer(NewPlayer);
+}
+
 void AMetalGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	MissionStartTime = GetWorld()->GetTimeSeconds();
+	MissionStartTime = GetWorld()->GetTimeSeconds() - CarriedMissionTime;
 	BotDiedHandle = AMetalBotCharacter::OnAnyBotDied.AddUObject(this, &AMetalGameMode::OnBotDied);
 
 	for (TActorIterator<AMetalMission> It(GetWorld()); It; ++It)
@@ -30,7 +74,12 @@ void AMetalGameMode::BeginPlay()
 		Mission = *It;
 		break;
 	}
-	if (Mission)
+	if (Mission && bRestoredFromCheckpoint && RestoreSnapshot.ObjectiveIndex != INDEX_NONE)
+	{
+		Mission->RestoreObjective(this, RestoreSnapshot.ObjectiveIndex);
+		ShowBanner(NSLOCTEXT("Metalization", "CheckpointRestored", "CHECKPOINT"), 2.f);
+	}
+	else if (Mission)
 	{
 		Mission->StartMission(this);
 	}
@@ -96,10 +145,17 @@ float AMetalGameMode::GetMissionTime() const
 	return (bMissionComplete ? MissionEndTime : GetWorld()->GetTimeSeconds()) - MissionStartTime;
 }
 
-void AMetalGameMode::SetCheckpoint(const FTransform& Transform)
+void AMetalGameMode::SetCheckpoint(const FTransform& Transform, AMetalBotCharacter* PlayerBody)
 {
 	bHasCheckpoint = true;
 	CheckpointTransform = Transform;
+	if (bResetLevelOnDeath)
+	{
+		if (UMetalCheckpointSubsystem* Checkpoints = GetGameInstance()->GetSubsystem<UMetalCheckpointSubsystem>())
+		{
+			Checkpoints->Capture(this, PlayerBody, Transform);
+		}
+	}
 	ShowBanner(NSLOCTEXT("Metalization", "Checkpoint", "CHECKPOINT"), 2.f);
 	MetalAudio::Play2D(this, TEXT("checkpoint"), 0.8f);
 }
@@ -137,7 +193,25 @@ void AMetalGameMode::PlayerDied(AMetalPlayerController* Controller, AMetalBotCha
 	ShowBanner(NSLOCTEXT("Metalization", "Scrapped", "SCRAPPED!"), 3.f);
 	MetalAudio::Play2D(this, TEXT("player_down"), 0.9f);
 	FTimerHandle Handle;
-	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateUObject(this, &AMetalGameMode::Respawn, Controller), 3.f, false);
+	// After the mission is won a reload would throw away the results screen, so just respawn.
+	if (bResetLevelOnDeath && !bMissionComplete)
+	{
+		GetWorldTimerManager().SetTimer(Handle, this, &AMetalGameMode::ReloadFromCheckpoint, 3.f, false);
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateUObject(this, &AMetalGameMode::Respawn, Controller), 3.f, false);
+	}
+}
+
+void AMetalGameMode::ReloadFromCheckpoint()
+{
+	if (UMetalCheckpointSubsystem* Checkpoints = GetGameInstance()->GetSubsystem<UMetalCheckpointSubsystem>())
+	{
+		Checkpoints->PrepareRetry(Deaths, GetMissionTime());
+	}
+	UE_LOG(LogMetal, Log, TEXT("[Checkpoint] player scrapped (%d deaths): reloading to the %s"), Deaths, bHasCheckpoint ? TEXT("last checkpoint") : TEXT("level start"));
+	RestartMission();
 }
 
 void AMetalGameMode::Respawn(AMetalPlayerController* Controller)

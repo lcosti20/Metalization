@@ -26,11 +26,36 @@ The game mode holds the on-screen text; the HUD only draws it.
 
 ### Death, checkpoints and respawn
 
-1. The player controller reports the body's death with `PlayerDied`.
-2. The game mode saves the body's weapons, equipped slot and grenades, shows "SCRAPPED!", and after 3 s calls `Respawn`.
-3. `Respawn` destroys the old body (and any host the player was still in), spawns a fresh body at the last checkpoint (or a player start), and restores the saved weapons (each topped up by half its maximum reserve) and at least two grenades.
+Checkpoint trigger zones call `SetCheckpoint`. On mission levels (`bResetLevelOnDeath`, the default) it also has
+`UMetalCheckpointSubsystem` (`MetalCheckpoint.h`, a game-instance subsystem, so it survives a level load) take a
+snapshot of the level:
 
-`SetCheckpoint` is called by checkpoint trigger zones.
+- every placed actor that still exists (living robots, pickups not yet taken, ...), keyed by its path in the map
+- each living robot's transform, health and dormancy
+- activated consoles, used checkpoint zones, zones whose dialogue has played
+- the mission's objective index, the kill count and the player's weapons and grenades
+
+When the player's own body dies:
+
+1. The player controller reports the death with `PlayerDied`. The game mode shows "SCRAPPED!" and waits 3 s.
+2. With `bResetLevelOnDeath`, `ReloadFromCheckpoint` marks a retry (deaths and mission time carry over) and reloads
+   the map. The new game mode takes the snapshot back in `InitGame` and:
+   - spawns the player at the checkpoint (`RestartPlayer`)
+   - before any `BeginPlay`: destroys placed actors that were gone at the checkpoint, moves the robots back and
+     marks used zones so they don't fire again when the player spawns inside them
+   - after every `BeginPlay`: restores robot health, opens activated consoles' gates instantly and gives back the
+     checkpoint loadout
+   - resumes the mission at the snapshot's objective (`AMetalMission::RestoreObjective`: no banner or start
+     dialogue)
+   With no checkpoint reached yet, the retry just reloads the level from the start. Every NPC, projectile and
+   timer starts fresh either way. Any other load (Restart, Level Select, the title screen) clears the snapshot.
+3. Without it (the arena and the space battle), or once the mission is complete, `Respawn` destroys the old body
+   (and any host the player was still in), spawns a fresh body at the last checkpoint (or a player start) in the
+   running level, and restores the weapons the player died with (each topped up by half its maximum reserve) and
+   at least two grenades.
+
+Only actors placed in the map are tracked. An actor spawned during play that should survive a checkpoint would
+need its own entry in the snapshot.
 
 ### Completion
 

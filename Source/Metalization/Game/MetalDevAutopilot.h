@@ -7,7 +7,7 @@
 //   -MetalAutopilot[=combat|gate|boss|arena|flight|hangar|battle|dogfight|menu|ships]  run a scripted smoke test (see Scenarios() in the .cpp)
 //   -MetalMenuLevel=Arena        Level Select entry the "menu" scenario picks (it runs again after the switch)
 //   -MetalObjective=N            start the mission at objective N
-//   -MetalQuitAt=12              exit the game
+//   -MetalQuitAt=12              exit the game (timed from each level load, so a checkpoint retry runs again)
 
 #pragma once
 
@@ -90,6 +90,8 @@ private:
 	float StartTime = 0.f;
 	float NextLogTime = 0.f;
 	bool bAutopilot = false;
+	/** This level load is a checkpoint retry (skip -MetalTeleport, run the "<scenario>_restored" steps). */
+	bool bRestored = false;
 	bool bRunning = false;
 	/** The clock starts once the player has a pawn. */
 	bool bStarted = false;

@@ -137,6 +137,7 @@ One line per header in `Game/`; the header's own top comment and class comments 
 | `MetalMission.h` | `EMetalObjectiveType`, `FMetalObjective`, `AMetalMission` | Ordered objectives placed in a level | [MissionsAndUI](Systems/MissionsAndUI.md) |
 | `MetalDialogue.h` | `FMetalDialogueLine`, `UMetalDialogueSubsystem` | Queued radio dialogue | [MissionsAndUI](Systems/MissionsAndUI.md) |
 | `MetalTriggerZone.h` | `AMetalTriggerZone` | Checkpoints, reach-zone targets, dialogue triggers | [MissionsAndUI](Systems/MissionsAndUI.md) |
+| `MetalCheckpoint.h` | `FMetalBotSnapshot`, `FMetalLevelSnapshot`, `UMetalCheckpointSubsystem` | Level snapshot at a checkpoint, restored after the reload when the player dies | [MissionsAndUI](Systems/MissionsAndUI.md) |
 | `MetalControlConsole.h`, `MetalGate.h` | `AMetalControlConsole`, `AMetalGate` | Enemy-only console that opens linked gates | [MissionsAndUI](Systems/MissionsAndUI.md) |
 | `MetalPickup.h` | `EMetalPickupType`, `AMetalPickup` | Repairs, ammo, grenades, weapons and upgrades | [MissionsAndUI](Systems/MissionsAndUI.md) |
 | `MetalGravLift.h` | `AMetalGravLift` | Anti-gravity lift column | [MissionsAndUI](Systems/MissionsAndUI.md) |
