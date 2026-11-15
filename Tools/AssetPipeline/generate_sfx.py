@@ -555,27 +555,42 @@ def build(name, rng):
         # Two quick high beeps, repeated by the player's robot every second while health is low.
         return crush(tones([1568, 1568], "square", 0.07, 0.06, 3), 7, 2)
     if name == "radio_whistle_loop":
-        # Heterodyne whistle ("birdies") under dialogue, like a radio being tuned: a near-pure tone that holds
-        # on a random pitch, then sweeps (fast or slow) to the next one, with a slight warble and a faint
-        # beat tone a little off it. 12 s of random sweeps, so the loop doesn't sound repetitive; the game
-        # also starts it at a random point and pitch each time.
+        # Shortwave "radio waves" under dialogue: a pure whistle that never settles, zig-zagging in straight
+        # sweeps between a low valley (~480-850 Hz) and a high peak (~1.1-3 kHz) about three times a second -
+        # a quick rise, a slower fall, sometimes a kink or a small bump - over a few steady, flickering
+        # carrier tones and a band-limited hiss. 12 s of random sweeps so the loop doesn't sound repetitive;
+        # the game also starts it at a random point and pitch each time.
         length = 12.0
         n = int(length * RATE)
-        start_f = rng.uniform(800.0, 1600.0)
+
+        def valley():
+            return math.exp(rng.uniform(math.log(480.0), math.log(850.0)))
+
+        start_f = valley()
         points = [(0.0, start_f)]
         t, f = 0.0, start_f
-        while True:
-            hold = rng.uniform(0.05, 0.44)
-            glide = rng.choice([rng.uniform(0.02, 0.07), rng.uniform(0.1, 0.36)])  # quick chirp or slower sweep
-            if t + hold + glide > length - 0.4:
-                break
-            t += hold
+        while t < length - 0.6:
+            if rng.random() < 0.2:  # small bump up and back down
+                t += rng.uniform(0.06, 0.14)
+                points.append((t, rng.uniform(750.0, 1000.0)))
+                t += rng.uniform(0.06, 0.14)
+                f = valley()
+                points.append((t, f))
+                continue
+            t += rng.uniform(0.03, 0.1)  # fast rise
+            peak = math.exp(rng.uniform(math.log(1100.0), math.log(3200.0)))
+            points.append((t, peak))
+            if rng.random() < 0.5:  # the fall bends partway down
+                t += rng.uniform(0.04, 0.12)
+                points.append((t, peak * rng.uniform(0.5, 0.8)))
+            t += rng.uniform(0.06, 0.22)  # slower fall
+            f = valley()
             points.append((t, f))
-            t += glide
-            f = math.exp(rng.uniform(math.log(450.0), math.log(2800.0)))
-            points.append((t, f))
-        # End by sweeping back to the starting pitch, so the loop point is continuous.
-        points.append((length - 0.28, f))
+            if rng.random() < 0.3:  # brief rest in the valley
+                t += rng.uniform(0.02, 0.08)
+                points.append((t, f * rng.uniform(0.9, 1.1)))
+        # Squeeze the sweeps to fit, and end back at the starting pitch, so the loop point is continuous.
+        points = [(pt * (length - 0.25) / t, pf) for pt, pf in points]
         points.append((length, start_f))
         freqs = [0.0] * n
         seg = 0
@@ -585,26 +600,30 @@ def build(name, rng):
                 seg += 1
             (t0, f0), (t1, f1) = points[seg], points[seg + 1]
             u = 0.0 if t1 <= t0 else min(1.0, max(0.0, (ti - t0) / (t1 - t0)))
-            u = u * u * (3.0 - 2.0 * u)  # ease in and out of each sweep
-            # Sweep in log-frequency (musical), with a gentle 12.5 Hz warble (150 whole cycles per loop).
-            freqs[i] = math.exp(math.log(f0) + (math.log(f1) - math.log(f0)) * u) * (1.0 + 0.004 * math.sin(TWO_PI * 12.5 * ti))
-        # Nudge every frequency so the tone completes a whole number of cycles: the loop then has no click.
+            freqs[i] = f0 + (f1 - f0) * u  # straight sweeps in Hz, sharp corners
+        # Nudge every frequency so the whistle completes a whole number of cycles: the loop then has no click.
         cycles = sum(freqs) / RATE
         scale = round(cycles) / cycles
-        beat_cycles = cycles * 1.012
-        beat_scale = round(beat_cycles) / beat_cycles
         tone = [0.0] * n
-        phase = beat_phase = 0.0
+        phase = 0.0
         for i, fi in enumerate(freqs):
             phase += fi * scale / RATE
-            beat_phase += fi * 1.012 * beat_scale / RATE
-            ti = i / RATE
-            level = 0.75 + 0.25 * math.sin(TWO_PI * 0.5 * ti)  # fades in and out, 6 cycles per loop
-            tone[i] = level * (math.sin(TWO_PI * phase) + 0.06 * math.sin(TWO_PI * 2.0 * phase)
-                               + 0.25 * math.sin(TWO_PI * beat_phase))
-        # A faint hiss bed, so the whistle sits "on air" (made a little long and crossfaded to loop).
-        hiss = loopable(bandpass(noise(length + 0.5, rng), 400, 3000), 0.5)[:n]
-        return mix(tone, (hiss, 0, 0.12))
+            tone[i] = math.sin(TWO_PI * phase)
+        # Steady carriers that flicker. Whole-Hz pitches and whole-cycles-per-loop flicker rates loop cleanly.
+        carriers = [(528, 0.05), (786, 0.12), (1044, 0.12), (1120, 0.04), (1190, 0.03), (2875, 0.03)]
+        for cf, amp in carriers:
+            wobble = [(k / length, rng.uniform(0.0, TWO_PI)) for k in rng.sample(range(10, 60), 3)]
+            for i in range(n):
+                ti = i / RATE
+                flick = sum(math.sin(TWO_PI * wf * ti + wp) for wf, wp in wobble) / 3.0
+                tone[i] += amp * (0.5 + 0.5 * flick) * math.sin(TWO_PI * cf * ti)
+        # Hiss: hard-cut below ~450 Hz, a hotter band around 3.3-4.8 kHz, little above 6 kHz (made a little
+        # long and crossfaded to loop).
+        raw = noise(length + 0.5, rng)
+        body = lowpass(lowpass(highpass(highpass(highpass(highpass(raw, 500), 500), 500), 500), 3000), 3000)
+        upper = lowpass(lowpass(lowpass(highpass(highpass(raw, 3300), 3300), 4800), 4800), 4800)
+        hiss = loopable(lowpass(lowpass(mix((body, 0, 0.7), (upper, 0, 5.0)), 5500), 5500), 0.5)[:n]
+        return mix(tone, (hiss, 0, 1.0))
     if name == "console_beep":
         # Terminal chatter, "beep-boop": a quick run of square-wave blips that hop between pitches, a short
         # data trill, and a final low "boop". The console's granted/denied tone follows at 0.7 s.
