@@ -3,14 +3,18 @@
 #include "MetalAudio.h"
 #include "MetalTypes.h"
 #include "Components/AudioComponent.h"
+#include "Sound/SoundBase.h"
 
 namespace
 {
-	/** Radio static volume: a bed under the dialogue, well below the blips. */
-	constexpr float StaticVolume = 0.45f;
-	/** Seconds the static takes to fade in when the box opens and out when it closes. */
-	constexpr float StaticFadeIn = 0.15f;
-	constexpr float StaticFadeOut = 0.4f;
+	/** Radio whistle volume: a bed under the dialogue, below the blips (a pure tone carries, so keep it low). */
+	constexpr float WhistleVolume = 0.3f;
+	/** Seconds the whistle takes to fade in when the box opens and out when it closes. */
+	constexpr float WhistleFadeIn = 0.15f;
+	constexpr float WhistleFadeOut = 0.4f;
+	/** Random pitch range applied each time the box opens. */
+	constexpr float WhistlePitchMin = 0.85f;
+	constexpr float WhistlePitchMax = 1.15f;
 }
 
 void UMetalDialogueSubsystem::PlayDialogue(const TArray<FMetalDialogueLine>& Lines)
@@ -33,7 +37,7 @@ void UMetalDialogueSubsystem::PlayLine(const FMetalDialogueLine& Line)
 		LineTime = 0.f;
 		OpenTime = 0.f;
 		MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.6f);
-		SetStaticPlaying(true);
+		SetWhistlePlaying(true);
 	}
 	Queue.Add(Line);
 	UE_LOG(LogMetal, Log, TEXT("Dialogue queued: %s: %s"), *Line.Speaker.ToString(), *Line.Line.ToString());
@@ -60,39 +64,47 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 		}
 		else
 		{
-			SetStaticPlaying(false);
+			SetWhistlePlaying(false);
 		}
 	}
 }
 
-void UMetalDialogueSubsystem::SetStaticPlaying(bool bPlaying)
+void UMetalDialogueSubsystem::SetWhistlePlaying(bool bPlaying)
 {
-	UE_LOG(LogMetal, Log, TEXT("Dialogue radio static %s"), bPlaying ? TEXT("on") : TEXT("off"));
-	if (!IsValid(Static))
+	if (!bPlaying)
 	{
-		if (bPlaying)
+		UE_LOG(LogMetal, Log, TEXT("Dialogue radio whistle off"));
+		if (IsValid(Whistle))
 		{
-			Static = MetalAudio::PlayLoop2D(GetWorld(), TEXT("radio_static_loop"), StaticVolume, StaticFadeIn);
+			Whistle->FadeOut(WhistleFadeOut, 0.f);
 		}
 		return;
 	}
-	if (bPlaying)
+	// A different stretch of the loop, slightly higher or lower, every time the box opens.
+	const float Pitch = FMath::FRandRange(WhistlePitchMin, WhistlePitchMax);
+	if (!IsValid(Whistle))
 	{
-		Static->FadeIn(StaticFadeIn);
+		Whistle = MetalAudio::CreateLoop2D(GetWorld(), TEXT("radio_whistle_loop"), WhistleVolume);
+		if (!IsValid(Whistle))
+		{
+			return;
+		}
 	}
-	else
-	{
-		Static->FadeOut(StaticFadeOut, 0.f);
-	}
+	// GetDuration() reports looping sounds as endless, so read the wave's real length.
+	const float Length = Whistle->Sound ? Whistle->Sound->Duration : 0.f;
+	const float StartTime = Length > 0.f ? FMath::FRandRange(0.f, Length) : 0.f;
+	Whistle->SetPitchMultiplier(Pitch);
+	Whistle->FadeIn(WhistleFadeIn, 1.f, StartTime);
+	UE_LOG(LogMetal, Log, TEXT("Dialogue radio whistle on (pitch %.2f, from %.1fs)"), Pitch, StartTime);
 }
 
 void UMetalDialogueSubsystem::Deinitialize()
 {
-	if (IsValid(Static))
+	if (IsValid(Whistle))
 	{
-		Static->Stop();
+		Whistle->Stop();
 	}
-	Static = nullptr;
+	Whistle = nullptr;
 	Super::Deinitialize();
 }
 

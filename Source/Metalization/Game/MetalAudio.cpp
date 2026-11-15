@@ -154,16 +154,11 @@ namespace MetalAudio
 		return nullptr;
 	}
 
-	UAudioComponent* PlayLoop2D(const UObject* WorldContext, FName Name, float Volume, float FadeInTime)
+	UAudioComponent* CreateLoop2D(const UObject* WorldContext, FName Name, float Volume)
 	{
 		if (USoundBase* Sound = Find(Name, Volume))
 		{
-			UAudioComponent* Component = UGameplayStatics::CreateSound2D(WorldContext, Sound, Volume, 1.f, 0.f, nullptr, false, false);
-			if (Component)
-			{
-				Component->FadeIn(FadeInTime);
-			}
-			return Component;
+			return UGameplayStatics::CreateSound2D(WorldContext, Sound, Volume, 1.f, 0.f, nullptr, false, false);
 		}
 		return nullptr;
 	}

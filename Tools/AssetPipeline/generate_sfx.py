@@ -334,25 +334,57 @@ def build(name, rng):
     if name == "low_health":
         # Two quick high beeps, repeated by the player's robot every second while health is low.
         return crush(tones([1568, 1568], "square", 0.07, 0.06, 3), 7, 2)
-    if name == "radio_static_loop":
-        # Radio channel noise under dialogue: hiss band-limited to a voice channel, a slow fading flutter,
-        # crackle pops, a faint wandering carrier whistle, and a few short squelch bursts.
-        length = 6.6
+    if name == "radio_whistle_loop":
+        # Heterodyne whistle ("birdies") under dialogue, like a radio being tuned: a near-pure tone that holds
+        # on a random pitch, then sweeps (fast or slow) to the next one, with a slight warble and a faint
+        # beat tone a little off it. 12 s of random sweeps, so the loop doesn't sound repetitive; the game
+        # also starts it at a random point and pitch each time.
+        length = 12.0
         n = int(length * RATE)
-        hiss = bandpass(noise(length, rng), 350, 3200)
-        flutter = [0.55 + 0.25 * math.sin(TWO_PI * 0.37 * i / RATE) + 0.2 * math.sin(TWO_PI * 1.9 * i / RATE + 1.3)
-                   for i in range(n)]
-        hiss = [x * f for x, f in zip(hiss, flutter)]
-        parts = [hiss]
-        for _ in range(60):
-            pop = env(highpass(noise(rng.uniform(0.004, 0.015), rng), 1500), 0.0, curve=6)
-            parts.append((pop, rng.uniform(0.0, length - 0.1), rng.uniform(0.3, 1.0)))
-        whistle = osc(length, 1150, "sine", 1350, vibrato=0.04, vibrato_rate=0.6)
-        parts.append((whistle, 0, 0.035))
-        for _ in range(4):
-            burst = env(bandpass(noise(rng.uniform(0.08, 0.2), rng), 900, 4500), 0.01, curve=4)
-            parts.append((crush(burst, 6, 3), rng.uniform(0.2, length - 0.6), rng.uniform(0.3, 0.6)))
-        return loopable(crush(mix(*parts)[:n], 10, 2), 0.5)
+        start_f = rng.uniform(800.0, 1600.0)
+        points = [(0.0, start_f)]
+        t, f = 0.0, start_f
+        while True:
+            hold = rng.uniform(0.12, 1.1)
+            glide = rng.choice([rng.uniform(0.05, 0.18), rng.uniform(0.25, 0.9)])  # quick chirp or slow sweep
+            if t + hold + glide > length - 1.0:
+                break
+            t += hold
+            points.append((t, f))
+            t += glide
+            f = math.exp(rng.uniform(math.log(450.0), math.log(2800.0)))
+            points.append((t, f))
+        # End by sweeping back to the starting pitch, so the loop point is continuous.
+        points.append((length - 0.7, f))
+        points.append((length, start_f))
+        freqs = [0.0] * n
+        seg = 0
+        for i in range(n):
+            ti = i / RATE
+            while seg < len(points) - 2 and ti >= points[seg + 1][0]:
+                seg += 1
+            (t0, f0), (t1, f1) = points[seg], points[seg + 1]
+            u = 0.0 if t1 <= t0 else min(1.0, max(0.0, (ti - t0) / (t1 - t0)))
+            u = u * u * (3.0 - 2.0 * u)  # ease in and out of each sweep
+            # Sweep in log-frequency (musical), with a gentle 5.25 Hz warble (63 whole cycles per loop).
+            freqs[i] = math.exp(math.log(f0) + (math.log(f1) - math.log(f0)) * u) * (1.0 + 0.004 * math.sin(TWO_PI * 5.25 * ti))
+        # Nudge every frequency so the tone completes a whole number of cycles: the loop then has no click.
+        cycles = sum(freqs) / RATE
+        scale = round(cycles) / cycles
+        beat_cycles = cycles * 1.012
+        beat_scale = round(beat_cycles) / beat_cycles
+        tone = [0.0] * n
+        phase = beat_phase = 0.0
+        for i, fi in enumerate(freqs):
+            phase += fi * scale / RATE
+            beat_phase += fi * 1.012 * beat_scale / RATE
+            ti = i / RATE
+            level = 0.75 + 0.25 * math.sin(TWO_PI * 0.25 * ti)  # slow fade in and out, 3 cycles per loop
+            tone[i] = level * (math.sin(TWO_PI * phase) + 0.06 * math.sin(TWO_PI * 2.0 * phase)
+                               + 0.25 * math.sin(TWO_PI * beat_phase))
+        # A faint hiss bed, so the whistle sits "on air" (made a little long and crossfaded to loop).
+        hiss = loopable(bandpass(noise(length + 0.5, rng), 400, 3000), 0.5)[:n]
+        return mix(tone, (hiss, 0, 0.12))
     if name == "ui_select":
         return tones([1100, 1650], "triangle", 0.05, 0.0, 5)
     if name == "ambience_loop":
@@ -383,7 +415,7 @@ SOUNDS = [
     "gate_open", "pickup", "checkpoint", "objective_complete", "mission_complete", "player_down", "radio_blip",
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
     # New sounds go last: each sound's random seed is its index, so inserting would change the others.
-    "low_health", "radio_static_loop",
+    "low_health", "radio_whistle_loop",
 ]
 
 

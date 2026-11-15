@@ -68,13 +68,13 @@ namespace MetalAudio
 	UAudioComponent* PlayLoop(USceneComponent* AttachTo, FName Name, float Volume = 1.f);
 
 	/**
-	 * Starts a looping non-positional sound (radio static under dialogue), fading it in.
+	 * Creates a looping non-positional sound (radio whistle under dialogue) without starting it, so the
+	 * caller can FadeIn from any point, at any pitch.
 	 *
-	 * @param FadeInTime Seconds to reach full volume.
 	 * @return The audio component, or null if the sound doesn't exist. It isn't destroyed when it stops,
 	 *         so the caller can FadeIn/FadeOut the same component again; it goes away with the world.
 	 */
-	UAudioComponent* PlayLoop2D(const UObject* WorldContext, FName Name, float Volume = 1.f, float FadeInTime = 0.f);
+	UAudioComponent* CreateLoop2D(const UObject* WorldContext, FName Name, float Volume = 1.f);
 
 	/** @return True if the library has a sound with this name. */
 	bool HasSound(FName Name);

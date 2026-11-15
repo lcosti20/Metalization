@@ -197,7 +197,7 @@
   "sound:player_down": "46abfb701a67ed81d586fd39d51090f586919d6a89e0c0138d1542da8f6523ed",
   "sound:player_hit": "bbaa5a2a7dd8f4633d455a07745fe52a959081d39cb8af19db4bf7dbbfbd7a60",
   "sound:radio_blip": "b732f4a2ab1c4b7fe1c34985bf7e49868297eb0ba8a3ccdb9920715f736a4156",
-  "sound:radio_static_loop": "1a781ccaf50d9ca734f45e56d923d0c25d8d98bf33bdc754b641668836730386",
+  "sound:radio_whistle_loop": "a6e637677a05f941460a7ed28e3dc8cb2c2d921a46ac97486c88f9dbd15cbe0e",
   "sound:reload": "f622e941f5d6f925a67e901d4787c9971b39fadab11116d56c739c681bb3ba8e",
   "sound:repeater_fire": "c66dbb7d965df7a537436b882bc3df542483e162652b1540d6a28338829a8611",
   "sound:robot_explode": "ecf48d33b77480069166c7ad72b899edee89a31255f5b7e1f12803d0dbab16b5",

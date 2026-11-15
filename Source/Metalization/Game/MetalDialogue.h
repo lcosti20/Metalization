@@ -31,8 +31,9 @@ struct FMetalDialogueLine
  * Plays dialogue during gameplay. Anything can queue lines (mission objectives, AMetalTriggerZone,
  * level Blueprints); they play in order, each for its Duration, and can't be skipped. There are no
  * cutscenes or choices: the game keeps running underneath. AMetalHUD draws the current line in the
- * dialogue box and a radio icon over the player while an NPC is talking. Radio static loops quietly
- * underneath for as long as the dialogue box is open.
+ * dialogue box and a radio icon over the player while an NPC is talking. A heterodyne radio whistle
+ * (a tone sweeping between random pitches, like a radio being tuned) loops quietly underneath for as long
+ * as the dialogue box is open.
  */
 UCLASS()
 class UMetalDialogueSubsystem : public UTickableWorldSubsystem
@@ -75,7 +76,7 @@ protected:
 	/** Only game worlds play dialogue. */
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
-	/** Stops the radio static with the world. */
+	/** Stops the radio whistle with the world. */
 	virtual void Deinitialize() override;
 
 private:
@@ -85,10 +86,13 @@ private:
 	float LineTime = 0.f;
 	/** Seconds since the dialogue box opened (reset when the queue empties). */
 	float OpenTime = 0.f;
-	/** Looping radio static ("radio_static_loop") playing while the dialogue box is open; created on the first line. */
+	/** Looping radio whistle ("radio_whistle_loop") playing while the dialogue box is open; created on the first line. */
 	UPROPERTY(Transient)
-	TObjectPtr<UAudioComponent> Static;
+	TObjectPtr<UAudioComponent> Whistle;
 
-	/** Fades the radio static in (dialogue box opening) or out (dialogue box closing). */
-	void SetStaticPlaying(bool bPlaying);
+	/**
+	 * Fades the radio whistle in (dialogue box opening), from a random point in the loop and at a slightly
+	 * random pitch so it never sounds the same twice, or out (dialogue box closing).
+	 */
+	void SetWhistlePlaying(bool bPlaying);
 };
