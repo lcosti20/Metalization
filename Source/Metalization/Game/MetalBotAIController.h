@@ -105,9 +105,19 @@ private:
 
 	/**
 	 * @param Other Robot to look at.
-	 * @return True if nothing blocks a Visibility trace from this robot's eyes to Other's centre.
+	 * @return True if nothing blocks a Visibility trace from this robot's eyes to Other's centre. Energy
+	 *         fields are see-through, so they don't count.
 	 */
 	bool HasLineOfSight(const AMetalBotCharacter* Other) const;
+
+	/**
+	 * @param Other Robot in sight.
+	 * @return True if an energy field sits between this robot's eyes and Other, so shots would only hit it.
+	 */
+	bool IsShotBlockedByField(const AMetalBotCharacter* Other) const;
+
+	/** @return True if the navmesh has a complete path from this robot to Other. */
+	bool CanReach(const AMetalBotCharacter* Other) const;
 
 	/**
 	 * Targets Enemy and switches to Combat. Passive robots ignore this.
@@ -178,6 +188,14 @@ private:
 	float BurstToggleTime = 0.f;
 	bool bBurstFiring = false;
 	bool bTargetVisible = false;
+	/** The target is in sight but behind an energy field (refreshed by Sense). */
+	bool bFieldBlocksShot = false;
+	/** While bFieldBlocksShot: whether the navmesh leads round the field to the target. */
+	bool bTargetReachable = false;
+	/** bTargetReachable has been worked out for the current stretch behind a field. */
+	bool bReachKnown = false;
+	/** World time of the next CanReach check (pathfinding is too costly for every Sense). */
+	float NextReachCheckTime = 0.f;
 	/** Robots only retreat once per life. */
 	bool bHasRetreated = false;
 

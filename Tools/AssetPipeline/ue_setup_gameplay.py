@@ -366,6 +366,116 @@ def box(label, center, size, material="MI_Env_Floor", folder="Geometry", mesh=No
     return actor
 
 
+def energy_field(label, center, size, folder="Gate", rgb=(1.0, 0.3, 0.1)):
+    """See-through AMetalEnergyField slab (size in cm): blocks robots and shots, ripples where it is hit.
+    ue_setup_alpha.py has a copy (it can't import this script, which runs main() on import)."""
+    actor = spawn(unreal.MetalEnergyField, center, 0.0, label, folder)
+    actor.set_actor_scale3d(unreal.Vector(size[0] / 100.0, size[1] / 100.0, size[2] / 100.0))
+    actor.get_component_by_class(unreal.StaticMeshComponent).set_material(0, load(ENERGY_FIELD_MATERIAL))
+    actor.set_editor_property("field_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    return actor
+
+
+ENERGY_FIELD_MATERIAL = ROOT + "/Materials/M_EnergyField"
+
+# Ring wave per shot: four ripple slots (HitN.xyz = world centre, HitN.a = age in s, -1 = unused), written
+# each frame by AMetalEnergyField. RippleLife must match AMetalEnergyField::RippleLife.
+RIPPLE_HLSL = """
+float g = 0;
+float4 h[4] = { float4(H0.xyz, A0), float4(H1.xyz, A1), float4(H2.xyz, A2), float4(H3.xyz, A3) };
+for (int i = 0; i < 4; i++)
+{
+    float age = h[i].w;
+    if (age >= 0 && age < Life)
+    {
+        float d = distance(Pos, h[i].xyz);
+        float fade = 1 - age / Life;
+        float ring = saturate(1 - abs(d - age * Speed) / Width);
+        g += ring * ring * fade * fade;
+        // Bright flash at the impact point for the first fifth of a second.
+        g += saturate(1 - d / (Width * 2)) * saturate(1 - age * 5) * 1.5;
+    }
+}
+return g;
+"""
+
+# Slow bands climbing the field plus fine flicker, so it reads as energy even when idle.
+SCAN_HLSL = """
+float bands = 0.5 + 0.5 * sin(Pos.z * 0.08 - T * 3.0);
+float fine = 0.5 + 0.5 * sin(Pos.z * 0.7 + T * 11.0);
+return 0.45 + 0.4 * bands * bands + 0.15 * fine;
+"""
+
+
+def make_energy_field_material():
+    """M_EnergyField: unlit, translucent, two-sided; Color, Opacity, Intensity, ripple Hit0..Hit3."""
+    mel = unreal.MaterialEditingLibrary
+    name, folder = "M_EnergyField", ROOT + "/Materials"
+    mat = load(f"{folder}/{name}")
+    if mat is None:
+        mat = asset_tools.create_asset(name, folder, unreal.Material, unreal.MaterialFactoryNew())
+    else:
+        mel.delete_all_material_expressions(mat)
+    setp(mat, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, blend_mode=unreal.BlendMode.BLEND_TRANSLUCENT,
+         two_sided=True, used_with_static_lighting=False)
+
+    def node(cls, x, y, **props):
+        return setp(mel.create_material_expression(mat, cls, x, y), **props)
+
+    def custom(code, inputs, x, y):
+        return node(unreal.MaterialExpressionCustom, x, y, code=code, output_type=unreal.CustomMaterialOutputType.CMOT_FLOAT1,
+                    inputs=[setp(unreal.CustomInput(), input_name=n) for n in inputs])
+
+    def scalar(pname, value, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=pname, default_value=value)
+
+    def mul(a, b, x, y, a_out="", b_out=""):
+        out = node(unreal.MaterialExpressionMultiply, x, y)
+        mel.connect_material_expressions(a, a_out, out, "A")
+        mel.connect_material_expressions(b, b_out, out, "B")
+        return out
+
+    def add(a, b, x, y):
+        out = node(unreal.MaterialExpressionAdd, x, y)
+        mel.connect_material_expressions(a, "", out, "A")
+        mel.connect_material_expressions(b, "", out, "B")
+        return out
+
+    pos = node(unreal.MaterialExpressionWorldPosition, -1400, 0)
+    time = node(unreal.MaterialExpressionTime, -1400, -200)
+    scan = custom(SCAN_HLSL, ["Pos", "T"], -1000, -200)
+    mel.connect_material_expressions(pos, "", scan, "Pos")
+    mel.connect_material_expressions(time, "", scan, "T")
+
+    ripple = custom(RIPPLE_HLSL, ["Pos", "Life", "Speed", "Width", "H0", "A0", "H1", "A1", "H2", "A2", "H3", "A3"], -1000, 200)
+    mel.connect_material_expressions(pos, "", ripple, "Pos")
+    for i, (pname, value) in enumerate((("RippleLife", 0.9), ("RippleSpeed", 650.0), ("RippleWidth", 30.0))):
+        mel.connect_material_expressions(scalar(pname, value, -1400, 150 + 80 * i), "", ripple, pname[6:])
+    for i in range(4):
+        hit = node(unreal.MaterialExpressionVectorParameter, -1400, 420 + 160 * i, parameter_name=f"Hit{i}",
+                   default_value=unreal.LinearColor(0.0, 0.0, 0.0, -1.0))
+        mel.connect_material_expressions(hit, "", ripple, f"H{i}")
+        mel.connect_material_expressions(hit, "A", ripple, f"A{i}")
+
+    color = node(unreal.MaterialExpressionVectorParameter, -700, -400, parameter_name="Color", default_value=unreal.LinearColor(1.0, 0.3, 0.1, 1.0))
+    intensity = scalar("Intensity", 3.0, -700, -250)
+    ripple_boost = scalar("RippleBoost", 4.0, -700, 300)
+    # Emissive = Color * Intensity * (scan + ripple * RippleBoost)
+    glow = add(scan, mul(ripple, ripple_boost, -500, 250), -350, 0)
+    emissive = mul(mul(color, intensity, -500, -350), glow, -150, -150)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    # Opacity = saturate(Opacity * scan + ripple * 0.6): mostly see-through, the rings thicken it.
+    base_opacity = scalar("Opacity", 0.2, -700, 100)
+    opacity = add(mul(base_opacity, scan, -500, 50), mul(ripple, scalar("RippleOpacity", 0.6, -700, 450), -500, 420), -350, 300)
+    clamp = node(unreal.MaterialExpressionSaturate, -150, 300)
+    mel.connect_material_expressions(opacity, "", clamp, "")
+    mel.connect_material_property(clamp, "", unreal.MaterialProperty.MP_OPACITY)
+    mel.recompile_material(mat)
+    eal.save_loaded_asset(mat)
+    log("material: " + mat.get_path_name())
+    return mat
+
+
 def floor(label, x0, x1, y0, y1, top=0.0, material="MI_Env_Floor", folder="Geometry"):
     return box(label, ((x0 + x1) / 2, (y0 + y1) / 2, top - 25), (x1 - x0, y1 - y0, 50), material, folder)
 
@@ -583,8 +693,9 @@ def build_level(archetypes, w, manifest):
     for side, (y0, y1) in (("N", (300, 1000)), ("S", (-1000, -300))):
         # Kept low so the tether's sight line clears it to the short Shooter guards behind.
         wall(f"FenceBase_{side}", gx - 50, gx + 50, y0, y1, 40, "MI_Env_Dark")
-        # Energy fence: blocks robots but not sight lines, lasers or the Hack Tether.
-        box(f"EnergyFence_{side}", (gx, (y0 + y1) / 2, 40 + 230), (20, y1 - y0, 460), "MI_Env_Glow", "Gate", collision="InvisibleWall")
+        # Energy fence: see-through for sight lines and the Hack Tether, but stops robots and shots.
+        energy_field(f"EnergyFence_{side}", (gx, (y0 + y1) / 2, 40 + 230), (20, y1 - y0, 460), "Gate")
+        # Thicker invisible wall so robots stay clear of the field (sight and shots pass it).
         box(f"EnergyFenceBlock_{side}", (gx, (y0 + y1) / 2, 40 + 230), (100, y1 - y0, 460), "MI_Env_Glow", "Gate", collision="InvisibleWall").set_actor_hidden_in_game(True)
     gate = spawn(unreal.MetalGate, (gx, 0, 0), 0.0, "MainGate", "Gate")
     gate.get_component_by_class(unreal.StaticMeshComponent).set_material(0, mat("MI_Env_Hazard"))
@@ -724,6 +835,7 @@ def main():
     weapons = make_weapons()
     archetypes = make_archetypes(manifest, weapons)
     make_sound_library()
+    make_energy_field_material()
     restore_template_game_mode()
     state = {}
     if os.path.exists(STATE_FILE):

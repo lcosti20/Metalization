@@ -114,6 +114,12 @@ namespace
 			// hangar), let go, then watch the reinforcements head for the command yard.
 			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact},
 			{7.5f, EStep::Tether}}},
+		// Energy field: shoot the gate guard through the shield fence (the shots ripple the field and the guard
+		// sees the player but holds fire, with no path round), then hack it through the field anyway.
+
+		{TEXT("field"), {{1.0f, EStep::AimGateGuard}, {1.3f, EStep::Fire}, {3.0f, EStep::StopFire}, {6.5f, EStep::AimGateGuard},
+			{7.0f, EStep::Tether}, {7.6f, EStep::SolveHack}}},
+
 		// Hack puzzle outcomes on the gate guard: a wrong compile raises its firewall, the tether is refused
 		// while it is up, [X] cancels without one, and the right wiring hijacks it.
 		{TEXT("hackfail"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.2f, EStep::FailHack}, {2.8f, EStep::Tether},

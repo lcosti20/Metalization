@@ -114,6 +114,16 @@ def box(label, center, size, material="MI_Alpha_Concrete", folder="Geometry", me
     return actor
 
 
+def energy_field(label, center, size, folder="Gates", rgb=(1.0, 0.3, 0.1)):
+    """See-through AMetalEnergyField slab (size in cm): blocks robots and shots, ripples where it is hit.
+    Same as ue_setup_gameplay.energy_field, which builds M_EnergyField before any map."""
+    actor = spawn(unreal.MetalEnergyField, center, 0.0, label, folder)
+    actor.set_actor_scale3d(unreal.Vector(size[0] / 100.0, size[1] / 100.0, size[2] / 100.0))
+    actor.get_component_by_class(unreal.StaticMeshComponent).set_material(0, load(ROOT + "/Materials/M_EnergyField"))
+    actor.set_editor_property("field_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    return actor
+
+
 def block(label, x0, x1, y0, y1, z0, z1, material="MI_Alpha_Concrete", folder="Geometry", collision=None):
     """Axis-aligned box from corner ranges."""
     return box(label, ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), material, folder, collision=collision)
@@ -533,8 +543,9 @@ def build_alpha(archetypes, w):
     block("ShieldGate_Lintel", GX - 60, GX + 60, -320, 320, 450, 520, "MI_Alpha_Red")
     for side, (y0, y1) in (("N", (300, 1000)), ("S", (-1000, -300))):
         block(f"Fence_Base_{side}", GX - 50, GX + 50, y0, y1, 0, 40, "MI_Env_Dark")
-        # Energy fence: blocks robots but not sight lines, shots or the Hack Tether.
-        block(f"Fence_Field_{side}", GX - 10, GX + 10, y0, y1, 40, 520, "MI_Alpha_Fence", "Gates", collision="InvisibleWall")
+        # Energy fence: see-through for sight lines and the Hack Tether, but stops robots and shots.
+        energy_field(f"Fence_Field_{side}", (GX, (y0 + y1) / 2, 280), (20, y1 - y0, 480), "Gates", (1.0, 0.25, 0.1))
+        # Thicker invisible wall so robots stay clear of the field (sight and shots pass it).
         block(f"Fence_Block_{side}", GX - 50, GX + 50, y0, y1, 40, 520, "MI_Alpha_Fence", "Gates", collision="InvisibleWall").set_actor_hidden_in_game(True)
         block(f"Fence_Post_{side}", GX - 60, GX + 60, y1 - 20 if y1 > 0 else y0, y1 if y1 > 0 else y0 + 20, 0, 560, "MI_Alpha_Red")
     block("GateWall_N", GX - 60, GX + 60, 1000, Y, 0, 600, "MI_Alpha_Concrete")
@@ -651,7 +662,7 @@ def build_alpha(archetypes, w):
             line("Watch for their red laser sights. Then take the ramp down to the valley floor."),
         ]),
         objective("Hack the gate guard", OT.HIJACK_TAGGED, tag="GateGuard", hint="Aim at the guard behind the fence and press [F]", dialogue=[
-            line("Shield gate. The field only lets Red robots through... but your Hack Tether goes right through it."),
+            line("Shield gate. Nothing gets through that field, not even your shots... but your Hack Tether does."),
             line("Aim at that guard and press F. He's yours for half a minute - when you let go, he's theirs again."),
         ]),
         objective("Open the gate from the console", OT.ACTIVATE_CONSOLE, target=console, hint="[E] use the console     [F] let go", dialogue=[

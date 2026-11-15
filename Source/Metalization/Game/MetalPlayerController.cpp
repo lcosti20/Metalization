@@ -4,6 +4,7 @@
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
 #include "MetalControlConsole.h"
+#include "MetalEnergyField.h"
 #include "MetalFX.h"
 #include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
@@ -592,6 +593,8 @@ AMetalBotCharacter* AMetalPlayerController::FindHackCandidate(bool bFirewalled) 
 		}
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalTether), false, Body);
 		Params.AddIgnoredActor(Candidate);
+		// The tether reaches through energy fields, which stop shots.
+		AMetalEnergyField::IgnoreAll(GetWorld(), Params);
 		FHitResult Hit;
 		if (!GetWorld()->LineTraceSingleByChannel(Hit, Body->GetEyesLocation(), Candidate->GetActorLocation(), ECC_Visibility, Params))
 		{

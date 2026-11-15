@@ -19,6 +19,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     -Scenario sneak   crouch through the crawl pipe past the yard patrols (logs suspicion)
     -Scenario sniper  scope in from the perch and shoot a marksman
     -Scenario hack    hack the gate guard through the shield fence (solving the hack puzzle) and open the gate
+    -Scenario field   shoot the gate guard through the shield fence: shots ripple it, the guard holds fire; then hack through it
     -Scenario hackfail  hack puzzle outcomes: wrong compile -> 4 s firewall (tether refused), [X] cancel, then a solve
     -Scenario title   the title screen
     -Scenario bridge  double jump across the collapsed bridge onto the higher ledge
@@ -37,7 +38,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups")]
+                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -63,6 +64,7 @@ $setups = @{
     "sneak"  = @("-MetalObjective=7", "-MetalTeleport=19000,-1225,1330,0", "-MetalShots=2,6,10,14", "-MetalQuitAt=16")
     "sniper" = @("-MetalObjective=9", "-MetalTeleport=23380,1000,2240,0", "-MetalShots=0.8,2.6,3.2,5.2", "-MetalQuitAt=7")
     "hack"   = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=1.3,1.9,2.3,4,7,9", "-MetalQuitAt=11")
+    "field" = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=1.6,2.2,4.5,6.0,8.5", "-MetalQuitAt=9.5")
     "hackfail" = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=1.9,2.5,3.0,7.2,8.3,9.5", "-MetalQuitAt=12")
     "title"  = @("-MetalShots=1.5,4", "-MetalQuitAt=5")
     "jetpack" = @("-MetalTeleport=-300,0,120,0", "-MetalCam=-620,-260,190,-4,38", "-MetalShots=0.8,1.36,1.45,1.6,3.38", "-MetalQuitAt=5")
@@ -75,7 +77,7 @@ $setups = @{
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }
 $maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
-           "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
+           "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "field" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
 $suffix = if ($Packaged) { "_packaged" } else { "" }
 $log = "$Project\Saved\smoke_$Scenario$suffix.log".Replace("\", "/")

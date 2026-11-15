@@ -3,7 +3,10 @@
 #include "MetalAudio.h"
 #include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
+#include "MetalEnergyField.h"
+#include "MetalTypes.h"
 #include "EngineUtils.h"
+#include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -105,6 +108,11 @@ void AMetalBotAIController::EnterCombat(AMetalBotCharacter* Enemy, bool bAlertSq
 	}
 	Suspicion = 0.f;
 	Target = Enemy;
+	// Decide straight away whether an energy field is in the way, so the first burst isn't wasted on it
+	// before the next Sense; the path check follows in Sense.
+	bFieldBlocksShot = Enemy && HasLineOfSight(Enemy) && IsShotBlockedByField(Enemy);
+	bTargetReachable = false;
+	bReachKnown = false;
 	LastSeenTime = GetWorld()->GetTimeSeconds();
 	SetState(EMetalAIState::Combat);
 	SetFocus(Enemy);
@@ -131,8 +139,26 @@ bool AMetalBotAIController::HasLineOfSight(const AMetalBotCharacter* Other) cons
 	const AMetalBotCharacter* Bot = GetBot();
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalAISight), false, Bot);
 	Params.AddIgnoredActor(Other);
+	AMetalEnergyField::IgnoreAll(GetWorld(), Params);
 	FHitResult Hit;
 	return !GetWorld()->LineTraceSingleByChannel(Hit, Bot->GetEyesLocation(), Other->GetActorLocation(), ECC_Visibility, Params);
+}
+
+bool AMetalBotAIController::IsShotBlockedByField(const AMetalBotCharacter* Other) const
+{
+	const AMetalBotCharacter* Bot = GetBot();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalAIFieldCheck), false, Bot);
+	Params.AddIgnoredActor(Other);
+	FHitResult Hit;
+	return GetWorld()->LineTraceSingleByChannel(Hit, Bot->GetEyesLocation(), Other->GetActorLocation(), ECC_Visibility, Params)
+		&& Hit.GetActor() && Hit.GetActor()->IsA<AMetalEnergyField>();
+}
+
+bool AMetalBotAIController::CanReach(const AMetalBotCharacter* Other) const
+{
+	const AMetalBotCharacter* Bot = GetBot();
+	const UNavigationPath* Path = UNavigationSystemV1::FindPathToActorSynchronously(GetWorld(), Bot->GetNavAgentLocation(), const_cast<AMetalBotCharacter*>(Other), 0.f, const_cast<AMetalBotCharacter*>(Bot));
+	return Path && Path->IsValid() && !Path->IsPartial();
 }
 
 void AMetalBotAIController::Sense()
@@ -151,15 +177,34 @@ void AMetalBotAIController::Sense()
 			Target.Reset();
 			ClearFocus(EAIFocusPriority::Gameplay);
 			bTargetVisible = false;
+			bFieldBlocksShot = false;
+			bReachKnown = false;
 			SetState(EMetalAIState::Investigate);
 		}
 		else
 		{
 			bTargetVisible = HasLineOfSight(Current);
+			bFieldBlocksShot = bTargetVisible && IsShotBlockedByField(Current);
 			if (bTargetVisible)
 			{
 				LastSeenTime = GetWorld()->GetTimeSeconds();
 				LastKnownLocation = Current->GetActorLocation();
+			}
+			if (!bFieldBlocksShot)
+			{
+				bReachKnown = false;
+			}
+			else if (!bReachKnown || GetWorld()->GetTimeSeconds() >= NextReachCheckTime)
+			{
+				NextReachCheckTime = GetWorld()->GetTimeSeconds() + 1.f;
+				const bool bWasReachable = bTargetReachable;
+				bTargetReachable = CanReach(Current);
+				if (!bReachKnown || bWasReachable != bTargetReachable)
+				{
+					UE_LOG(LogMetal, Log, TEXT("[AI] %s sees %s through an energy field: holding fire, %s"), *GetBot()->GetActorNameOrLabel(),
+						*Current->GetActorNameOrLabel(), bTargetReachable ? TEXT("going round") : TEXT("no path, holding position"));
+				}
+				bReachKnown = true;
 			}
 		}
 	}
@@ -438,6 +483,27 @@ void AMetalBotAIController::TickCombat(float Now)
 			Target.Reset();
 			ClearFocus(EAIFocusPriority::Gameplay);
 			SetState(EMetalAIState::Investigate);
+		}
+		return;
+	}
+
+	// In sight but behind an energy field: shooting would only ripple it. Walk round to the target if the
+	// navmesh has a way (e.g. through an open gate), otherwise stand and watch until something changes.
+	if (bFieldBlocksShot)
+	{
+		Bot->StopFire();
+		bBurstFiring = false;
+		if (Now >= NextMoveTime)
+		{
+			NextMoveTime = Now + 1.f;
+			if (bTargetReachable)
+			{
+				MoveToActor(Enemy, Archetype->PreferredRange * 0.5f, true, true, true);
+			}
+			else
+			{
+				StopMovement();
+			}
 		}
 		return;
 	}
