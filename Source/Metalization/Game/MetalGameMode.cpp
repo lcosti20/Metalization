@@ -10,6 +10,7 @@
 #include "MetalPlayerController.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavigationData.h"
 #include "TimerManager.h"
 
 AMetalGameMode::AMetalGameMode()
@@ -45,6 +46,22 @@ void AMetalGameMode::StartPlay()
 	{
 		UMetalCheckpointSubsystem::ApplyBeforeBeginPlay(GetWorld(), RestoreSnapshot);
 	}
+#if WITH_EDITOR
+	// Play In Editor copies the editor world's navmesh as it is at that moment. The maps are saved without
+	// one, so the editor builds it in the background each time a map opens (and after edits); pressing Play
+	// before that finishes hands the game a navmesh with holes that nothing ever fills in, and every robot
+	// standing in a hole can aim and shoot but never walk. Rebuild it from scratch, as a standalone game does.
+	if (GetWorld()->WorldType == EWorldType::PIE)
+	{
+		for (TActorIterator<ANavigationData> It(GetWorld()); It; ++It)
+		{
+			if (It->SupportsRuntimeGeneration())
+			{
+				It->RebuildAll();
+			}
+		}
+	}
+#endif
 	// Runs every actor's BeginPlay (this one's included), which resets health, screens and loadouts.
 	Super::StartPlay();
 	if (bRestoredFromCheckpoint)
