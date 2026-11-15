@@ -345,9 +345,9 @@ def build(name, rng):
         points = [(0.0, start_f)]
         t, f = 0.0, start_f
         while True:
-            hold = rng.uniform(0.12, 1.1)
-            glide = rng.choice([rng.uniform(0.05, 0.18), rng.uniform(0.25, 0.9)])  # quick chirp or slow sweep
-            if t + hold + glide > length - 1.0:
+            hold = rng.uniform(0.05, 0.44)
+            glide = rng.choice([rng.uniform(0.02, 0.07), rng.uniform(0.1, 0.36)])  # quick chirp or slower sweep
+            if t + hold + glide > length - 0.4:
                 break
             t += hold
             points.append((t, f))
@@ -355,7 +355,7 @@ def build(name, rng):
             f = math.exp(rng.uniform(math.log(450.0), math.log(2800.0)))
             points.append((t, f))
         # End by sweeping back to the starting pitch, so the loop point is continuous.
-        points.append((length - 0.7, f))
+        points.append((length - 0.28, f))
         points.append((length, start_f))
         freqs = [0.0] * n
         seg = 0
@@ -366,8 +366,8 @@ def build(name, rng):
             (t0, f0), (t1, f1) = points[seg], points[seg + 1]
             u = 0.0 if t1 <= t0 else min(1.0, max(0.0, (ti - t0) / (t1 - t0)))
             u = u * u * (3.0 - 2.0 * u)  # ease in and out of each sweep
-            # Sweep in log-frequency (musical), with a gentle 5.25 Hz warble (63 whole cycles per loop).
-            freqs[i] = math.exp(math.log(f0) + (math.log(f1) - math.log(f0)) * u) * (1.0 + 0.004 * math.sin(TWO_PI * 5.25 * ti))
+            # Sweep in log-frequency (musical), with a gentle 12.5 Hz warble (150 whole cycles per loop).
+            freqs[i] = math.exp(math.log(f0) + (math.log(f1) - math.log(f0)) * u) * (1.0 + 0.004 * math.sin(TWO_PI * 12.5 * ti))
         # Nudge every frequency so the tone completes a whole number of cycles: the loop then has no click.
         cycles = sum(freqs) / RATE
         scale = round(cycles) / cycles
@@ -379,7 +379,7 @@ def build(name, rng):
             phase += fi * scale / RATE
             beat_phase += fi * 1.012 * beat_scale / RATE
             ti = i / RATE
-            level = 0.75 + 0.25 * math.sin(TWO_PI * 0.25 * ti)  # slow fade in and out, 3 cycles per loop
+            level = 0.75 + 0.25 * math.sin(TWO_PI * 0.5 * ti)  # fades in and out, 6 cycles per loop
             tone[i] = level * (math.sin(TWO_PI * phase) + 0.06 * math.sin(TWO_PI * 2.0 * phase)
                                + 0.25 * math.sin(TWO_PI * beat_phase))
         # A faint hiss bed, so the whistle sits "on air" (made a little long and crossfaded to loop).
