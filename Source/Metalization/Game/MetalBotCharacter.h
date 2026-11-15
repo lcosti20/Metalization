@@ -389,6 +389,9 @@ public:
 	/** @return True while a reload is in progress. */
 	bool IsReloading() const { return ReloadEndTime > 0.f; }
 
+	/** @return How far the current reload has got, 0-1 (0 when not reloading). Drives the HUD's reload bar. */
+	float GetReloadFraction() const;
+
 	/** Weapon thrown by ThrowGrenade(). Filled from the archetype at BeginPlay if left empty. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Metalization|Combat")
 	TObjectPtr<UMetalWeaponData> GrenadeWeapon;
@@ -723,6 +726,8 @@ protected:
 	float NextFireTime = 0.f;
 	/** World time a reload finishes, or 0 when not reloading. */
 	float ReloadEndTime = 0.f;
+	/** Length of the current reload in seconds (the weapon's ReloadTime when it started). */
+	float ReloadDuration = 0.f;
 	float StunEndTime = 0.f;
 	/** 1 right after a hit, fading to 0; drives the HitFlash material parameter. */
 	float HitFlash = 0.f;

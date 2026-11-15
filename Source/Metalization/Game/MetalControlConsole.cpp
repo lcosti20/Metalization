@@ -6,6 +6,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
 #include "MetalGate.h"
+#include "TimerManager.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -90,13 +91,15 @@ FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 	// The archetype's team, not GetTeam(): a hijacked Villain fights for the Heroes but keeps its clearance.
 	// So the player's own body is refused at an enemy console and must hack a guard to use it.
 	const EMetalTeam UserFaction = User && User->Archetype ? User->Archetype->Team : EMetalTeam::Neutral;
+	// The terminal chatters as it reads the user's credentials, then answers once it has finished.
+	MetalAudio::PlayAt(this, TEXT("console_beep"), GetActorLocation(), 0.9f, 0.f);
 	if (UserFaction != RequiredFaction)
 	{
-		MetalAudio::PlayAt(this, TEXT("console_denied"), GetActorLocation(), 0.8f);
+		PlayAfterBeep(TEXT("console_denied"), 0.8f);
 		return NSLOCTEXT("Metalization", "ConsoleDenied", "ACCESS DENIED - enemy personnel only. (Maybe borrow one?)");
 	}
 	bActivated = true;
-	MetalAudio::PlayAt(this, TEXT("console_granted"), GetActorLocation(), 0.9f);
+	PlayAfterBeep(TEXT("console_granted"), 0.9f);
 	SetScreenColor(OpenColor);
 	AMetalFX::SpawnBurst(GetWorld(), Screen->GetComponentLocation(), OpenColor, 50.f, 0.3f);
 	for (AActor* Actor : LinkedGates)
@@ -107,4 +110,14 @@ FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 		}
 	}
 	return NSLOCTEXT("Metalization", "ConsoleOpened", "ACCESS GRANTED - gate opening.");
+}
+
+void AMetalControlConsole::PlayAfterBeep(FName Sound, float Volume)
+{
+	// console_beep (generate_sfx.py) lasts about 0.7 s.
+	FTimerHandle Handle;
+	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Sound, Volume]()
+	{
+		MetalAudio::PlayAt(this, Sound, GetActorLocation(), Volume);
+	}), 0.7f, false);
 }

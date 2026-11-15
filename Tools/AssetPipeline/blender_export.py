@@ -9,6 +9,7 @@ same name as the file (see Art/Graybox/README.md):
     Characters/{Heroes,Villains}/<character>.blend   armature "<hero|villain>_<id>_ARM", body = first
                                                      sub-collection, then optional parts
     Weapons/<weapon>.blend, Grenades/<grenade>.blend
+    Pickups/<item>.blend                             static pickup models (no armature; pivot = origin)
     Ships/<group>/<part>.blend                       static meshes (capital ship pieces, hangar kit);
                                                      <...>_Preview.blend files are skipped
     Shared/GB_Materials.blend                        materials several models link to
@@ -48,7 +49,7 @@ with open(os.path.abspath(__file__), "rb") as _script:
     SCRIPT_HASH = hashlib.sha256(_script.read()).hexdigest()
 FINGERPRINTS = {}  # FBX path relative to OUT_DIR -> fingerprint
 # Top-level folders of SOURCE_DIR that hold models; each becomes a collection of the same name.
-MODEL_FOLDERS = ("Characters", "Weapons", "Grenades", "Ships")
+MODEL_FOLDERS = ("Characters", "Weapons", "Grenades", "Pickups", "Ships")
 
 # Weapons that the player and the enemy shooters can hold. Keys are the model collection (= file) names.
 WEAPON_COLLECTIONS = {
@@ -76,7 +77,11 @@ GRENADE_COLLECTIONS = {
     "Convert Grenade": "grenade_convert",
     "Drill Charge": "drillcharge",
     "Slingshot": "slingshot",
+}
+# Pickup models (AMetalPickup visuals). Exported like grenade props; with no armature the pivot is the origin.
+PICKUP_COLLECTIONS = {
     "Wrench": "wrench",
+    "Ammo Crate": "ammo_crate",
 }
 # Which characters get which weapons exported as bonemerged followers.
 WEAPON_HOLDERS = {
@@ -415,6 +420,7 @@ def export_weapons(manifest):
 
     all_props = dict(WEAPON_COLLECTIONS)
     all_props.update(GRENADE_COLLECTIONS)
+    all_props.update(PICKUP_COLLECTIONS)
     for col_name, wid in all_props.items():
         col = bpy.data.collections.get(col_name)
         if col is None:

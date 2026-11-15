@@ -220,10 +220,21 @@ def build(name, rng):
     if name == "minigun_fire":
         return drive(mix(env(lowpass(noise(0.06, rng), 4000), 0.0, curve=8), (env(osc(0.05, 180, "square", 120), 0.0, curve=8), 0, 0.5)), 2)
     if name == "reload":
-        click1 = env(highpass(noise(0.03, rng), 2000), 0.0, curve=9)
-        servo = env(osc(0.32, 320, "square", 420, vibrato=0.03, vibrato_rate=30), 0.03, hold=0.2, curve=6)
-        click2 = mix(env(highpass(noise(0.04, rng), 1500), 0.0, curve=8), (ring(0.15, [1900, 3100], rng, 8), 0, 0.4))
-        return mix((click1, 0), (lowpass(servo, 1800), 0.05, 0.25), (click2, 0.42))
+        # ~1.1 s, to fit the default 1.2 s ReloadTime: release latch, the spent cell slides out (servo whir),
+        # a fresh cell clunks home, then the charging handle racks and the arm powers back up.
+        def tick(length, cutoff, partials, ring_gain):
+            return mix(env(highpass(noise(length, rng), cutoff), 0.0, curve=9), (ring(0.12, partials, rng, 9), 0, ring_gain))
+        release = tick(0.03, 2500, [2600, 3900], 0.35)
+        slide_out = env(bandpass(noise(0.18, rng), 900, 4500), 0.02, curve=3)
+        whir = osc(0.3, 260, "square", 380, vibrato=0.04, vibrato_rate=28)
+        whir = lowpass([x * math.sin(math.pi * i / len(whir)) for i, x in enumerate(whir)], 1600)
+        seat = drive(mix(env(osc(0.14, 150, "sine", 70), 0.001, curve=6), (env(lowpass(noise(0.05, rng), 2500), 0.0, curve=8), 0, 0.8),
+                         (ring(0.2, [820, 1750, 2900], rng, 7), 0, 0.45)), 2.0)
+        rack_back = tick(0.04, 1500, [1400, 2300], 0.5)
+        rack_fwd = mix(tick(0.05, 1200, [1100, 2100, 3300], 0.6), (env(osc(0.08, 120, "sine", 60), 0.001, curve=6), 0, 0.6))
+        charge = env(osc(0.22, 500, "saw", 1900, curve=0.5), 0.02, curve=4)
+        return mix((release, 0.0), (slide_out, 0.03, 0.45), (whir, 0.08, 0.3), (seat, 0.48),
+                   (rack_back, 0.72), (rack_fwd, 0.86), (lowpass(charge, 3200), 0.9, 0.18))
     if name == "impact":
         return mix(env(highpass(noise(0.08, rng), 1500), 0.0, curve=7), (ring(0.12, [2800, 4100], rng, 10), 0, 0.3))
     if name == "robot_hit":
@@ -314,7 +325,12 @@ def build(name, rng):
         clank = ring(0.6, [300, 720, 1300], rng, 5)
         return mix(rumble, (lowpass(motor, 600), 0, 0.5), (hiss, 0, 0.4), (clank, 1.8, 0.6))
     if name == "pickup":
-        return tones([988, 1319, 1976], "triangle", 0.07, 0.0, 5)
+        # A bright rising chime over a soft mechanical clack: the item is grabbed and stowed.
+        clack = mix(env(highpass(noise(0.03, rng), 1800), 0.0, curve=9), (ring(0.1, [2200, 3400], rng, 9), 0, 0.3))
+        chime = tones([784, 1175, 1568], "triangle", 0.065, 0.0, 4)
+        shimmer = env(mix(osc(0.45, 2349), gain(osc(0.45, 3136), 0.5)), 0.005, curve=5)
+        swoosh = env(bandpass(noise(0.18, rng), 1500, 6000), 0.06, curve=4)
+        return mix((clack, 0, 0.6), (swoosh, 0, 0.25), (chime, 0.02, 0.8), (shimmer, 0.2, 0.3))
     if name == "checkpoint":
         return mix(tones([784, 1175], "sine", 0.18, 0.0, 3), (tones([1568, 2350], "sine", 0.18, 0.0, 3), 0, 0.3))
     if name == "objective_complete":
@@ -385,6 +401,20 @@ def build(name, rng):
         # A faint hiss bed, so the whistle sits "on air" (made a little long and crossfaded to loop).
         hiss = loopable(bandpass(noise(length + 0.5, rng), 400, 3000), 0.5)[:n]
         return mix(tone, (hiss, 0, 0.12))
+    if name == "console_beep":
+        # Terminal chatter, "beep-boop": a quick run of square-wave blips that hop between pitches, a short
+        # data trill, and a final low "boop". The console's granted/denied tone follows at 0.7 s.
+        notes = [(1320, 0.06), (990, 0.06), (1760, 0.05), (1175, 0.07), (0, 0.03), (1568, 0.045), (1397, 0.045)]
+        parts, t = [], 0.0
+        for f, length in notes:
+            if f:
+                parts.append((env(osc(length, f, "square"), 0.002, hold=length * 0.5, curve=5), t, 0.6))
+            t += length + 0.012
+        trill = osc(0.1, 2100, "square", vibrato=0.25, vibrato_rate=60)
+        parts.append((env(trill, 0.002, hold=0.05, curve=4), t, 0.35))
+        t += 0.11
+        parts.append((env(osc(0.13, 620, "square", 440, curve=0.7), 0.003, hold=0.05, curve=4), t, 0.7))
+        return crush(lowpass(mix(*parts), 5000), 7, 2)
     if name == "ui_select":
         return tones([1100, 1650], "triangle", 0.05, 0.0, 5)
     if name == "ambience_loop":
@@ -415,7 +445,7 @@ SOUNDS = [
     "gate_open", "pickup", "checkpoint", "objective_complete", "mission_complete", "player_down", "radio_blip",
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
     # New sounds go last: each sound's random seed is its index, so inserting would change the others.
-    "low_health", "radio_whistle_loop",
+    "low_health", "radio_whistle_loop", "console_beep",
 ]
 
 

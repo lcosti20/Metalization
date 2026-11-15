@@ -69,6 +69,9 @@ protected:
 	 */
 	void SetScreenColor(const FLinearColor& Color);
 
+	/** Plays Sound at the console once the console_beep chatter started by TryActivate has finished. */
+	void PlayAfterBeep(FName Sound, float Volume);
+
 	/** Pedestal (root). */
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Base;

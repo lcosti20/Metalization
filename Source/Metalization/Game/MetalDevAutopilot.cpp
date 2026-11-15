@@ -10,6 +10,7 @@
 #include "MetalMission.h"
 #include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
+#include "MetalPickup.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
@@ -36,7 +37,8 @@ namespace
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
 		MenuSound, MenuCredits, MusicDown, MusicUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
-		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully };
+		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
+		Reload, GoToPickup };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -135,6 +137,10 @@ namespace
 			{TEXT("checkpoint"), {{0.3f, EStep::ScrapNearestEnemy}, {0.6f, EStep::GoToCheckpoint}, {1.0f, EStep::CountRobots},
 				{1.5f, EStep::ScrapNearestEnemy}, {2.0f, EStep::CountRobots}, {2.5f, EStep::SelfDestruct}}},
 			{TEXT("checkpoint_restored"), {{0.5f, EStep::CountRobots}}},
+			// Pickups by the shield gate: walk into the Rocket Launcher, fire and reload it (reload bar + sound),
+			// then step onto the grenades (sphere) and the ammo crate. The repair wrench stays (full health).
+			{TEXT("pickups"), {{0.5f, EStep::Run}, {1.4f, EStep::Stop}, {4.0f, EStep::Fire}, {4.15f, EStep::StopFire}, {4.3f, EStep::Reload},
+				{6.5f, EStep::GoToPickup}, {7.3f, EStep::GoToPickup}}},
 		};
 		return Map;
 	}
@@ -330,7 +336,7 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
 			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
-			TEXT("drop to low health"), TEXT("heal fully")};
+			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup")};
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -442,6 +448,26 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		if (Best)
 		{
 			Me->TeleportTo(Best->GetActorLocation(), Me->GetActorRotation());
+		}
+		break;
+	}
+	case EStep::Reload:
+		Me->Reload();
+		break;
+	case EStep::GoToPickup:
+	{
+		const AMetalPickup* Best = nullptr;
+		for (TActorIterator<AMetalPickup> It(GetWorld()); It; ++It)
+		{
+			if (Best == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Best->GetActorLocation(), Me->GetActorLocation()))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot] going to pickup %s"), *Best->GetActorNameOrLabel());
+			Me->TeleportTo(Best->GetActorLocation() + FVector(0.f, 0.f, 30.f), Me->GetActorRotation());
 		}
 		break;
 	}

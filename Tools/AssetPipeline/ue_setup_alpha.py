@@ -401,6 +401,12 @@ def build_alpha(archetypes, w):
     block("Barricade_2a", 7400, 7470, -1100, 100, 0, 120, "MI_Alpha_Concrete", "Traversal")
     block("Barricade_2b", 7650, 7720, -100, 1100, 0, 120, "MI_Alpha_Concrete", "Traversal")
     block("Barricade_Ditch_Lip", 7940, 7950, -1100, 1100, 0, 8, "MI_Env_Hazard", "Decor")
+    # The ditch floor sits below the 60 cm ground slabs either side: line its ends down to the floor, and fill
+    # under the side walls, or the player can crawl under the ground into the void.
+    block("Barricade_Ditch_Wall_W", 7900, 7950, -Y, Y, -210, 0, "MI_Env_Dark")
+    block("Barricade_Ditch_Wall_E", 8250, 8300, -Y, Y, -210, 0, "MI_Env_Dark")
+    block("Barricade_Ditch_Fill_N", 7950, 8250, 1100, Y, -150, 0, "MI_Alpha_Ground")
+    block("Barricade_Ditch_Fill_S", 7950, 8250, -Y, -1100, -150, 0, "MI_Alpha_Ground")
     zone_barricades = zone("Zone_Barricades", (8650, 0, 150), (200, 1000, 150))
 
     # --- 4. Collapsed bridge (double jump) --------------------------------------------------------
@@ -408,6 +414,9 @@ def build_alpha(archetypes, w):
     block("Bridge_Fill_N", BX1, 9400, 700, Y, -60, 330, "MI_Alpha_Rock")
     block("Bridge_Fill_S", BX1, 9400, -Y, -700, -60, 330, "MI_Alpha_Rock")
     ground("Chasm_Floor", 9400, 9800, -Y, Y, -500, "MI_Env_Dark")
+    # Near wall of the chasm, under the bridge deck: without it a robot that falls in can walk under the
+    # deck and drop out of the world.
+    block("Chasm_Wall_Near", 9300, 9400, -Y, Y, -560, -60, "MI_Alpha_Rock")
     ramp_y("Chasm_EscapeRamp", -1300, -500, 0, 0, 9550, 260, "MI_Alpha_Concrete")
     block("Chasm_Wall_Far", 9800, 9900, -Y, Y, -500, LEDGE, "MI_Alpha_Rock")
     ground("Ledge_Plateau", 9800, 11400, -Y, Y, LEDGE, "MI_Alpha_Ground")

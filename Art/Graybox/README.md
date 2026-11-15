@@ -11,6 +11,7 @@ Art/Graybox/
 ├── Characters/Villains/<Name>.blend robots of the Villains (Shooter, Soldier, Brute, Stalker, ...)
 ├── Weapons/<Name>.blend             held weapons (Laser Level 1, Repeater Level 1, Sniper Rifle, ...)
 ├── Grenades/<Name>.blend            thrown items (EMP Grenade, ...)
+├── Pickups/<Name>.blend             pickup models (Wrench = repair kit, Ammo Crate)
 └── Ships/<Group>/<Part>.blend       capital ship pieces and the hangar kit (static meshes)
 ```
 
@@ -29,6 +30,9 @@ Art/Graybox/
   - **Weapons and grenades:** an armature whose first bone is `weapon_bone` (the grip), and the meshes in
     the first sub-collection. A new holdable weapon also needs an entry in `WEAPON_COLLECTIONS` (and
     `WEAPON_HOLDERS`) in `Tools/AssetPipeline/blender_export.py`.
+  - **Pickups:** meshes in the first sub-collection, no armature, modelled around the origin (the pickup
+    spins around it). A new one needs an entry in `PICKUP_COLLECTIONS` in
+    `Tools/AssetPipeline/blender_export.py`.
   - **Ship parts:** render meshes plus `UCX_` collision meshes, a `PIVOT_*` empty for the origin and
     `SOCKET_*` empties for attachment points.
 - **Preview files are skipped.** `Ships/Capital Ship/CapShip_Preview.blend` is only for looking at the

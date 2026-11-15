@@ -176,7 +176,9 @@ void AMetalHUD::DrawHUD()
 		MeasureText(TEXT("Ag"), LW, LH, Small, UI * 1.2f);
 		const float GrenadeY = H - 14.f * UI - GH;
 		const float AmmoY = GrenadeY - AH;
-		const float WeaponNameY = AmmoY - WH;
+		// A small gap between the weapon name and the ammo counter holds the reload bar.
+		const float ReloadGap = 16.f * UI;
+		const float WeaponNameY = AmmoY - WH - ReloadGap;
 		if (const FMetalWeaponSlot* Slot = Bot->GetCurrentWeapon(); Slot && Slot->Data)
 		{
 			const FString WeaponName = FString::Printf(TEXT("%s  LV%d"), *Slot->Data->DisplayName.ToString().ToUpper(), Slot->Level + 1);
@@ -192,6 +194,13 @@ void AMetalHUD::DrawHUD()
 			DrawTextShadowed(WeaponName, RightX - TW, WeaponNameY, Amber, Medium, UI);
 			MeasureText(Ammo, TW, TH, Large, UI);
 			DrawTextShadowed(Ammo, RightX - TW, AmmoY, FLinearColor::White, Large, UI);
+			// Reload progress: a bar just over the ammo counter (in the gap under the weapon name), right-aligned with it.
+			if (Bot->IsReloading())
+			{
+				const float ReloadW = FMath::Max(TW, 260.f * UI);
+				const float ReloadH = 6.f * UI;
+				DrawBar(RightX - ReloadW, AmmoY - ReloadGap + 5.f * UI, ReloadW, ReloadH, Bot->GetReloadFraction(), Amber);
+			}
 		}
 		if (Bot->GrenadeWeapon && !Bot->IsHijacked())
 		{

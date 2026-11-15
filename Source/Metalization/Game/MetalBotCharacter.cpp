@@ -722,9 +722,20 @@ void AMetalBotCharacter::Reload()
 	}
 	if (Slot->Clip < Slot->Data->GetLevel(Slot->Level).ClipSize && Slot->Reserve > 0)
 	{
-		ReloadEndTime = GetWorld()->GetTimeSeconds() + Slot->Data->ReloadTime;
-		PlaySound(Slot->Data->ReloadSound, IsPlayerControlled() ? 1.f : 0.5f);
+		ReloadDuration = FMath::Max(0.01f, Slot->Data->ReloadTime);
+		ReloadEndTime = GetWorld()->GetTimeSeconds() + ReloadDuration;
+		// Positional, so a reloading enemy nearby is a cue to push; the player's own is full volume.
+		PlaySound(Slot->Data->ReloadSound, IsPlayerControlled() ? 1.f : 0.8f);
 	}
+}
+
+float AMetalBotCharacter::GetReloadFraction() const
+{
+	if (!IsReloading() || ReloadDuration <= 0.f)
+	{
+		return 0.f;
+	}
+	return FMath::Clamp(1.f - (ReloadEndTime - GetWorld()->GetTimeSeconds()) / ReloadDuration, 0.f, 1.f);
 }
 
 void AMetalBotCharacter::FinishReload()
