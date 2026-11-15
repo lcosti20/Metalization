@@ -258,9 +258,9 @@ void AMetalHUD::DrawHUD()
 	{
 		if (const FMetalDialogueLine* Line = Dialogue->GetCurrentLine())
 		{
-			DrawDialogueBox(*Line, Dialogue->GetOpenTime(), UI);
+			DrawDialogueBox(*Line, Dialogue->GetLineTime(), Dialogue->GetOpenTime(), UI);
 			const AMetalBotCharacter* OwnBody = PC ? PC->GetPlayerBody() : nullptr;
-			if (PC && PC->GetPawn() && !(OwnBody && Line->Speaker.EqualToCaseIgnored(OwnBody->GetDisplayName())))
+			if (Dialogue->IsTalking() && PC && PC->GetPawn() && !(OwnBody && Line->Speaker.EqualToCaseIgnored(OwnBody->GetDisplayName())))
 			{
 				DrawRadioIcon(PC->GetPawn(), UI);
 			}
@@ -449,7 +449,7 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 	DrawTextShadowed(TEXT("[ENTER] play again      [ESC] menu"), W * 0.5f, Y + PanelH - FootH - 16.f * UI, Amber, Small, UI * 1.3f, true);
 }
 
-void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, float UI)
+void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float LineTime, float OpenTime, float UI)
 {
 	const float W = Canvas->ClipX;
 	const float H = Canvas->ClipY;
@@ -510,9 +510,24 @@ void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, 
 		DrawTextShadowed(Name, X + Pad, TextY, FLinearColor(Amber.R, Amber.G, Amber.B, Pop), Small, UI * 1.3f);
 		TextY += NameH;
 	}
+	// Type the line out one character at a time at (characters / (Duration - 1 s)) per second, so the finished
+	// line holds for a second before the next one. The rows are wrapped from the full line above, so the box
+	// keeps its size and words don't jump to the next row as they type.
+	int32 TotalChars = 0;
 	for (const FString& Row : Rows)
 	{
-		DrawTextShadowed(Row, X + Pad, TextY, FLinearColor(1.f, 0.95f, 0.8f, Pop), Medium, UI);
+		TotalChars += Row.Len();
+	}
+	const float CharsPerSecond = TotalChars / UMetalDialogueSubsystem::GetTalkTime(Line);
+	int32 Remaining = FMath::Min(TotalChars, FMath::FloorToInt(LineTime * CharsPerSecond) + 1);
+	for (const FString& Row : Rows)
+	{
+		if (Remaining <= 0)
+		{
+			break;
+		}
+		DrawTextShadowed(Row.Left(Remaining), X + Pad, TextY, FLinearColor(1.f, 0.95f, 0.8f, Pop), Medium, UI);
+		Remaining -= Row.Len();
 		TextY += RowH;
 	}
 }

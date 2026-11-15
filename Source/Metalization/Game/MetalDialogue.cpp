@@ -52,8 +52,13 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 	}
 	LineTime += DeltaTime;
 	OpenTime += DeltaTime;
+	// The line has been spoken: the whistle stops for the pause before the next line.
+	if (bWhistleOn && !IsTalking())
+	{
+		SetWhistlePlaying(false);
+	}
 	// The front line has had its time: drop it. The box stays open (OpenTime keeps counting) while more lines
-	// are queued, with a quieter blip between speakers.
+	// are queued; the next one starts with a quieter blip and the whistle back on.
 	if (LineTime >= FMath::Max(0.5f, Queue[0].Duration))
 	{
 		Queue.RemoveAt(0);
@@ -61,16 +66,24 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 		if (Queue.Num() > 0)
 		{
 			MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.4f);
+			SetWhistlePlaying(true);
 		}
-		else
+		else if (bWhistleOn)
 		{
 			SetWhistlePlaying(false);
 		}
 	}
 }
 
+float UMetalDialogueSubsystem::GetTalkTime(const FMetalDialogueLine& Line)
+{
+	// The 0.5 s minimum duration matches Tick.
+	return FMath::Max(FMath::Max(0.5f, Line.Duration) - 1.f, 0.25f);
+}
+
 void UMetalDialogueSubsystem::SetWhistlePlaying(bool bPlaying)
 {
+	bWhistleOn = bPlaying;
 	if (!bPlaying)
 	{
 		UE_LOG(LogMetal, Log, TEXT("Dialogue radio whistle off"));
@@ -105,6 +118,7 @@ void UMetalDialogueSubsystem::Deinitialize()
 		Whistle->Stop();
 	}
 	Whistle = nullptr;
+	bWhistleOn = false;
 	Super::Deinitialize();
 }
 
