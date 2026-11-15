@@ -188,6 +188,210 @@ def normalize(sig, peak=0.89):
 
 
 # --------------------------------------------------------------------------------------------
+# Robot voices: wordless beeps, whistles and warbles that stand in for speech.
+# --------------------------------------------------------------------------------------------
+def chirp(freq, glides, vibrato=0.0, vibrato_rate=0.0, fm=0.0, fm_ratio=2.0, buzz=0.0, attack=0.004, release=0.012):
+    """
+    One voice "syllable": a tone that starts at freq and glides through (seconds, Hz) steps in turn.
+
+    vibrato is a pitch wobble depth (0.05 = +-5%), or a (start, end) pair to ramp it over the syllable.
+    fm adds a rough, growling edge (phase modulation at fm_ratio times the pitch); buzz adds odd
+    harmonics, towards a square wave. The pitch glides in log-frequency with eased ends, like a whistle.
+    """
+    total = sum(seconds for seconds, _ in glides)
+    n = max(1, int(total * RATE))
+    vib0, vib1 = vibrato if isinstance(vibrato, tuple) else (vibrato, vibrato)
+    out = [0.0] * n
+    a = max(1, int(attack * RATE))
+    r = max(1, int(release * RATE))
+    seg, seg_start, f_from = 0, 0.0, freq
+    phase = 0.0
+    for i in range(n):
+        ti = i / RATE
+        while seg < len(glides) - 1 and ti >= seg_start + glides[seg][0]:
+            seg_start += glides[seg][0]
+            f_from = glides[seg][1]
+            seg += 1
+        seconds, f_to = glides[seg]
+        u = min(1.0, (ti - seg_start) / max(1e-6, seconds))
+        u = u * u * (3.0 - 2.0 * u)
+        f = math.exp(math.log(f_from) + (math.log(f_to) - math.log(f_from)) * u)
+        depth = vib0 + (vib1 - vib0) * i / n
+        if depth:
+            f *= 1.0 + depth * math.sin(TWO_PI * vibrato_rate * ti)
+        phase += f / RATE
+        w = TWO_PI * phase
+        v = math.sin(w + fm * math.sin(w * fm_ratio)) if fm else math.sin(w)
+        if buzz:
+            v += buzz * (math.sin(3.0 * w) / 3.0 + math.sin(5.0 * w) / 5.0)
+        out[i] = v * min(1.0, i / a, (n - 1 - i) / r)
+    return out
+
+
+def say(*parts):
+    """Joins syllables end to end; a number is a pause in seconds."""
+    out = []
+    for p in parts:
+        out.extend(silence(p) if isinstance(p, (int, float)) else p)
+    return out
+
+
+def robot_voice(kind, rng):
+    """
+    Builds one line of robot "speech" for a mood. Every choice comes from rng, so each numbered variant
+    of a mood (voice_chatter1, voice_chatter2...) is a different phrase in the same tone of voice.
+    """
+    def pick(low, high):
+        return math.exp(rng.uniform(math.log(low), math.log(high)))
+
+    def beep(f, seconds, **kw):
+        return chirp(f, [(seconds, f)], **kw)
+
+    def slide(f0, f1, seconds, **kw):
+        return chirp(f0, [(seconds, f1)], **kw)
+
+    def trill(f_a, f_b, seconds, rate, **kw):
+        # Flips between two pitches rate times a second.
+        step = 1.0 / rate
+        glides, high = [], True
+        for _ in range(max(2, int(seconds / step))):
+            glides += [(0.006, f_b if high else f_a), (step - 0.006, f_b if high else f_a)]
+            high = not high
+        return chirp(f_a, glides, **kw)
+
+    if kind == "chatter":
+        # Idle muttering: an unhurried run of mixed beeps, slides, scoops, warbles and the odd low "boop".
+        parts = []
+        for _ in range(rng.randint(4, 7)):
+            f = pick(650, 2300)
+            shape = rng.choice(["beep", "beep", "slide", "slide", "scoop", "trill", "warble", "boop"])
+            if shape == "beep":
+                parts.append(beep(f, rng.uniform(0.05, 0.11)))
+            elif shape == "slide":
+                parts.append(slide(f, pick(650, 2600), rng.uniform(0.08, 0.2)))
+            elif shape == "scoop":
+                d = rng.uniform(0.12, 0.22)
+                parts.append(chirp(f, [(d * 0.45, f * rng.uniform(0.55, 0.75)), (d * 0.55, f * rng.uniform(1.15, 1.5))]))
+            elif shape == "trill":
+                parts.append(trill(f, f * rng.uniform(1.2, 1.5), rng.uniform(0.12, 0.22), rng.uniform(22, 34)))
+            elif shape == "warble":
+                parts.append(beep(f, rng.uniform(0.14, 0.24), vibrato=rng.uniform(0.05, 0.1), vibrato_rate=rng.uniform(18, 30)))
+            else:
+                parts.append(slide(pick(380, 520), pick(260, 340), rng.uniform(0.09, 0.14), buzz=0.6))
+            parts.append(rng.uniform(0.02, 0.09))
+        return lowpass(say(*parts[:-1]), 7000)
+
+    if kind == "alert":
+        # "Whoop! bip-bip-bip": a fast rising whistle, then sharp high staccato.
+        low, top = pick(520, 800), pick(2300, 3300)
+        whoop = chirp(low, [(rng.uniform(0.11, 0.18), top), (0.05, top)], buzz=0.2)
+        parts = [whoop, 0.03]
+        if rng.random() < 0.4:
+            parts += [chirp(low * 1.1, [(0.1, top * 1.05), (0.04, top * 1.05)], buzz=0.2), 0.03]
+        step = rng.choice([1.0, 1.0, 1.12, 0.89])
+        f = top * rng.uniform(0.75, 0.95)
+        for _ in range(rng.randint(2, 4)):
+            parts += [beep(f, 0.045, buzz=0.3), 0.03]
+            f *= step
+        return lowpass(say(*parts[:-1]), 8000)
+
+    if kind == "orders":
+        # Barked commands: clipped, buzzy, evenly spaced beeps on two or three pitches, with a firm full stop.
+        base = pick(520, 1000)
+        pitches = [base, base * rng.choice([1.25, 1.33, 1.5]), base * rng.choice([0.75, 0.8, 2.0])]
+        length, gap = rng.uniform(0.055, 0.08), rng.uniform(0.02, 0.035)
+        parts = []
+        for _ in range(rng.randint(4, 7)):
+            f = rng.choice(pitches)
+            if rng.random() < 0.2:
+                parts.append(beep(f, length * 2.2, buzz=0.7, vibrato=0.04, vibrato_rate=35))  # a rolled "rrr"
+            else:
+                parts.append(beep(f, length, buzz=0.7))
+            parts.append(gap)
+        if rng.random() < 0.6:
+            parts.append(slide(base * 1.5, base * 0.7, rng.uniform(0.1, 0.15), buzz=0.7))
+        else:
+            parts += [beep(base * 2.0, 0.05, buzz=0.7), gap, beep(base * 2.0, 0.09, buzz=0.7)]
+        return lowpass(say(*parts), 6500)
+
+    if kind == "pain":
+        # A yelp: the pitch shoots up and collapses, with a rough edge. Some are a double "ow-ow".
+        def yelp(f, seconds):
+            return chirp(f, [(0.035, f * rng.uniform(2.0, 2.8)), (seconds, f * rng.uniform(0.45, 0.7))],
+                         fm=rng.uniform(0.8, 1.8), fm_ratio=rng.choice([1.41, 2.0, 2.76]), vibrato=0.06, vibrato_rate=rng.uniform(30, 45))
+        f = pick(850, 1400)
+        parts = [yelp(f, rng.uniform(0.13, 0.26))]
+        if rng.random() < 0.4:
+            parts += [0.03, yelp(f * rng.uniform(0.8, 0.95), rng.uniform(0.1, 0.16))]
+        zap = env(highpass(noise(0.05, rng), 2500), 0.0, curve=7)
+        return lowpass(mix(say(*parts), (zap, 0, 0.25)), 7500)
+
+    if kind == "death":
+        # "Aaaah!": shrieks up to a high wail that wobbles more and more as it falls away, then the voice
+        # box runs down in a few slowing, sinking blips.
+        f = pick(900, 1300)
+        top = pick(2500, 3300)
+        fall = rng.uniform(0.9, 1.4)
+        bottom = pick(170, 260)
+        wail = chirp(f, [(0.07, top), (rng.uniform(0.15, 0.3), top * rng.uniform(0.9, 1.0)), (fall, bottom)],
+                     vibrato=(0.01, rng.uniform(0.12, 0.2)), vibrato_rate=rng.uniform(9, 14), fm=rng.uniform(0.3, 0.8), fm_ratio=2.0,
+                     buzz=0.25, release=0.03)
+        # Fade the wail as it falls, so it dies away instead of stopping.
+        n = len(wail)
+        wail = [x * (1.0 - 0.6 * max(0.0, i / n - 0.35) / 0.65) for i, x in enumerate(wail)]
+        parts = [wail]
+        gap, f = 0.04, bottom * rng.uniform(1.4, 1.9)
+        for i in range(rng.randint(2, 4)):
+            parts += [gap, gain(slide(f, f * 0.8, 0.06, buzz=0.8), 0.5 - 0.1 * i)]
+            gap *= 1.6
+            f *= 0.8
+        return lowpass(say(*parts), 7000)
+
+    if kind == "laugh":
+        # "Heh-heh-heh-heh": bouncy little up-down blips that seesaw between two pitches as they tumble down.
+        f = pick(1100, 1900)
+        low = rng.random() < 0.3  # now and then a deeper, buzzier chuckle
+        if low:
+            f *= 0.5
+        bounce = rng.uniform(1.15, 1.3)
+        fall = rng.uniform(0.9, 0.96)
+        length, gap = rng.uniform(0.055, 0.075), rng.uniform(0.035, 0.055)
+        parts = []
+        for i in range(rng.randint(4, 7)):
+            note = f * (bounce if i % 2 == 0 else 1.0)
+            parts += [chirp(note, [(length * 0.35, note * 1.3), (length * 0.65, note * 0.78)], buzz=0.5 if low else 0.15), gap]
+            f *= fall
+        if rng.random() < 0.5:
+            parts.append(slide(f, f * rng.uniform(1.6, 2.2), rng.uniform(0.1, 0.16), buzz=0.15))  # a gleeful upward flick
+        else:
+            parts.pop()
+        return lowpass(say(*parts), 7500)
+
+    if kind == "confused":
+        # Dazed: a seasick, wobbling moan that wanders and ends on a rising "...huh?", with a stuck stutter.
+        f = pick(520, 850)
+        woozy = chirp(f, [(rng.uniform(0.2, 0.3), f * rng.uniform(1.25, 1.5)), (rng.uniform(0.18, 0.28), f * rng.uniform(0.7, 0.9)),
+                          (rng.uniform(0.22, 0.32), f * rng.uniform(1.1, 1.4))],
+                      vibrato=(0.05, rng.uniform(0.12, 0.2)), vibrato_rate=rng.uniform(5, 8), fm=0.3, fm_ratio=0.5)
+        sf = pick(700, 1500)
+        stutter = []
+        for _ in range(rng.randint(3, 5)):
+            stutter += [beep(sf * rng.choice([1.0, 1.0, 1.0, 1.06, 0.94]), 0.03, buzz=0.4), 0.025]
+        q = pick(600, 900)
+        huh = say(beep(q, 0.06), 0.03, chirp(q * 1.1, [(rng.uniform(0.16, 0.24), q * rng.uniform(1.7, 2.2))], vibrato=0.03, vibrato_rate=7))
+        order = rng.choice([[woozy, 0.06, say(*stutter), 0.05, huh], [say(*stutter), 0.05, woozy, 0.07, huh], [woozy, 0.07, huh, 0.06, say(*stutter[:-1])]])
+        return lowpass(say(*order), 6500)
+
+    raise KeyError(kind)
+
+
+# How many variants of each mood to make. Gameplay picks one at random (MetalAudio::PickVariant), so more
+# can be added here without touching the code.
+VOICES = {"chatter": 8, "alert": 5, "orders": 6, "pain": 6, "death": 5, "laugh": 5, "confused": 5}
+VOICE_SOUNDS = [f"voice_{kind}{i}" for kind, count in VOICES.items() for i in range(1, count + 1)]
+
+
+# --------------------------------------------------------------------------------------------
 # The sounds
 # --------------------------------------------------------------------------------------------
 def build(name, rng):
@@ -433,6 +637,8 @@ def build(name, rng):
             pew = env(osc(0.18, rng.uniform(900, 1600), "saw", 250, curve=0.5), 0.001, curve=5)
             parts.append((lowpass(pew, 1500), t, rng.uniform(0.05, 0.15)))
         return loopable(mix(*parts)[:int(10.6 * RATE)], 0.6)
+    if name.startswith("voice_"):
+        return robot_voice(name[len("voice_"):].rstrip("0123456789"), rng)
     raise KeyError(name)
 
 
@@ -446,7 +652,7 @@ SOUNDS = [
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
     # New sounds go last: each sound's random seed is its index, so inserting would change the others.
     "low_health", "radio_whistle_loop", "console_beep",
-]
+] + VOICE_SOUNDS
 
 
 # Library name -> file in Art/Music. Names ending _loop loop. Credit every track in CREDITS.txt.

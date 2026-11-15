@@ -35,7 +35,7 @@ namespace
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
-		MenuSound, MenuCredits, MusicDown, MusicUp,
+		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
 		Reload, GoToPickup };
@@ -92,9 +92,11 @@ namespace
 			// again in the new level, where picking it again is skipped and Continue resumes the game.
 			{TEXT("menu"), {{0.8f, EStep::OpenPauseMenu}, {1.6f, EStep::MenuLevelSelect}, {2.4f, EStep::MenuBack}, {3.2f, EStep::MenuLevelSelect},
 				{3.6f, EStep::MenuPickLevel}, {4.4f, EStep::MenuContinue}}},
-			// Pause menu Sound and Credits panels: turn the music down 30% and back up, then show the credits.
+			// Pause menu Sound and Credits panels: turn the music, then the robot voices, down 30% and back up, then
+			// show the credits.
 			{TEXT("sound"), {{0.8f, EStep::OpenPauseMenu}, {1.4f, EStep::MenuSound}, {2.0f, EStep::MusicDown}, {2.8f, EStep::MusicUp},
-				{3.2f, EStep::MenuBack}, {3.6f, EStep::MenuCredits}, {4.6f, EStep::MenuBack}, {5.0f, EStep::MenuContinue}}},
+				{3.0f, EStep::VoicesDown}, {3.4f, EStep::VoicesUp},
+				{3.6f, EStep::MenuBack}, {4.0f, EStep::MenuCredits}, {5.0f, EStep::MenuBack}, {5.4f, EStep::MenuContinue}}},
 			// AI-only battle: the player stays aboard while both squadrons and the turrets fight it out.
 			{TEXT("dogfight"), {}},
 			// No inputs: exterior screenshots with -MetalCam.
@@ -337,7 +339,7 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
 		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
 		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue"),
-		TEXT("menu: sound"), TEXT("menu: credits"), TEXT("music down"), TEXT("music up"),
+		TEXT("menu: sound"), TEXT("menu: credits"), TEXT("music down"), TEXT("music up"), TEXT("beep-boops down"), TEXT("beep-boops up"),
 			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
 			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
 			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
@@ -503,6 +505,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::MenuCredits:   if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Credits")); } break;
 	case EStep::MusicDown:     if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Music, -0.3f); } break;
 	case EStep::MusicUp:       if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Music, 0.3f); } break;
+	case EStep::VoicesDown:    if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Voices, -0.3f); } break;
+	case EStep::VoicesUp:      if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Voices, 0.3f); } break;
 	case EStep::MenuContinue:  if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->ShowMainPanel(); Menu->PressButton(TEXT("Continue")); } break;
 	case EStep::MenuPickLevel:
 		if (UMetalPauseMenu* Menu = PC->GetPauseMenu())

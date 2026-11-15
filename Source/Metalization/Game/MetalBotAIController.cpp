@@ -106,6 +106,12 @@ void AMetalBotAIController::EnterCombat(AMetalBotCharacter* Enemy, bool bAlertSq
 		AlertTime = GetWorld()->GetTimeSeconds();
 		MetalAudio::PlayAt(this, TEXT("alert"), Bot->GetEyesLocation(), 0.8f, 0.f);
 	}
+	if (State != EMetalAIState::Combat && State != EMetalAIState::Retreat && Enemy && bAlertSquad)
+	{
+		// Only the robot that spotted the enemy calls out; the squad it alerts doesn't all shout at once.
+		Bot->Speak(EMetalBark::Alert);
+		NextBarkTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
+	}
 	Suspicion = 0.f;
 	Target = Enemy;
 	// Decide straight away whether an energy field is in the way, so the first burst isn't wasted on it
@@ -374,14 +380,44 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 		return;
 	}
 	// EMP-stunned or switched-off robots stand still and hold fire, keeping their state for when they wake.
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (NextBarkTime <= 0.f)
+	{
+		// Stagger the first lines, so a squad that spawned together doesn't speak in chorus.
+		NextBarkTime = Now + FMath::FRandRange(2.f, 14.f);
+	}
 	if (Bot->IsStunned() || Bot->IsDormant())
 	{
 		StopMovement();
 		Bot->StopFire();
+		// A long stun: keep sounding dazed.
+		if (Bot->IsStunned() && Now >= NextBarkTime)
+		{
+			Bot->Speak(EMetalBark::Confused);
+			NextBarkTime = Now + FMath::FRandRange(2.5f, 4.f);
+		}
 		return;
 	}
 
-	const float Now = GetWorld()->GetTimeSeconds();
+	// Unprompted lines: muttering on patrol (not while something has its attention), orders in a fight
+	// while the enemy is in view.
+	if (Now >= NextBarkTime)
+	{
+		if (State == EMetalAIState::Patrol && Suspicion <= 0.f)
+		{
+			Bot->Speak(EMetalBark::Chatter);
+			NextBarkTime = Now + FMath::FRandRange(7.f, 16.f);
+		}
+		else if (State == EMetalAIState::Combat && bTargetVisible)
+		{
+			Bot->Speak(EMetalBark::Orders);
+			NextBarkTime = Now + FMath::FRandRange(4.f, 9.f);
+		}
+		else
+		{
+			NextBarkTime = Now + 1.f;
+		}
+	}
 	// Look and listen a few times a second rather than every frame; the state ticks below act on the result.
 	if (Now >= NextSenseTime)
 	{

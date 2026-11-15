@@ -72,6 +72,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float CapsuleHalfHeight = 68.f;
 
+	/**
+	 * Pitch of this robot type's voice (AMetalBotCharacter::Speak): 1 plays the voice sounds as recorded,
+	 * 0.5 an octave lower. Big robots get deep voices, small ones high.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body", meta=(ClampMin="0.3", ClampMax="2.0"))
+	float VoicePitch = 1.f;
+
 	/** Hit points at spawn and after a full repair. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float MaxHealth = 100.f;

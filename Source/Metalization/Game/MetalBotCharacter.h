@@ -10,6 +10,7 @@
 #include "MetalBotCharacter.generated.h"
 
 class AMetalFX;
+class UAudioComponent;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class UPointLightComponent;
@@ -42,6 +43,28 @@ struct FMetalWeaponSlot
 	/** Spare rounds outside the clip. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	int32 Reserve = 0;
+};
+
+/**
+ * What a robot "says" (AMetalBotCharacter::Speak): wordless beeps and whistles, one mood each. Listed from
+ * least to most urgent: a robot that is already talking is only interrupted by something more urgent.
+ */
+enum class EMetalBark : uint8
+{
+	/** Idle muttering on patrol. */
+	Chatter,
+	/** Barked commands while fighting. */
+	Orders,
+	/** Took out an enemy. */
+	Laugh,
+	/** Spotted an enemy. */
+	Alert,
+	/** Stunned or hacked. */
+	Confused,
+	/** Took damage. */
+	Pain,
+	/** Destroyed: the last scream. */
+	Death,
 };
 
 /**
@@ -187,6 +210,23 @@ public:
 	 * @param Duration Seconds to stay stunned.
 	 */
 	void Stun(float Duration);
+
+	/**
+	 * Makes the robot "say" something: plays a random variant of the mood's voice sound ("voice_pain3") from
+	 * its body, at the pitch of its type (UMetalBotArchetype::VoicePitch). Robots the player is driving stay quiet, and so do dead ones
+	 * (except for the death scream) and robots with no voice (flyers).
+	 *
+	 * A robot says one thing at a time: the bark is dropped if it is already saying something as urgent or
+	 * more (see EMetalBark), and cuts off anything less urgent.
+	 *
+	 * @param Bark  The mood.
+	 * @param Delay Seconds to wait first (the laugh after a kill lets the victim's scream start).
+	 * @return True if the robot spoke (or will, after Delay).
+	 */
+	bool Speak(EMetalBark Bark, float Delay = 0.f);
+
+	/** @return True while the robot is saying something (see Speak). */
+	bool IsSpeaking() const;
 
 	/**
 	 * Restores health, capped at GetMaxHealth(). Ignored once dead.
@@ -754,4 +794,12 @@ protected:
 	TSet<FName> BrokenMuzzles;
 	/** Extra mesh rotation around the capsule centre (flyers pitch and bank the body with it). */
 	FQuat MeshTilt = FQuat::Identity;
+	/** Whether this robot talks (see Speak). Flyers don't. */
+	bool bHasVoice = true;
+	/** The voice line being said, if any (it destroys itself when the line ends). */
+	TWeakObjectPtr<UAudioComponent> Voice;
+	/** Mood of the line in Voice. */
+	EMetalBark VoiceBark = EMetalBark::Chatter;
+	/** World time before which another cry of pain is skipped, so rapid fire doesn't stutter. */
+	float NextPainTime = 0.f;
 };

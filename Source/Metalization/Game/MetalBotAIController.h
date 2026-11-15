@@ -198,6 +198,11 @@ private:
 	float NextReachCheckTime = 0.f;
 	/** Robots only retreat once per life. */
 	bool bHasRetreated = false;
+	/**
+	 * World time of the robot's next unprompted line (AMetalBotCharacter::Speak): idle chatter on patrol,
+	 * orders in a fight, dazed noises while stunned. 0 until the first tick picks a random start.
+	 */
+	float NextBarkTime = 0.f;
 
 	/**
 	 * Hears a noise: investigates it unless already fighting.

@@ -10,7 +10,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle # board the enemy hangar, shoot life support, win
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario dogfight # 90 s AI-only battle (pilots + turrets)
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario menu   # pause menu: Level Select, Back, switch to Arena, Continue
-    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario sound  # pause menu: Sound sliders (music down and up), Credits
+    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario sound  # pause menu: Sound sliders (music, then beep-boops, down and up), Credits
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships  # exterior views of MZ_SpaceBattle
   Production Alpha (MZ_ProductionAlpha / MZ_Title):
     -Scenario alpha   sprint down the trench under the barrage, jump the first barricade

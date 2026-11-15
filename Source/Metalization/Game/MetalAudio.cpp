@@ -75,22 +75,29 @@ namespace
 	/** @return The ini key of a volume setting. */
 	const TCHAR* VolumeKey(EMetalVolume Group)
 	{
-		return Group == EMetalVolume::Music ? TEXT("MusicVolume") : TEXT("EffectsVolume");
+		switch (Group)
+		{
+		case EMetalVolume::Music:  return TEXT("MusicVolume");
+		case EMetalVolume::Voices: return TEXT("VoicesVolume");
+		default:                   return TEXT("EffectsVolume");
+		}
 	}
 
 	/**
-	 * @return The sound class a volume setting scales (SC_Music / SC_Effects, made by the pipeline), loaded and
+	 * @return The sound class a volume setting scales (SC_Music / SC_Effects / SC_Voices, made by the pipeline), loaded and
 	 *         rooted on first use; null if it doesn't exist yet.
 	 */
 	USoundClass* VolumeClass(EMetalVolume Group)
 	{
-		static USoundClass* Classes[2] = {nullptr, nullptr};
-		static bool bTried[2] = {false, false};
+		static USoundClass* Classes[3] = {nullptr, nullptr, nullptr};
+		static bool bTried[3] = {false, false, false};
 		const int32 Index = static_cast<int32>(Group);
 		if (!bTried[Index])
 		{
 			bTried[Index] = true;
-			const TCHAR* Path = Group == EMetalVolume::Music ? TEXT("/Game/Metalization/Audio/SC_Music.SC_Music") : TEXT("/Game/Metalization/Audio/SC_Effects.SC_Effects");
+			const TCHAR* Path = Group == EMetalVolume::Music ? TEXT("/Game/Metalization/Audio/SC_Music.SC_Music")
+				: Group == EMetalVolume::Voices ? TEXT("/Game/Metalization/Audio/SC_Voices.SC_Voices")
+				: TEXT("/Game/Metalization/Audio/SC_Effects.SC_Effects");
 			Classes[Index] = LoadObject<USoundClass>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
 			if (Classes[Index])
 			{
@@ -154,6 +161,41 @@ namespace MetalAudio
 		return nullptr;
 	}
 
+	UAudioComponent* PlayAttached(USceneComponent* AttachTo, FName Name, float Volume, float Pitch)
+	{
+		if (AttachTo == nullptr)
+		{
+			return nullptr;
+		}
+		if (USoundBase* Sound = Find(Name, Volume))
+		{
+			return UGameplayStatics::SpawnSoundAttached(Sound, AttachTo, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
+				true, Volume, Pitch, 0.f, Attenuation);
+		}
+		return nullptr;
+	}
+
+	FName PickVariant(FName Base)
+	{
+		// Variant counts per base name. The library never changes during a session, so they are counted once.
+		static TMap<FName, int32> Counts;
+		const int32* Known = Counts.Find(Base);
+		int32 Count = Known ? *Known : 0;
+		if (Known == nullptr)
+		{
+			if (GetLibrary() == nullptr)
+			{
+				return NAME_None;
+			}
+			while (HasSound(FName(*FString::Printf(TEXT("%s%d"), *Base.ToString(), Count + 1))))
+			{
+				++Count;
+			}
+			Counts.Add(Base, Count);
+		}
+		return Count > 0 ? FName(*FString::Printf(TEXT("%s%d"), *Base.ToString(), FMath::RandRange(1, Count))) : FName();
+	}
+
 	UAudioComponent* CreateLoop2D(const UObject* WorldContext, FName Name, float Volume)
 	{
 		if (USoundBase* Sound = Find(Name, Volume))
@@ -192,7 +234,7 @@ namespace MetalAudio
 	void ApplyVolumes(const UObject* WorldContext)
 	{
 		USoundMix* Mix = VolumeMix();
-		for (const EMetalVolume Group : {EMetalVolume::Music, EMetalVolume::Effects})
+		for (const EMetalVolume Group : {EMetalVolume::Music, EMetalVolume::Effects, EMetalVolume::Voices})
 		{
 			if (USoundClass* Class = VolumeClass(Group))
 			{
@@ -200,7 +242,8 @@ namespace MetalAudio
 			}
 		}
 		UGameplayStatics::SetBaseSoundMix(WorldContext, Mix);
-		UE_LOG(LogMetal, Log, TEXT("Volumes: music %.2f, effects %.2f%s"), GetVolume(EMetalVolume::Music), GetVolume(EMetalVolume::Effects),
-			VolumeClass(EMetalVolume::Music) && VolumeClass(EMetalVolume::Effects) ? TEXT("") : TEXT(" (sound classes missing - run the pipeline)"));
+		UE_LOG(LogMetal, Log, TEXT("Volumes: music %.2f, effects %.2f, voices %.2f%s"), GetVolume(EMetalVolume::Music), GetVolume(EMetalVolume::Effects),
+			GetVolume(EMetalVolume::Voices),
+			VolumeClass(EMetalVolume::Music) && VolumeClass(EMetalVolume::Effects) && VolumeClass(EMetalVolume::Voices) ? TEXT("") : TEXT(" (sound classes missing - run the pipeline)"));
 	}
 }

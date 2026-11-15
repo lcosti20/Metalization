@@ -13,6 +13,7 @@
 #include "MetalProjectile.h"
 #include "MetalWeaponData.h"
 #include "Camera/CameraComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -298,7 +299,11 @@ void AMetalBotCharacter::Stun(float Duration)
 {
 	if (!bDead)
 	{
-		StunEndTime = FMath::Max(StunEndTime, GetWorld()->GetTimeSeconds() + Duration);
+		if (!IsStunned())
+		{
+			Speak(EMetalBark::Confused);
+		}
+		StunEndTime =FMath::Max(StunEndTime, GetWorld()->GetTimeSeconds() + Duration);
 		StopFire();
 		GetCharacterMovement()->StopMovementImmediately();
 	}
@@ -355,6 +360,11 @@ EMetalTeam AMetalBotCharacter::GetBaseTeam() const
 
 void AMetalBotCharacter::SetHijacked(bool bNewHijacked)
 {
+	if (bNewHijacked && !bHijacked)
+	{
+		// Hacked: a baffled warble as the link takes hold.
+		Speak(EMetalBark::Confused);
+	}
 	bHijacked = bNewHijacked;
 	SetTeam(bHijacked ? EMetalTeam::Heroes : GetBaseTeam());
 	SetMaterialScalar(TEXT("HackGlow"), bHijacked ? 1.f : 0.f);
@@ -1164,6 +1174,11 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		PlaySound(IsPlayerControlled() ? TEXT("player_hit") : TEXT("robot_hit"), 0.8f);
 	}
 	LastDamageTakenTime = GetWorld()->GetTimeSeconds();
+	// Cry out, but not on every round of a burst (the death scream follows instead if this hit is fatal).
+	if (Health > 0.f && LastDamageTakenTime >= NextPainTime && Speak(EMetalBark::Pain))
+	{
+		NextPainTime = LastDamageTakenTime + FMath::FRandRange(0.7f, 1.4f);
+	}
 
 	const FVector From = Attacker ? Attacker->GetActorLocation() : (DamageCauser ? DamageCauser->GetActorLocation() : GetActorLocation() - GetActorForwardVector());
 	if (UMetalBotAnimInstance* Anim = Cast<UMetalBotAnimInstance>(GetMesh()->GetAnimInstance()))
@@ -1245,6 +1260,13 @@ void AMetalBotCharacter::Die(AController* Killer)
 		GetMesh()->WakeAllRigidBodies();
 		GetMesh()->AddImpulse(-GetActorForwardVector() * 150.f + FVector(0.f, 0.f, 100.f), NAME_None, true);
 		bRagdoll = true;
+	}
+
+	// The last scream, and a moment later the killer gloats (unless it's the robot's own doing).
+	Speak(EMetalBark::Death);
+	if (AMetalBotCharacter* Victor = Killer ? Cast<AMetalBotCharacter>(Killer->GetPawn()) : nullptr; Victor && Victor != this)
+	{
+		Victor->Speak(EMetalBark::Laugh, FMath::FRandRange(0.5f, 0.9f));
 	}
 
 	// Kill counts, hijack endings and battle tickets all hang off this event.
@@ -1506,6 +1528,48 @@ void AMetalBotCharacter::TickJetpack(float Now)
 	{
 		JetFireEnd = 0.f;
 	}
+}
+
+bool AMetalBotCharacter::IsSpeaking() const
+{
+	return Voice.IsValid() && Voice->IsPlaying();
+}
+
+bool AMetalBotCharacter::Speak(EMetalBark Bark, float Delay)
+{
+	const bool bDeath = Bark == EMetalBark::Death;
+	if (!bHasVoice || IsPlayerControlled() || (bDead && !bDeath) || IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	if (Delay > 0.f)
+	{
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Bark]() { Speak(Bark); }), Delay, false);
+		return true;
+	}
+	if (IsSpeaking())
+	{
+		if (Bark <= VoiceBark)
+		{
+			return false;
+		}
+		Voice->Stop();
+	}
+	static const TCHAR* Bases[] = {TEXT("voice_chatter"), TEXT("voice_orders"), TEXT("voice_laugh"), TEXT("voice_alert"),
+		TEXT("voice_confused"), TEXT("voice_pain"), TEXT("voice_death")};
+	const FName Name = MetalAudio::PickVariant(Bases[static_cast<int32>(Bark)]);
+	if (Name.IsNone())
+	{
+		return false;
+	}
+	// Idle muttering is quieter than the rest, and every line wavers a little in pitch.
+	const float Volume = Bark == EMetalBark::Chatter ? 0.45f : (Bark == EMetalBark::Orders ? 0.6f : 0.75f);
+	const float TypePitch = Archetype ? Archetype->VoicePitch : 1.f;
+	Voice = MetalAudio::PlayAttached(GetMesh(), Name, Volume, TypePitch * FMath::FRandRange(0.96f, 1.04f));
+	VoiceBark = Bark;
+	UE_LOG(LogMetal, Log, TEXT("[Voice] %s says %s"), *GetName(), *Name.ToString());
+	return true;
 }
 
 void AMetalBotCharacter::PlaySound(FName Name, float Volume) const

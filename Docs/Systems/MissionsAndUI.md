@@ -142,7 +142,7 @@ Buttons are `UMetalMenuButton`s, which run a stored lambda when pressed, so each
 - **Pause menu.**
   - In-game: Continue, Restart Mission, Level Select, Controls, Sound, Credits, Title Screen, Quit.
   - On the title screen: Start Mission (the first Level Select entry), Level Select, Controls, Sound, Credits, Quit.
-  - **Sound**: Music / Background and Sound Effects volume sliders (see `Docs/Systems/Audio.md`). Left/right
+  - **Sound**: Music / Background, Sound Effects and Beep-boops (robot voices) volume sliders (see `Docs/Systems/Audio.md`). Left/right
     moves the focused slider; up/down leaves it.
   - **Credits**: the licensed music and other credits. Keep it in sync with `CREDITS.txt`.
 - **Level actors.**

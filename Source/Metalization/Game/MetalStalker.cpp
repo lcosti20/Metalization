@@ -29,6 +29,7 @@ AMetalStalker::AMetalStalker(const FObjectInitializer& ObjectInitializer)
 	// No ground brain: parked Stalkers sit idle until a pilot (the player, later AI pilots) links in.
 	AIControllerClass = nullptr;
 	AutoPossessAI = EAutoPossessAI::Disabled;
+	bHasVoice = false;
 
 	// The arms reach far outside the capsule, so the mesh takes shots (Visibility traces, projectile
 	// sweeps) through its physics bodies. It never blocks movement.

@@ -5,8 +5,9 @@
 // Gameplay code never references a sound asset directly, it just asks for a name ("laser_fire").
 // A missing library or name is silent, so the game still runs before the pipeline has been run.
 //
-// Two volume settings (the sliders in the pause and title menus) scale every sound through its sound class:
-// SC_Music (music and background loops) and SC_Effects (everything else). The pipeline assigns the classes.
+// Three volume settings (the sliders in the pause and title menus) scale every sound through its sound class:
+// SC_Music (music and background loops), SC_Voices (the robots' beep-boop "speech") and SC_Effects (everything
+// else). The pipeline assigns the classes.
 
 #pragma once
 
@@ -34,13 +35,15 @@ public:
 	TMap<FName, float> Volumes;
 };
 
-/** The two player volume settings. */
+/** The player volume settings. */
 enum class EMetalVolume : uint8
 {
 	/** Music and background loops (SC_Music). */
 	Music,
 	/** Every other sound: weapons, robots, UI, radio (SC_Effects). */
 	Effects,
+	/** Robot voices, the "Beep-boops" slider (SC_Voices). */
+	Voices,
 };
 
 /** Static helpers to play library sounds. */
@@ -66,6 +69,28 @@ namespace MetalAudio
 	 * @return The audio component, or null if the sound doesn't exist. Destroyed with its parent.
 	 */
 	UAudioComponent* PlayLoop(USceneComponent* AttachTo, FName Name, float Volume = 1.f);
+
+	/**
+	 * Plays a one-shot positional sound attached to a component, so it follows a moving robot and can be cut
+	 * short (robot voices).
+	 *
+	 * @param AttachTo Component to follow.
+	 * @param Name     Library name; unknown names are ignored.
+	 * @param Volume   Volume multiplier on top of the library's.
+	 * @param Pitch    Pitch multiplier.
+	 * @return The audio component, or null if the sound doesn't exist or is out of earshot. It destroys
+	 *         itself when the sound ends, so hold it weakly.
+	 */
+	UAudioComponent* PlayAttached(USceneComponent* AttachTo, FName Name, float Volume = 1.f, float Pitch = 1.f);
+
+	/**
+	 * Picks one of a sound's numbered variants at random ("voice_pain" -> "voice_pain1".."voice_pain6"). The
+	 * generator decides how many there are; they are counted in the library on first use.
+	 *
+	 * @param Base Name without the number.
+	 * @return A variant's library name, or None if the library has no "<Base>1".
+	 */
+	FName PickVariant(FName Base);
 
 	/**
 	 * Creates a looping non-positional sound (radio whistle under dialogue) without starting it, so the

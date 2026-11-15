@@ -163,8 +163,16 @@ def make_weapons():
 # --------------------------------------------------------------------------------------------
 # Sound library
 # --------------------------------------------------------------------------------------------
-# Sounds on the Music sound class (the menu's Music / Background slider); everything else is Effects.
+# Sounds on the Music sound class (the menu's Music / Background slider). The robot voices (voice_*) go on
+# Voices (the Beep-boops slider); everything else is Effects.
 MUSIC_SOUNDS = {"music_background_loop", "ambience_loop", "battle_loop"}
+
+
+def volume_group(snake):
+    """@return Which sound class (volume slider) a sound belongs on: "music", "voices" or "effects"."""
+    if snake in MUSIC_SOUNDS:
+        return "music"
+    return "voices" if snake.startswith("voice_") else "effects"
 
 
 def sound_class(name):
@@ -175,9 +183,9 @@ def sound_class(name):
 
 def make_sound_library():
     """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels. Also puts each wave on
-    SC_Music or SC_Effects, so the two volume sliders in the menus can scale them."""
+    SC_Music, SC_Voices or SC_Effects, so the volume sliders in the menus can scale them."""
     lib = data_asset("DA_Sounds", unreal.MetalSoundLibrary)
-    classes = {True: sound_class("SC_Music"), False: sound_class("SC_Effects")}
+    classes = {"music": sound_class("SC_Music"), "effects": sound_class("SC_Effects"), "voices": sound_class("SC_Voices")}
     for c in classes.values():
         eal.save_loaded_asset(c)
     sounds = {}
@@ -187,7 +195,7 @@ def make_sound_library():
             name = asset.get_name()[3:]  # SW_LaserFire -> LaserFire
             snake = "".join("_" + c.lower() if c.isupper() else c for c in name).lstrip("_")
             sounds[unreal.Name(snake)] = asset
-            wanted = classes[snake in MUSIC_SOUNDS]
+            wanted = classes[volume_group(snake)]
             if asset.get_editor_property("sound_class_object") != wanted:
                 asset.set_editor_property("sound_class_object", wanted)
                 eal.save_loaded_asset(asset)
@@ -233,7 +241,9 @@ def make_archetypes(manifest, w):
                  archetype_id=cid, display_name=ch["display_name"], mesh=mesh(cid), parts=[p for p in parts if p],
                  team=unreal.MetalTeam.HEROES if ch["faction"] == "Heroes" else unreal.MetalTeam.VILLAINS,
                  capsule_radius=34.0, capsule_half_height=max(30.0, height * 0.5), hackable=False,
-                 max_health=100.0, walk_speed=350.0)
+                 max_health=100.0, walk_speed=350.0,
+                 # Voice pitch by size: 1.0 at 1.2 m tall, deeper for taller robots, higher for smaller ones.
+                 voice_pitch=min(1.4, max(0.5, round(math.sqrt(120.0 / max(30.0, height)), 2))))
         archetypes[cid] = a
 
     # Blue (Heroes) and Red (Villains) paint for the robots that fight on both sides: allies placed on the
@@ -270,7 +280,7 @@ def make_archetypes(manifest, w):
     # It shares the Shooter's id so it can hold weapons made for the Shooter skeleton.
     marksman = data_asset("DA_Bot_Marksman", unreal.MetalBotArchetype)
     for prop in ("archetype_id", "mesh", "parts", "unarmed_part", "team", "team_colors", "capsule_radius", "capsule_half_height", "rig",
-                 "melee_weapon", "hackable", "possession_duration", "camera_distance", "camera_offset"):
+                 "melee_weapon", "hackable", "possession_duration", "camera_distance", "camera_offset", "voice_pitch"):
         marksman.set_editor_property(prop, archetypes["shooter"].get_editor_property(prop))
     setp(marksman, display_name="Marksman", max_health=55.0, walk_speed=330.0,
          hit_zones=[zone("Head", "bip_head", 20.0, 2.0),

@@ -1,6 +1,6 @@
 // Pause menu and title menu. In game: Continue, Restart Mission, Level Select (the UMetalLevelSettings levels
 // plus Back), Controls, Sound, Credits, Title Screen, Quit. On the title screen: Start Mission, Level Select,
-// Controls, Sound, Credits, Quit. Sound has two volume sliders (Music / Background and Sound Effects); Credits
+// Controls, Sound, Credits, Quit. Sound has three volume sliders (Music / Background, Sound Effects, Beep-boops); Credits
 // lists the licensed music (keep it in sync with CREDITS.txt).
 //
 // Built in code like the HUD, so there are no widget assets to keep in sync. It works with the mouse,
@@ -166,6 +166,10 @@ private:
 	/** OnValueChanged of the effects slider. */
 	UFUNCTION()
 	void HandleEffectsChanged(float Value);
+
+	/** OnValueChanged of the robot voices ("Beep-boops") slider. */
+	UFUNCTION()
+	void HandleVoicesChanged(float Value);
 
 	/** Saves and applies a slider's new value, refreshes its percentage and ticks when it crosses a 5% step. */
 	void OnVolumeChanged(EMetalVolume Group, float Value);

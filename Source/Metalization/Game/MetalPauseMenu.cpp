@@ -295,6 +295,7 @@ void UMetalPauseMenu::BuildTree()
 	Switcher->AddChild(Sound);
 	AddVolumeRow(Sound, NSLOCTEXT("Metalization", "MusicVolume", "Music / Background"), EMetalVolume::Music);
 	AddVolumeRow(Sound, NSLOCTEXT("Metalization", "EffectsVolume", "Sound Effects"), EMetalVolume::Effects);
+	AddVolumeRow(Sound, NSLOCTEXT("Metalization", "VoicesVolume", "Beep-boops"), EMetalVolume::Voices);
 	Sound->AddChildToVerticalBox(WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("SoundGap")))->SetPadding(FMargin(0.f, 10.f));
 	AddButton(Sound, SoundButtons, NSLOCTEXT("Metalization", "Back", "Back"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowMainPanel(); } });
 
@@ -359,13 +360,11 @@ void UMetalPauseMenu::AddVolumeRow(UVerticalBox* Panel, const FText& Label, EMet
 	Slider->SetSliderBarColor(FLinearColor(1.f, 1.f, 1.f, 0.35f));
 	Slider->SetSliderHandleColor(Amber);
 	Slider->SetValue(MetalAudio::GetVolume(Group));
-	if (Group == EMetalVolume::Music)
+	switch (Group)
 	{
-		Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleMusicChanged);
-	}
-	else
-	{
-		Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleEffectsChanged);
+	case EMetalVolume::Music:  Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleMusicChanged); break;
+	case EMetalVolume::Voices: Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleVoicesChanged); break;
+	default:                   Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleEffectsChanged); break;
 	}
 	UHorizontalBoxSlot* SliderSlot = Line->AddChildToHorizontalBox(Slider);
 	SliderSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -407,6 +406,11 @@ void UMetalPauseMenu::HandleMusicChanged(float Value)
 void UMetalPauseMenu::HandleEffectsChanged(float Value)
 {
 	OnVolumeChanged(EMetalVolume::Effects, Value);
+}
+
+void UMetalPauseMenu::HandleVoicesChanged(float Value)
+{
+	OnVolumeChanged(EMetalVolume::Voices, Value);
 }
 
 void UMetalPauseMenu::OnVolumeChanged(EMetalVolume Group, float Value)
