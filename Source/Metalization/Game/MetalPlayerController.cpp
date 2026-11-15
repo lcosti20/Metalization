@@ -208,6 +208,10 @@ void AMetalPlayerController::SetupInputComponent()
 void AMetalPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	if (IsLocalController())
+	{
+		MetalAudio::ApplyVolumes(this);
+	}
 	UpdateMappingContext();
 	SetInputMode(FInputModeGameOnly());
 	bShowMouseCursor = false;

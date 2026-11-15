@@ -140,8 +140,11 @@ Buttons are `UMetalMenuButton`s, which run a stored lambda when pressed, so each
   controller orbits the camera actor tagged `TitleCamera` and shows `UMetalPauseMenu` with `bTitleMode` set.
   `AMetalGameMode::ReturnToTitle` and the pause menu's **Title Screen** button go back to it.
 - **Pause menu.**
-  - In-game: Continue, Restart Mission, Level Select, Controls, Title Screen, Quit.
-  - On the title screen: Start Mission (the first Level Select entry), Level Select, Controls, Quit.
+  - In-game: Continue, Restart Mission, Level Select, Controls, Sound, Credits, Title Screen, Quit.
+  - On the title screen: Start Mission (the first Level Select entry), Level Select, Controls, Sound, Credits, Quit.
+  - **Sound**: Music / Background and Sound Effects volume sliders (see `Docs/Systems/Audio.md`). Left/right
+    moves the focused slider; up/down leaves it.
+  - **Credits**: the licensed music and other credits. Keep it in sync with `CREDITS.txt`.
 - **Level actors.**
   - `AMetalGravLift`: a vertical lift beam, with its origin at the floor pad.
   - `AMetalBarrage`: shells land behind the player while they're inside its box.

@@ -3,6 +3,9 @@
 #include "MetalTypes.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 
@@ -66,6 +69,49 @@ namespace
 		return Sound ? Sound->Get() : nullptr;
 	}
 
+	/** GameUserSettings.ini section holding the volume settings. */
+	const TCHAR* VolumeSection = TEXT("/Script/Metalization.MetalAudio");
+
+	/** @return The ini key of a volume setting. */
+	const TCHAR* VolumeKey(EMetalVolume Group)
+	{
+		return Group == EMetalVolume::Music ? TEXT("MusicVolume") : TEXT("EffectsVolume");
+	}
+
+	/**
+	 * @return The sound class a volume setting scales (SC_Music / SC_Effects, made by the pipeline), loaded and
+	 *         rooted on first use; null if it doesn't exist yet.
+	 */
+	USoundClass* VolumeClass(EMetalVolume Group)
+	{
+		static USoundClass* Classes[2] = {nullptr, nullptr};
+		static bool bTried[2] = {false, false};
+		const int32 Index = static_cast<int32>(Group);
+		if (!bTried[Index])
+		{
+			bTried[Index] = true;
+			const TCHAR* Path = Group == EMetalVolume::Music ? TEXT("/Game/Metalization/Audio/SC_Music.SC_Music") : TEXT("/Game/Metalization/Audio/SC_Effects.SC_Effects");
+			Classes[Index] = LoadObject<USoundClass>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+			if (Classes[Index])
+			{
+				Classes[Index]->AddToRoot();
+			}
+		}
+		return Classes[Index];
+	}
+
+	/** The base sound mix carrying the two volume settings as class overrides. Transient and rooted. */
+	USoundMix* VolumeMix()
+	{
+		static USoundMix* Mix = nullptr;
+		if (Mix == nullptr)
+		{
+			Mix = NewObject<USoundMix>(GetTransientPackage(), TEXT("MetalVolumeMix"));
+			Mix->AddToRoot();
+		}
+		return Mix;
+	}
+
 	/**
 	 * @param Jitter Maximum pitch change either way (0.1 = +/-10%).
 	 * @return A random pitch multiplier, so repeated sounds don't sound identical.
@@ -108,9 +154,58 @@ namespace MetalAudio
 		return nullptr;
 	}
 
+	UAudioComponent* PlayLoop2D(const UObject* WorldContext, FName Name, float Volume, float FadeInTime)
+	{
+		if (USoundBase* Sound = Find(Name, Volume))
+		{
+			UAudioComponent* Component = UGameplayStatics::CreateSound2D(WorldContext, Sound, Volume, 1.f, 0.f, nullptr, false, false);
+			if (Component)
+			{
+				Component->FadeIn(FadeInTime);
+			}
+			return Component;
+		}
+		return nullptr;
+	}
+
 	bool HasSound(FName Name)
 	{
 		float Unused = 1.f;
 		return Find(Name, Unused) != nullptr;
+	}
+
+	float GetVolume(EMetalVolume Group)
+	{
+		float Volume = 1.f;
+		if (GConfig)
+		{
+			GConfig->GetFloat(VolumeSection, VolumeKey(Group), Volume, GGameUserSettingsIni);
+		}
+		return FMath::Clamp(Volume, 0.f, 1.f);
+	}
+
+	void SetVolume(const UObject* WorldContext, EMetalVolume Group, float Volume)
+	{
+		if (GConfig)
+		{
+			GConfig->SetFloat(VolumeSection, VolumeKey(Group), FMath::Clamp(Volume, 0.f, 1.f), GGameUserSettingsIni);
+			GConfig->Flush(false, GGameUserSettingsIni);
+		}
+		ApplyVolumes(WorldContext);
+	}
+
+	void ApplyVolumes(const UObject* WorldContext)
+	{
+		USoundMix* Mix = VolumeMix();
+		for (const EMetalVolume Group : {EMetalVolume::Music, EMetalVolume::Effects})
+		{
+			if (USoundClass* Class = VolumeClass(Group))
+			{
+				UGameplayStatics::SetSoundMixClassOverride(WorldContext, Mix, Class, GetVolume(Group), 1.f, 0.f, true);
+			}
+		}
+		UGameplayStatics::SetBaseSoundMix(WorldContext, Mix);
+		UE_LOG(LogMetal, Log, TEXT("Volumes: music %.2f, effects %.2f%s"), GetVolume(EMetalVolume::Music), GetVolume(EMetalVolume::Effects),
+			VolumeClass(EMetalVolume::Music) && VolumeClass(EMetalVolume::Effects) ? TEXT("") : TEXT(" (sound classes missing - run the pipeline)"));
 	}
 }

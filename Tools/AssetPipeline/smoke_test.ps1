@@ -10,6 +10,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario battle # board the enemy hangar, shoot life support, win
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario dogfight # 90 s AI-only battle (pilots + turrets)
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario menu   # pause menu: Level Select, Back, switch to Arena, Continue
+    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario sound  # pause menu: Sound sliders (music down and up), Credits
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario ships  # exterior views of MZ_SpaceBattle
   Production Alpha (MZ_ProductionAlpha / MZ_Title):
     -Scenario alpha   sprint down the trench under the barrage, jump the first barricade
@@ -35,7 +36,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth")]
+                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -53,6 +54,7 @@ $setups = @{
                    "-MetalShots=20,40,60,80", "-MetalQuitAt=90")
     # Runs in the Outpost, switches to the Arena from Level Select, and runs again there (shots 00-02, then 03-06).
     "menu"   = @("-MetalMenuLevel=Arena", "-MetalShots=1.2,2.0,2.8,5.2", "-MetalQuitAt=6.5")
+    "sound"  = @("-MetalShots=1.7,2.5,4.2", "-MetalQuitAt=5.6")
     "alpha"  = @("-MetalObjective=1", "-MetalTeleport=1300,0,120,0", "-MetalShots=1.5,3.5,5.5,8", "-MetalQuitAt=10")
     "swap"   = @("-MetalObjective=5", "-MetalTeleport=12650,350,1330,0", "-MetalCam=12790,470,1350,-8,-140",
                  "-MetalShots=1.5,3.25,3.45,3.65,3.85,4.1,5.4,9", "-MetalQuitAt=10")
@@ -70,7 +72,7 @@ $setups = @{
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }
-$maps = @{ "alpha" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
+$maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
            "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
 $suffix = if ($Packaged) { "_packaged" } else { "" }

@@ -1,5 +1,6 @@
 #include "MetalTitle.h"
 
+#include "MetalAudio.h"
 #include "MetalDevAutopilot.h"
 #include "MetalPauseMenu.h"
 #include "Camera/CameraActor.h"
@@ -27,6 +28,7 @@ void AMetalTitlePlayerController::BeginPlay()
 	{
 		return;
 	}
+	MetalAudio::ApplyVolumes(this);
 	for (TActorIterator<ACameraActor> It(GetWorld()); It; ++It)
 	{
 		if (It->ActorHasTag(TEXT("TitleCamera")))

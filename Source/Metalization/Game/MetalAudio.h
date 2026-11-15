@@ -4,6 +4,9 @@
 // /Game/Metalization/Audio; the pipeline lists them in the DA_Sounds data asset (UMetalSoundLibrary).
 // Gameplay code never references a sound asset directly, it just asks for a name ("laser_fire").
 // A missing library or name is silent, so the game still runs before the pipeline has been run.
+//
+// Two volume settings (the sliders in the pause and title menus) scale every sound through its sound class:
+// SC_Music (music and background loops) and SC_Effects (everything else). The pipeline assigns the classes.
 
 #pragma once
 
@@ -31,6 +34,15 @@ public:
 	TMap<FName, float> Volumes;
 };
 
+/** The two player volume settings. */
+enum class EMetalVolume : uint8
+{
+	/** Music and background loops (SC_Music). */
+	Music,
+	/** Every other sound: weapons, robots, UI, radio (SC_Effects). */
+	Effects,
+};
+
 /** Static helpers to play library sounds. */
 namespace MetalAudio
 {
@@ -55,6 +67,30 @@ namespace MetalAudio
 	 */
 	UAudioComponent* PlayLoop(USceneComponent* AttachTo, FName Name, float Volume = 1.f);
 
+	/**
+	 * Starts a looping non-positional sound (radio static under dialogue), fading it in.
+	 *
+	 * @param FadeInTime Seconds to reach full volume.
+	 * @return The audio component, or null if the sound doesn't exist. It isn't destroyed when it stops,
+	 *         so the caller can FadeIn/FadeOut the same component again; it goes away with the world.
+	 */
+	UAudioComponent* PlayLoop2D(const UObject* WorldContext, FName Name, float Volume = 1.f, float FadeInTime = 0.f);
+
 	/** @return True if the library has a sound with this name. */
 	bool HasSound(FName Name);
+
+	/** @return The player's volume setting for this group, 0..1 (default 1), saved in GameUserSettings.ini. */
+	float GetVolume(EMetalVolume Group);
+
+	/**
+	 * Changes a volume setting, saves it and applies it right away (sounds already playing follow).
+	 *
+	 * @param WorldContext Any object in the world.
+	 * @param Group        Which setting.
+	 * @param Volume       New volume, clamped to 0..1.
+	 */
+	void SetVolume(const UObject* WorldContext, EMetalVolume Group, float Volume);
+
+	/** Applies the saved volume settings to the audio device. Player controllers call it when a level starts. */
+	void ApplyVolumes(const UObject* WorldContext);
 }

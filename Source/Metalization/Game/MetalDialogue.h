@@ -6,6 +6,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "MetalDialogue.generated.h"
 
+class UAudioComponent;
+
 /** One line of radio dialogue. */
 USTRUCT(BlueprintType)
 struct FMetalDialogueLine
@@ -29,7 +31,8 @@ struct FMetalDialogueLine
  * Plays dialogue during gameplay. Anything can queue lines (mission objectives, AMetalTriggerZone,
  * level Blueprints); they play in order, each for its Duration, and can't be skipped. There are no
  * cutscenes or choices: the game keeps running underneath. AMetalHUD draws the current line in the
- * dialogue box and a radio icon over the player while an NPC is talking.
+ * dialogue box and a radio icon over the player while an NPC is talking. Radio static loops quietly
+ * underneath for as long as the dialogue box is open.
  */
 UCLASS()
 class UMetalDialogueSubsystem : public UTickableWorldSubsystem
@@ -72,6 +75,9 @@ protected:
 	/** Only game worlds play dialogue. */
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
+	/** Stops the radio static with the world. */
+	virtual void Deinitialize() override;
+
 private:
 	/** Lines waiting to be shown; the front entry is on screen. */
 	TArray<FMetalDialogueLine> Queue;
@@ -79,4 +85,10 @@ private:
 	float LineTime = 0.f;
 	/** Seconds since the dialogue box opened (reset when the queue empties). */
 	float OpenTime = 0.f;
+	/** Looping radio static ("radio_static_loop") playing while the dialogue box is open; created on the first line. */
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> Static;
+
+	/** Fades the radio static in (dialogue box opening) or out (dialogue box closing). */
+	void SetStaticPlaying(bool bPlaying);
 };

@@ -163,9 +163,23 @@ def make_weapons():
 # --------------------------------------------------------------------------------------------
 # Sound library
 # --------------------------------------------------------------------------------------------
+# Sounds on the Music sound class (the menu's Music / Background slider); everything else is Effects.
+MUSIC_SOUNDS = {"music_background_loop", "ambience_loop", "battle_loop"}
+
+
+def sound_class(name):
+    """An empty sound class asset in Audio; MetalAudio sets its volume from the menu's sound settings."""
+    path = f"{ROOT}/Audio/{name}"
+    return load(path) or asset_tools.create_asset(name, f"{ROOT}/Audio", unreal.SoundClass, unreal.SoundClassFactory())
+
+
 def make_sound_library():
-    """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels."""
+    """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels. Also puts each wave on
+    SC_Music or SC_Effects, so the two volume sliders in the menus can scale them."""
     lib = data_asset("DA_Sounds", unreal.MetalSoundLibrary)
+    classes = {True: sound_class("SC_Music"), False: sound_class("SC_Effects")}
+    for c in classes.values():
+        eal.save_loaded_asset(c)
     sounds = {}
     for path in eal.list_assets(f"{ROOT}/Audio", recursive=False, include_folder=False):
         asset = eal.load_asset(path)
@@ -173,7 +187,11 @@ def make_sound_library():
             name = asset.get_name()[3:]  # SW_LaserFire -> LaserFire
             snake = "".join("_" + c.lower() if c.isupper() else c for c in name).lstrip("_")
             sounds[unreal.Name(snake)] = asset
-    volumes = {"footstep": 0.6, "footstep_sprint": 0.7, "ambience_loop": 0.5, "battle_loop": 0.6, "swap_servo": 0.6,
+            wanted = classes[snake in MUSIC_SOUNDS]
+            if asset.get_editor_property("sound_class_object") != wanted:
+                asset.set_editor_property("sound_class_object", wanted)
+                eal.save_loaded_asset(asset)
+    volumes = {"footstep": 0.6, "footstep_sprint": 0.7, "ambience_loop": 0.5, "battle_loop": 0.6, "music_background_loop": 0.8, "swap_servo": 0.6,
                "minigun_fire": 0.5, "enemy_laser_fire": 0.7, "ui_move": 0.6, "suspicion": 0.8}
     lib.set_editor_property("sounds", sounds)
     lib.set_editor_property("volumes", {unreal.Name(k): v for k, v in volumes.items()})

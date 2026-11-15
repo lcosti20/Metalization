@@ -8,10 +8,15 @@ primitives (oscillators with pitch sweeps, filtered noise, envelopes, soft clipp
 seed per sound, so the output is identical on every run. Names ending in _loop are written to loop
 seamlessly; ue_import_assets.py marks them as looping. Gameplay code plays them by name through
 DA_Sounds (UMetalSoundLibrary), built by ue_setup_gameplay.py.
+
+It also copies the licensed music tracks in Art/Music (credited in CREDITS.txt) into the same folder under
+their library names, so they are imported and listed alongside the effects. A missing track is skipped
+with a warning and the game plays without that music.
 """
 import math
 import os
 import random
+import shutil
 import struct
 import sys
 import wave
@@ -329,6 +334,25 @@ def build(name, rng):
     if name == "low_health":
         # Two quick high beeps, repeated by the player's robot every second while health is low.
         return crush(tones([1568, 1568], "square", 0.07, 0.06, 3), 7, 2)
+    if name == "radio_static_loop":
+        # Radio channel noise under dialogue: hiss band-limited to a voice channel, a slow fading flutter,
+        # crackle pops, a faint wandering carrier whistle, and a few short squelch bursts.
+        length = 6.6
+        n = int(length * RATE)
+        hiss = bandpass(noise(length, rng), 350, 3200)
+        flutter = [0.55 + 0.25 * math.sin(TWO_PI * 0.37 * i / RATE) + 0.2 * math.sin(TWO_PI * 1.9 * i / RATE + 1.3)
+                   for i in range(n)]
+        hiss = [x * f for x, f in zip(hiss, flutter)]
+        parts = [hiss]
+        for _ in range(60):
+            pop = env(highpass(noise(rng.uniform(0.004, 0.015), rng), 1500), 0.0, curve=6)
+            parts.append((pop, rng.uniform(0.0, length - 0.1), rng.uniform(0.3, 1.0)))
+        whistle = osc(length, 1150, "sine", 1350, vibrato=0.04, vibrato_rate=0.6)
+        parts.append((whistle, 0, 0.035))
+        for _ in range(4):
+            burst = env(bandpass(noise(rng.uniform(0.08, 0.2), rng), 900, 4500), 0.01, curve=4)
+            parts.append((crush(burst, 6, 3), rng.uniform(0.2, length - 0.6), rng.uniform(0.3, 0.6)))
+        return loopable(crush(mix(*parts)[:n], 10, 2), 0.5)
     if name == "ui_select":
         return tones([1100, 1650], "triangle", 0.05, 0.0, 5)
     if name == "ambience_loop":
@@ -359,8 +383,14 @@ SOUNDS = [
     "gate_open", "pickup", "checkpoint", "objective_complete", "mission_complete", "player_down", "radio_blip",
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
     # New sounds go last: each sound's random seed is its index, so inserting would change the others.
-    "low_health",
+    "low_health", "radio_static_loop",
 ]
+
+
+# Library name -> file in Art/Music. Names ending _loop loop. Credit every track in CREDITS.txt.
+MUSIC = {
+    "music_background_loop": "MaksymMalko_GameBackgroundMusic.mp3",
+}
 
 
 def write_wav(path, sig):
@@ -385,7 +415,16 @@ def main():
         rng = random.Random(1000 + index)
         sig = build(name, rng)
         write_wav(os.path.join(out_dir, name + ".wav"), sig)
-    print(f"[MZSfx] DONE {len(SOUNDS)} sounds -> {os.path.abspath(out_dir)}", flush=True)
+    music_dir = os.path.join(here, "..", "..", "Art", "Music")
+    copied = 0
+    for name, file in MUSIC.items():
+        source = os.path.join(music_dir, file)
+        if not os.path.exists(source):
+            print(f"[MZSfx] WARNING music {file} missing from Art/Music - no {name}", flush=True)
+            continue
+        shutil.copyfile(source, os.path.join(out_dir, name + os.path.splitext(file)[1]))
+        copied += 1
+    print(f"[MZSfx] DONE {len(SOUNDS)} sounds, {copied} of {len(MUSIC)} music -> {os.path.abspath(out_dir)}", flush=True)
 
 
 if __name__ == "__main__":

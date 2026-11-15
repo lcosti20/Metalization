@@ -2,6 +2,16 @@
 
 #include "MetalAudio.h"
 #include "MetalTypes.h"
+#include "Components/AudioComponent.h"
+
+namespace
+{
+	/** Radio static volume: a bed under the dialogue, well below the blips. */
+	constexpr float StaticVolume = 0.45f;
+	/** Seconds the static takes to fade in when the box opens and out when it closes. */
+	constexpr float StaticFadeIn = 0.15f;
+	constexpr float StaticFadeOut = 0.4f;
+}
 
 void UMetalDialogueSubsystem::PlayDialogue(const TArray<FMetalDialogueLine>& Lines)
 {
@@ -23,6 +33,7 @@ void UMetalDialogueSubsystem::PlayLine(const FMetalDialogueLine& Line)
 		LineTime = 0.f;
 		OpenTime = 0.f;
 		MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.6f);
+		SetStaticPlaying(true);
 	}
 	Queue.Add(Line);
 	UE_LOG(LogMetal, Log, TEXT("Dialogue queued: %s: %s"), *Line.Speaker.ToString(), *Line.Line.ToString());
@@ -47,7 +58,42 @@ void UMetalDialogueSubsystem::Tick(float DeltaTime)
 		{
 			MetalAudio::Play2D(GetWorld(), TEXT("radio_blip"), 0.4f);
 		}
+		else
+		{
+			SetStaticPlaying(false);
+		}
 	}
+}
+
+void UMetalDialogueSubsystem::SetStaticPlaying(bool bPlaying)
+{
+	UE_LOG(LogMetal, Log, TEXT("Dialogue radio static %s"), bPlaying ? TEXT("on") : TEXT("off"));
+	if (!IsValid(Static))
+	{
+		if (bPlaying)
+		{
+			Static = MetalAudio::PlayLoop2D(GetWorld(), TEXT("radio_static_loop"), StaticVolume, StaticFadeIn);
+		}
+		return;
+	}
+	if (bPlaying)
+	{
+		Static->FadeIn(StaticFadeIn);
+	}
+	else
+	{
+		Static->FadeOut(StaticFadeOut, 0.f);
+	}
+}
+
+void UMetalDialogueSubsystem::Deinitialize()
+{
+	if (IsValid(Static))
+	{
+		Static->Stop();
+	}
+	Static = nullptr;
+	Super::Deinitialize();
 }
 
 TStatId UMetalDialogueSubsystem::GetStatId() const

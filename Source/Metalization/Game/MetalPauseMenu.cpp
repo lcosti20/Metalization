@@ -6,6 +6,9 @@
 #include "MetalTypes.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Slider.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
@@ -209,6 +212,8 @@ void UMetalPauseMenu::BuildTree()
 	}
 	AddButton(Main, MainButtons, NSLOCTEXT("Metalization", "LevelSelect", "Level Select"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowLevelPanel(); } });
 	AddButton(Main, MainButtons, NSLOCTEXT("Metalization", "Controls", "Controls"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowControlsPanel(); } });
+	AddButton(Main, MainButtons, NSLOCTEXT("Metalization", "Sound", "Sound"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowSoundPanel(); } });
+	AddButton(Main, MainButtons, NSLOCTEXT("Metalization", "Credits", "Credits"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowCreditsPanel(); } });
 	if (!bTitleMode && FPackageName::DoesPackageExist(TEXT("/Game/Metalization/Maps/MZ_Title")))
 	{
 		AddButton(Main, MainButtons, NSLOCTEXT("Metalization", "TitleScreen", "Title Screen"), [WeakThis]()
@@ -284,6 +289,176 @@ void UMetalPauseMenu::BuildTree()
 	}
 	Controls->AddChildToVerticalBox(WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ControlsGap")))->SetPadding(FMargin(0.f, 10.f));
 	AddButton(Controls, ControlsButtons, NSLOCTEXT("Metalization", "Back", "Back"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowMainPanel(); } });
+
+	// Sound: one slider per volume setting, then Back.
+	UVerticalBox* Sound = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SoundPanel"));
+	Switcher->AddChild(Sound);
+	AddVolumeRow(Sound, NSLOCTEXT("Metalization", "MusicVolume", "Music / Background"), EMetalVolume::Music);
+	AddVolumeRow(Sound, NSLOCTEXT("Metalization", "EffectsVolume", "Sound Effects"), EMetalVolume::Effects);
+	Sound->AddChildToVerticalBox(WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("SoundGap")))->SetPadding(FMargin(0.f, 10.f));
+	AddButton(Sound, SoundButtons, NSLOCTEXT("Metalization", "Back", "Back"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowMainPanel(); } });
+
+	// Credits (keep in sync with CREDITS.txt at the repository root), then Back.
+	UVerticalBox* Credits = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CreditsPanel"));
+	Switcher->AddChild(Credits);
+	struct FCreditLine
+	{
+		const TCHAR* Text;
+		int32 Size;
+		bool bHeading;
+	};
+	static const FCreditLine CreditLines[] = {
+		{TEXT("Music"), 22, true},
+		{TEXT("\"Game Minecraft Gaming Background Music\""), 18, false},
+		{TEXT("by MaksymMalko via Pixabay"), 15, false},
+		{TEXT("pixabay.com/users/maksymmalko-46459014"), 14, false},
+		{TEXT(""), 8, false},
+		{TEXT("Sound Effects"), 22, true},
+		{TEXT("Original, synthesized for Metalization"), 15, false},
+		{TEXT(""), 8, false},
+		{TEXT("Made with Unreal Engine"), 15, false},
+	};
+	for (const FCreditLine& Credit : CreditLines)
+	{
+		UTextBlock* Row = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Row->SetText(FText::FromString(Credit.Text));
+		Row->SetJustification(ETextJustify::Center);
+		Row->SetAutoWrapText(true);
+		Row->SetColorAndOpacity(Credit.bHeading ? Amber : Dim);
+		SetFontSize(Row, Credit.Size);
+		Credits->AddChildToVerticalBox(Row)->SetPadding(FMargin(0.f, Credit.bHeading ? 6.f : 2.f));
+	}
+	Credits->AddChildToVerticalBox(WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CreditsGap")))->SetPadding(FMargin(0.f, 10.f));
+	AddButton(Credits, CreditsButtons, NSLOCTEXT("Metalization", "Back", "Back"), [WeakThis]() { if (WeakThis.IsValid()) { WeakThis->ShowMainPanel(); } });
+}
+
+void UMetalPauseMenu::AddVolumeRow(UVerticalBox* Panel, const FText& Label, EMetalVolume Group)
+{
+	UBorder* Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Row->SetBrush(RoundedBrush(Idle));
+	Row->SetPadding(FMargin(16.f, 10.f));
+	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	Row->SetContent(Line);
+
+	UTextBlock* Name = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	Name->SetText(Label);
+	Name->SetColorAndOpacity(Dim);
+	SetFontSize(Name, 18);
+	USizeBox* NameBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	NameBox->SetWidthOverride(210.f);
+	NameBox->AddChild(Name);
+	Line->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
+
+	// Left/right move the slider directly (no "press A to grab it first"); up/down leave it.
+	USlider* Slider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass());
+	Slider->SetMinValue(0.f);
+	Slider->SetMaxValue(1.f);
+	Slider->SetStepSize(0.05f);
+	Slider->RequiresControllerLock = false;
+	Slider->IsFocusable = true;
+	Slider->SetSliderBarColor(FLinearColor(1.f, 1.f, 1.f, 0.35f));
+	Slider->SetSliderHandleColor(Amber);
+	Slider->SetValue(MetalAudio::GetVolume(Group));
+	if (Group == EMetalVolume::Music)
+	{
+		Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleMusicChanged);
+	}
+	else
+	{
+		Slider->OnValueChanged.AddDynamic(this, &UMetalPauseMenu::HandleEffectsChanged);
+	}
+	UHorizontalBoxSlot* SliderSlot = Line->AddChildToHorizontalBox(Slider);
+	SliderSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	SliderSlot->SetVerticalAlignment(VAlign_Center);
+
+	UTextBlock* Value = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	Value->SetJustification(ETextJustify::Right);
+	Value->SetColorAndOpacity(Dim);
+	SetFontSize(Value, 18);
+	USizeBox* ValueBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	ValueBox->SetWidthOverride(70.f);
+	ValueBox->AddChild(Value);
+	Line->AddChildToHorizontalBox(ValueBox)->SetVerticalAlignment(VAlign_Center);
+
+	UVerticalBoxSlot* RowSlot = Panel->AddChildToVerticalBox(Row);
+	RowSlot->SetPadding(FMargin(0.f, 6.f));
+	RowSlot->SetHorizontalAlignment(HAlign_Fill);
+
+	const int32 Index = static_cast<int32>(Group);
+	const int32 Count = FMath::Max(Sliders.Num(), Index + 1);
+	Sliders.SetNum(Count);
+	SliderRows.SetNum(Count);
+	SliderLabels.SetNum(Count);
+	SliderValues.SetNum(Count);
+	SliderSteps.SetNum(Count);
+	Sliders[Index] = Slider;
+	SliderRows[Index] = Row;
+	SliderLabels[Index] = Name;
+	SliderValues[Index] = Value;
+	SliderSteps[Index] = FMath::RoundToInt(Slider->GetValue() * 20.f);
+	Value->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Slider->GetValue() * 100.f))));
+}
+
+void UMetalPauseMenu::HandleMusicChanged(float Value)
+{
+	OnVolumeChanged(EMetalVolume::Music, Value);
+}
+
+void UMetalPauseMenu::HandleEffectsChanged(float Value)
+{
+	OnVolumeChanged(EMetalVolume::Effects, Value);
+}
+
+void UMetalPauseMenu::OnVolumeChanged(EMetalVolume Group, float Value)
+{
+	const int32 Index = static_cast<int32>(Group);
+	if (FMath::IsNearlyEqual(MetalAudio::GetVolume(Group), Value))
+	{
+		return;
+	}
+	MetalAudio::SetVolume(this, Group, Value);
+	if (SliderValues.IsValidIndex(Index) && SliderValues[Index])
+	{
+		SliderValues[Index]->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Value * 100.f))));
+	}
+	// A tick per 5% step, which also previews the new effects volume.
+	const int32 Step = FMath::RoundToInt(Value * 20.f);
+	if (SliderSteps.IsValidIndex(Index) && SliderSteps[Index] != Step)
+	{
+		SliderSteps[Index] = Step;
+		MetalAudio::Play2D(this, TEXT("ui_move"), 0.5f);
+	}
+}
+
+void UMetalPauseMenu::StepVolume(EMetalVolume Group, float Delta)
+{
+	const int32 Index = static_cast<int32>(Group);
+	if (Sliders.IsValidIndex(Index) && Sliders[Index])
+	{
+		const float Value = FMath::Clamp(Sliders[Index]->GetValue() + Delta, 0.f, 1.f);
+		Sliders[Index]->SetValue(Value);
+		OnVolumeChanged(Group, Value);
+	}
+}
+
+void UMetalPauseMenu::UpdateSliderRows()
+{
+	for (int32 Index = 0; Index < Sliders.Num(); ++Index)
+	{
+		USlider* Slider = Sliders[Index];
+		if (Slider == nullptr || SliderRows[Index] == nullptr)
+		{
+			continue;
+		}
+		// Hovering a row selects its slider, as hovering a button does.
+		if (IsShowingSound() && SliderRows[Index]->IsHovered() && !Slider->HasKeyboardFocus())
+		{
+			Slider->SetKeyboardFocus();
+		}
+		const bool bFocused = Slider->HasKeyboardFocus();
+		SliderRows[Index]->SetBrushColor(bFocused ? FLinearColor(Amber.R, Amber.G, Amber.B, 0.35f) : Idle);
+		SliderLabels[Index]->SetColorAndOpacity(bFocused ? FLinearColor::White : Dim);
+	}
 }
 
 UMetalMenuButton* UMetalPauseMenu::AddButton(UVerticalBox* Panel, TArray<TObjectPtr<UMetalMenuButton>>& List, const FText& Label, TFunction<void()> Action)
@@ -323,6 +498,30 @@ bool UMetalPauseMenu::IsShowingControls() const
 	return Switcher && Switcher->GetActiveWidgetIndex() == 2;
 }
 
+void UMetalPauseMenu::ShowSoundPanel()
+{
+	Switcher->SetActiveWidgetIndex(3);
+	Title->SetText(NSLOCTEXT("Metalization", "SoundTitle", "SOUND"));
+	FocusFirstButton();
+}
+
+bool UMetalPauseMenu::IsShowingSound() const
+{
+	return Switcher && Switcher->GetActiveWidgetIndex() == 3;
+}
+
+void UMetalPauseMenu::ShowCreditsPanel()
+{
+	Switcher->SetActiveWidgetIndex(4);
+	Title->SetText(NSLOCTEXT("Metalization", "CreditsTitle", "CREDITS"));
+	FocusFirstButton();
+}
+
+bool UMetalPauseMenu::IsShowingCredits() const
+{
+	return Switcher && Switcher->GetActiveWidgetIndex() == 4;
+}
+
 void UMetalPauseMenu::ShowLevelPanel()
 {
 	Switcher->SetActiveWidgetIndex(1);
@@ -337,12 +536,24 @@ bool UMetalPauseMenu::IsShowingLevels() const
 
 const TArray<TObjectPtr<UMetalMenuButton>>& UMetalPauseMenu::VisibleButtons() const
 {
-	return IsShowingLevels() ? LevelButtons : (IsShowingControls() ? ControlsButtons : MainButtons);
+	switch (Switcher ? Switcher->GetActiveWidgetIndex() : 0)
+	{
+	case 1: return LevelButtons;
+	case 2: return ControlsButtons;
+	case 3: return SoundButtons;
+	case 4: return CreditsButtons;
+	default: return MainButtons;
+	}
 }
 
 void UMetalPauseMenu::FocusFirstButton()
 {
-	if (VisibleButtons().Num() > 0)
+	// The Sound panel starts on its first slider.
+	if (IsShowingSound() && Sliders.Num() > 0 && Sliders[0])
+	{
+		Sliders[0]->SetKeyboardFocus();
+	}
+	else if (VisibleButtons().Num() > 0)
 	{
 		VisibleButtons()[0]->SetKeyboardFocus();
 	}
@@ -370,7 +581,7 @@ bool UMetalPauseMenu::PressButton(const FString& Label)
 
 void UMetalPauseMenu::Back()
 {
-	if (IsShowingLevels() || IsShowingControls())
+	if (Switcher && Switcher->GetActiveWidgetIndex() != 0)
 	{
 		ShowMainPanel();
 	}
@@ -411,8 +622,12 @@ void UMetalPauseMenu::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		Button->UpdateHighlight();
 	}
-	for (UMetalMenuButton* Button : ControlsButtons)
+	for (const TArray<TObjectPtr<UMetalMenuButton>>* List : {&ControlsButtons, &SoundButtons, &CreditsButtons})
 	{
-		Button->UpdateHighlight();
+		for (UMetalMenuButton* Button : *List)
+		{
+			Button->UpdateHighlight();
+		}
 	}
+	UpdateSliderRows();
 }

@@ -592,7 +592,7 @@ def build_alpha(archetypes, w):
     banner("Extraction_Banner", 37700, 500, 0, "Blue", 700)
 
     # --- Audio, navigation ----------------------------------------------------------------------------
-    ambience("Ambience_Wind", ROOT + "/Audio/SW_AmbienceLoop", 0.5)
+    ambience("Music", ROOT + "/Audio/SW_MusicBackgroundLoop", 0.5)
     ambience("Ambience_Battle", ROOT + "/Audio/SW_BattleLoop", 0.35)
     nav = spawn(unreal.NavMeshBoundsVolume, ((X0 + X1) / 2, 0, 900), label="NavBounds", folder="Mission")
     nav.set_actor_scale3d(unreal.Vector((X1 - X0 + 400) / 200.0, (2 * Y + 400) / 200.0, 3400 / 200.0))
@@ -690,6 +690,6 @@ def build_title(archetypes):
     camera = spawn(unreal.CameraActor, (0, -1600, 450), 90.0, "TitleCamera", "Camera")
     camera.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-12.0, yaw=90.0), False)
     camera.set_editor_property("tags", [unreal.Name("TitleCamera")])
-    ambience("Title_Ambience", ROOT + "/Audio/SW_AmbienceLoop", 0.6)
+    ambience("Title_Music", ROOT + "/Audio/SW_MusicBackgroundLoop", 0.6)
     les.save_current_level()
     log(f"level saved: {TITLE_PATH}")

@@ -1,0 +1,26 @@
+METALIZATION - CREDITS
+======================
+
+Music
+-----
+"Game Minecraft Gaming Background Music" by MaksymMalko via Pixabay
+Track:  https://pixabay.com/music/upbeat-game-minecraft-gaming-background-music-402451/
+Artist: https://pixabay.com/users/maksymmalko-46459014/
+License: Pixabay Content License - https://pixabay.com/service/license-summary/
+
+  Used as the background music on the title screen and in the Production Alpha mission.
+  File: Art/Music/MaksymMalko_GameBackgroundMusic.mp3 (imported as
+  /Game/Metalization/Audio/SW_MusicBackgroundLoop). The track is under the Pixabay Content License,
+  not this project's own license.
+
+Sound Effects
+-------------
+Original, synthesized for Metalization by Tools/AssetPipeline/generate_sfx.py.
+
+Engine
+------
+Made with Unreal Engine.
+
+
+The in-game Credits screen (pause menu and title menu, Source/Metalization/Game/MetalPauseMenu.cpp)
+shows the same list. Update both when adding third-party assets.
