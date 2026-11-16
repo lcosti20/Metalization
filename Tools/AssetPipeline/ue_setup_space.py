@@ -54,6 +54,12 @@ def setp(obj, **props):
     return obj
 
 
+def rgb_color(rgb):
+    """0-1 RGB to an 8-bit unreal.Color. Always name the channels: unreal.Color's positional order is the
+    struct's memory order, B, G, R, A, so unreal.Color(r, g, b, a) swaps red and blue."""
+    return unreal.Color(r=int(rgb[0] * 255), g=int(rgb[1] * 255), b=int(rgb[2] * 255), a=255)
+
+
 def color(r, g, b):
     return unreal.LinearColor(r, g, b, 1.0)
 
@@ -93,7 +99,7 @@ def point_light(label, loc, candela, radius, rgb=(1.0, 0.92, 0.82)):
     actor = spawn(unreal.PointLight, loc, label=label, folder="Lighting")
     setp(actor.point_light_component, intensity_units=unreal.LightUnits.CANDELAS, intensity=candela,
          attenuation_radius=radius, cast_shadows=False,
-         light_color=unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+         light_color=rgb_color(rgb))
     return actor
 
 
@@ -250,10 +256,10 @@ def build_space(ship_data):
     sun = spawn(unreal.DirectionalLight, (0, 0, 50000), label="Sun", folder="Lighting", pitch=-50.0, yaw=20.0)
     # The sun is the one directional light used for forward shading (the fill just lifts the shadows).
     setp(sun.get_component_by_class(unreal.DirectionalLightComponent), intensity=10.0, forward_shading_priority=1,
-         dynamic_shadow_distance_movable_light=60000.0, light_color=unreal.Color(255, 244, 228, 255))
+         dynamic_shadow_distance_movable_light=60000.0, light_color=unreal.Color(r=255, g=244, b=228, a=255))
     fill = spawn(unreal.DirectionalLight, (0, 0, 50000), label="Fill", folder="Lighting", pitch=30.0, yaw=-160.0)
     setp(fill.get_component_by_class(unreal.DirectionalLightComponent), intensity=2.5, cast_shadows=False,
-         light_color=unreal.Color(150, 175, 255, 255))
+         light_color=unreal.Color(r=150, g=175, b=255, a=255))
     fixed_exposure()
 
     # Asteroid field around (not between) the ships, so the lanes between the hangars stay open.

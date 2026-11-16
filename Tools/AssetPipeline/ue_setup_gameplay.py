@@ -64,6 +64,12 @@ def setp(obj, **props):
     return obj
 
 
+def rgb_color(rgb):
+    """0-1 RGB to an 8-bit unreal.Color. Always name the channels: unreal.Color's positional order is the
+    struct's memory order, B, G, R, A, so unreal.Color(r, g, b, a) swaps red and blue."""
+    return unreal.Color(r=int(rgb[0] * 255), g=int(rgb[1] * 255), b=int(rgb[2] * 255), a=255)
+
+
 def color(r, g, b):
     return unreal.LinearColor(r, g, b, 1.0)
 
@@ -515,7 +521,7 @@ def light(label, loc, rgb, intensity=8000.0, radius=1600.0):
     actor = spawn(unreal.PointLight, loc, label=label, folder="Lighting")
     comp = actor.point_light_component
     comp.set_editor_property("intensity", intensity)
-    comp.set_editor_property("light_color", unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+    comp.set_editor_property("light_color", rgb_color(rgb))
     comp.set_editor_property("attenuation_radius", radius)
     comp.set_editor_property("cast_shadows", False)
     return actor
@@ -583,11 +589,13 @@ def build_level(archetypes, w, manifest):
     HANGAR_X0 = -3000
 
     # --- Sky, sun and haze: late-afternoon industrial smog ---------------------------------
+    # Retuned in Sprint 5 once light colours stopped coming out with red and blue swapped (rgb_color): the
+    # warm smog, sun and brown materials stacked into solid orange, so the smog is thinner and greyer.
     sun = spawn(unreal.DirectionalLight, (0, 0, 2000), label="Sun", folder="Lighting")
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-55.0, yaw=-135.0), False)
     sun_comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
     sun_comp.set_editor_property("intensity", 28.0)
-    sun_comp.set_editor_property("light_color", unreal.Color(255, 200, 150, 255))
+    sun_comp.set_editor_property("light_color", unreal.Color(r=255, g=230, b=205, a=255))
     sun_comp.set_editor_property("atmosphere_sun_light", True)
     atmosphere = spawn(unreal.SkyAtmosphere, (0, 0, 0), label="SkyAtmosphere", folder="Lighting")
     # Slightly desaturated, dusty sky for the outpost's industrial smog.
@@ -596,18 +604,20 @@ def build_level(archetypes, w, manifest):
     sky = spawn(unreal.SkyLight, (0, 0, 500), label="SkyLight", folder="Lighting")
     sky_comp = sky.get_component_by_class(unreal.SkyLightComponent)
     sky_comp.set_editor_property("real_time_capture", True)
-    sky_comp.set_editor_property("intensity", 0.3)
-    sky_comp.set_editor_property("light_color", unreal.Color(255, 205, 160, 255))
+    sky_comp.set_editor_property("intensity", 0.9)
+    sky_comp.set_editor_property("light_color", unreal.Color(r=255, g=205, b=160, a=255))
     sky_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     fog = spawn(unreal.ExponentialHeightFog, (0, 0, 0), label="Smog", folder="Lighting")
     fog_comp = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
-    fog_comp.set_editor_property("fog_density", 0.012)
-    fog_comp.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(0.45, 0.28, 0.14, 1.0))
+    fog_comp.set_editor_property("fog_density", 0.005)
+    fog_comp.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(0.3, 0.26, 0.22, 1.0))
     ppv = spawn(unreal.PostProcessVolume, (0, 0, 0), label="PostProcess", folder="Lighting")
     ppv.set_editor_property("unbound", True)
     settings = ppv.get_editor_property("settings")
     settings.set_editor_property("override_auto_exposure_bias", True)
-    settings.set_editor_property("auto_exposure_bias", 0.2)
+    settings.set_editor_property("auto_exposure_bias", -0.3)
+    settings.set_editor_property("override_color_saturation", True)
+    settings.set_editor_property("color_saturation", unreal.Vector4(0.9, 0.9, 0.9, 1.0))
     settings.set_editor_property("override_vignette_intensity", True)
     settings.set_editor_property("vignette_intensity", 0.5)
     ppv.set_editor_property("settings", settings)
@@ -660,14 +670,14 @@ def build_level(archetypes, w, manifest):
         x -= depth / 2 + 500
     wall("Boneyard_Divider_N", HANGAR_X0 - 50, HANGAR_X0 + 50, 600, Y, 700)
     wall("Boneyard_Divider_S", HANGAR_X0 - 50, HANGAR_X0 + 50, -Y, -600, 700)
-    light("BoneyardLight_A", (HANGAR_X0 - 2500, 0, 1400), (0.6, 0.7, 1.0), 30000.0, 4000.0)
-    light("BoneyardLight_B", (X0 + 1500, 0, 1400), (1.0, 0.6, 0.3), 30000.0, 4000.0)
+    light("BoneyardLight_A", (HANGAR_X0 - 2500, 0, 1400), (0.6, 0.7, 1.0), 9000.0, 4000.0)
+    light("BoneyardLight_B", (X0 + 1500, 0, 1400), (1.0, 0.65, 0.4), 9000.0, 4000.0)
     guide = bot("Guide", archetypes["guide"], (300, -500, 0), 150.0, patrol=0.0, passive=True, team=unreal.MetalTeam.NEUTRAL)
     for i, (x, y) in enumerate([(700, 400), (900, 600), (-900, 300)]):
         crate(f"HangarCrate_{i}", x, y)
     pickup("Pickup_Health_Hangar", unreal.MetalPickupType.HEALTH, (1000, -300, 0), 50.0)
-    light("HangarLight_A", (-1500, 0, 550), (1.0, 0.75, 0.45))
-    light("HangarLight_B", (0, 0, 550), (1.0, 0.75, 0.45))
+    light("HangarLight_A", (-1500, 0, 550), (1.0, 0.85, 0.65), 3000.0)
+    light("HangarLight_B", (0, 0, 550), (1.0, 0.85, 0.65), 3000.0)
 
     # --- B: Courtyard firefight ---------------------------------------------------------------
     wall("Courtyard_Gateway_N", 1450, 1550, 700, Y, 500)
@@ -686,7 +696,7 @@ def build_level(archetypes, w, manifest):
     pickup("Pickup_Ammo_Courtyard", unreal.MetalPickupType.AMMO, (2200, 1250, 0), 0.5)
     pickup("Pickup_Health_Courtyard", unreal.MetalPickupType.HEALTH, (5000, -1250, 0), 60.0)
     pickup("Pickup_Grenades_Catwalk", unreal.MetalPickupType.GRENADES, (5000, 1200, 250), 2.0)
-    light("CourtyardLight", (3500, 0, 700), (1.0, 0.55, 0.25), 15000.0, 2500.0)
+    light("CourtyardLight", (3500, 0, 700), (1.0, 0.65, 0.4), 4500.0, 2500.0)
     zone_actor("Checkpoint_ScrapHeap", (5350, 0, 150), (150, 1400, 150), checkpoint=True)
 
     # --- C: Scrap heap traversal ---------------------------------------------------------------
@@ -699,7 +709,7 @@ def build_level(archetypes, w, manifest):
     pickup("Pickup_Shotgun", unreal.MetalPickupType.WEAPON, (6250, 1150, 250), 1.0, w["Shotgun"])
     pickup("Pickup_LaserUpgrade", unreal.MetalPickupType.WEAPON, (7200, 0, 300), 1.0, w["Laser"])
     top_zone = zone_actor("Zone_ScrapWallTop", (7200, 0, 450), (300, 1400, 150), rgb=(1.0, 0.6, 0.1))
-    light("ScrapLight", (6500, 0, 650), (0.5, 0.7, 1.0), 9000.0, 2000.0)
+    light("ScrapLight", (6500, 0, 650), (0.5, 0.7, 1.0), 3000.0, 2000.0)
 
     # --- D: Gate yard - possession puzzle ---------------------------------------------------
     for i, (x, y) in enumerate([(8200, -600), (8500, 700), (8900, -100)]):
@@ -726,7 +736,7 @@ def build_level(archetypes, w, manifest):
             comp.set_material(0, mat("MI_Env_Dark"))
     guards = [bot("Shooter_GateGuard_1", archetypes["shooter"], (10050, -700, 0), 180.0, ("GateGuard",), 150.0),
               bot("Shooter_GateGuard_2", archetypes["shooter"], (10150, 650, 0), 180.0, ("GateGuard",), 150.0)]
-    light("GateLight", (9300, 0, 600), (1.0, 0.3, 0.1), 12000.0, 1800.0)
+    light("GateLight", (9300, 0, 600), (1.0, 0.4, 0.2), 4000.0, 1800.0)
     # Radio call the first time the player drops into the yard.
     zone_actor("Dialogue_GateYard", (7900, 0, 150), (150, 1400, 150), marker=False, dialogue=[
         line("Guide", "Heads up - two more shooters dug in by the gate. Clear 'em out before you go poking at that fence."),
@@ -745,8 +755,8 @@ def build_level(archetypes, w, manifest):
     brute = bot("Brute_Boss", archetypes["brute"], (13300, 0, 0), 180.0, ("Boss",), 400.0)
     arena = [bot("Soldier_Arena_1", archetypes["soldier"], (12500, -900, 0), 180.0, ("Arena",), 400.0),
              bot("Soldier_Arena_2", archetypes["soldier"], (12500, 900, 0), 180.0, ("Arena",), 400.0)]
-    light("ArenaLight_A", (12000, 0, 800), (1.0, 0.4, 0.15), 20000.0, 3000.0)
-    light("ArenaLight_B", (14000, 0, 800), (0.3, 0.6, 1.0), 15000.0, 3000.0)
+    light("ArenaLight_A", (12000, 0, 800), (1.0, 0.5, 0.3), 6000.0, 3000.0)
+    light("ArenaLight_B", (14000, 0, 800), (0.3, 0.6, 1.0), 5000.0, 3000.0)
 
     # --- F: Extraction ----------------------------------------------------------------------
     extraction = zone_actor("Zone_Extraction", (15000, 0, 150), (350, 350, 150), rgb=(0.2, 1.0, 0.3))

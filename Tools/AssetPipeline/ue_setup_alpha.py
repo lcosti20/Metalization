@@ -59,6 +59,12 @@ def setp(obj, **props):
     return obj
 
 
+def rgb_color(rgb):
+    """0-1 RGB to an 8-bit unreal.Color. Always name the channels: unreal.Color's positional order is the
+    struct's memory order, B, G, R, A, so unreal.Color(r, g, b, a) swaps red and blue."""
+    return unreal.Color(r=int(rgb[0] * 255), g=int(rgb[1] * 255), b=int(rgb[2] * 255), a=255)
+
+
 # --------------------------------------------------------------------------------------------
 # Materials: the shared world-grid material in faction colours
 # --------------------------------------------------------------------------------------------
@@ -165,7 +171,7 @@ def pillar(label, x, y, base, height, radius, material="MI_Alpha_Rock"):
 def point_light(label, loc, rgb, intensity=9000.0, radius=1800.0):
     actor = spawn(unreal.PointLight, loc, label=label, folder="Lighting")
     setp(actor.point_light_component, intensity=intensity, attenuation_radius=radius, cast_shadows=False,
-         light_color=unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+         light_color=rgb_color(rgb))
     return actor
 
 
@@ -174,7 +180,7 @@ def spot_light(label, loc, rgb, intensity=60000.0, cone=32.0, radius=2400.0):
     actor.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-90.0, yaw=0.0), False)
     setp(actor.spot_light_component, intensity=intensity, attenuation_radius=radius, outer_cone_angle=cone,
          inner_cone_angle=cone * 0.7, cast_shadows=True,
-         light_color=unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+         light_color=rgb_color(rgb))
     return actor
 
 
@@ -293,19 +299,20 @@ def fresh_level(path, game_mode):
 
 
 def environment(sun_pitch=-40.0, sun_yaw=-145.0, sun_rgb=(255, 205, 160), fog_rgb=(0.45, 0.3, 0.16), fog=0.008):
-    """Late-afternoon sun over a dusty valley. Same recipe as the Outpost (a strong warm sun, a weak warm
-    skylight, dusty sky and warm haze), which keeps the graybox colours readable; a cooler, brighter sky
-    washed everything out blue-white."""
+    """Late-afternoon sun over a dusty valley: a strong warm sun, a warm skylight that lifts the shadows, a
+    dusty sky and warm haze. Lighting pass 3 (Sprint 5): area lights were retuned once light colours stopped
+    coming out with red and blue swapped (see rgb_color); they had been set far too bright to fight the
+    blue cast. Saturation is pulled back slightly and bloom halved so the coloured lights don't smear."""
     sun = spawn(unreal.DirectionalLight, (0, 0, 3000), label="Sun", folder="Lighting")
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=sun_pitch, yaw=sun_yaw), False)
     setp(sun.get_component_by_class(unreal.DirectionalLightComponent), intensity=26.0, atmosphere_sun_light=True,
-         light_color=unreal.Color(*sun_rgb, 255), dynamic_shadow_distance_movable_light=15000.0)
+         light_color=unreal.Color(r=sun_rgb[0], g=sun_rgb[1], b=sun_rgb[2], a=255), dynamic_shadow_distance_movable_light=15000.0)
     atmosphere = spawn(unreal.SkyAtmosphere, (0, 0, 0), label="SkyAtmosphere", folder="Lighting")
     atmosphere.get_component_by_class(unreal.SkyAtmosphereComponent).set_editor_property(
         "rayleigh_scattering", unreal.LinearColor(0.0095, 0.0125, 0.0215, 1.0))
     sky = spawn(unreal.SkyLight, (0, 0, 600), label="SkyLight", folder="Lighting")
     setp(sky.get_component_by_class(unreal.SkyLightComponent), mobility=unreal.ComponentMobility.MOVABLE,
-         real_time_capture=True, intensity=0.3, light_color=unreal.Color(255, 210, 170, 255))
+         real_time_capture=True, intensity=0.9, light_color=unreal.Color(r=255, g=210, b=170, a=255))
     haze = spawn(unreal.ExponentialHeightFog, (0, 0, 0), label="HeightFog", folder="Lighting")
     setp(haze.get_component_by_class(unreal.ExponentialHeightFogComponent), fog_density=fog,
          fog_inscattering_luminance=unreal.LinearColor(fog_rgb[0], fog_rgb[1], fog_rgb[2], 1.0))
@@ -313,7 +320,9 @@ def environment(sun_pitch=-40.0, sun_yaw=-145.0, sun_rgb=(255, 205, 160), fog_rg
     ppv.set_editor_property("unbound", True)
     settings = ppv.get_editor_property("settings")
     setp(settings, override_auto_exposure_bias=True, auto_exposure_bias=0.0, override_vignette_intensity=True,
-         vignette_intensity=0.5, override_motion_blur_amount=True, motion_blur_amount=0.25)
+         vignette_intensity=0.5, override_motion_blur_amount=True, motion_blur_amount=0.25,
+         override_color_saturation=True, color_saturation=unreal.Vector4(0.95, 0.95, 0.95, 1.0),
+         override_bloom_intensity=True, bloom_intensity=0.5)
     ppv.set_editor_property("settings", settings)
 
 
@@ -425,8 +434,8 @@ def build_alpha(archetypes, w):
     bot("Blue_Commander", A["veteran"] if "veteran" in A else A["guide"], (-900, -350, 0), 30.0, patrol=0.0, passive=True, team=HEROES)
     for i, (x, y, yaw) in enumerate([(-400, 400, 200.0), (-200, -500, 150.0), (700, 300, 180.0), (900, -350, 160.0)]):
         bot(f"Blue_CampTrooper_{i}", A["ally_soldier" if i % 2 else "ally_shooter"], (x, y, 0), yaw, patrol=0.0, passive=True, team=HEROES)
-    point_light("Camp_Light_A", (-800, 0, 500), (0.6, 0.75, 1.0), 4800.0, 2400.0)
-    point_light("Camp_Light_B", (800, 0, 500), (0.6, 0.75, 1.0), 4800.0, 2400.0)
+    point_light("Camp_Light_A", (-800, 0, 500), (0.6, 0.75, 1.0), 600.0, 1200.0)
+    point_light("Camp_Light_B", (800, 0, 500), (0.6, 0.75, 1.0), 600.0, 1200.0)
     zone_trench_entry = zone("Zone_TrenchEntry", (1500, 0, 150), (150, 300, 150))
 
     # --- 2. Supply trench (sprint) - cut into the ground ---------------------------------------
@@ -439,7 +448,7 @@ def build_alpha(archetypes, w):
     for i, x in enumerate(range(TX0 + 300, TX1, 700)):
         block(f"Trench_Brace_{i}", x - 15, x + 15, -300, 300, 300, 330, "MI_Env_Dark", "Decor")
         sandbags(f"Trench_Sandbag_N{i}", x + 200, 300, 520, 330, 70, "MI_Alpha_Blue")
-        point_light(f"Trench_Light_{i}", (x, 250, 260), (1.0, 0.7, 0.4), 1400.0, 900.0)
+        point_light(f"Trench_Light_{i}", (x, 250, 260), (1.0, 0.7, 0.4), 300.0, 700.0)
     barrage = spawn(unreal.MetalBarrage, ((TX0 + TX1) / 2, 0, 150), label="Trench_Barrage", folder="Mission")
     barrage.get_component_by_class(unreal.BoxComponent).set_box_extent(unreal.Vector((TX1 - TX0) / 2 - 100, 280, 250))
     pickup("Pickup_Health_TrenchEnd", unreal.MetalPickupType.HEALTH, (6300, -200, 0), 50.0)
@@ -481,7 +490,7 @@ def build_alpha(archetypes, w):
     box("Bridge_Debris_B", (9620, -500, -440), (300, 400, 40), "MI_Alpha_Concrete", rot=unreal.Rotator(roll=-8.0, pitch=18.0, yaw=10.0))
     block("Bridge_Rail_N", BX1, 9400, 680, 700, 0, 100, "MI_Env_Hazard", "Decor")
     block("Bridge_Rail_S", BX1, 9400, -700, -680, 0, 100, "MI_Env_Hazard", "Decor")
-    point_light("Bridge_Light", (9600, 0, 400), (1.0, 0.6, 0.3), 3600.0, 1500.0)
+    point_light("Bridge_Light", (9600, 0, 400), (1.0, 0.6, 0.3), 1500.0, 1500.0)
     zone_ledge = zone("Checkpoint_Ledge", (10100, 0, LEDGE + 150), (250, 1200, 150), checkpoint=True)
 
     # --- 5. Cliff + anti-gravity lift -------------------------------------------------------------
@@ -508,7 +517,7 @@ def build_alpha(archetypes, w):
               bot("Red_PostShooter_2", A["shooter"], (16200, 500, UP), 180.0, ("Squad1",), 250.0),
               bot("Red_PostShooter_3", A["shooter"], (16300, -900, UP), 180.0, ("Squad1",), 250.0)]
     banner("Post_RedBanner", 16300, 1100, UP, "Red", 500)
-    point_light("Post_Light", (13800, 0, UP + 600), (1.0, 0.75, 0.5), 5600.0, 3000.0)
+    point_light("Post_Light", (13800, 0, UP + 600), (1.0, 0.75, 0.5), 2000.0, 2200.0)
 
     # --- 7. Bunker (grenades) -----------------------------------------------------------------------
     BK = 17600
@@ -525,7 +534,7 @@ def build_alpha(archetypes, w):
     pickup("Pickup_Grenades_A", unreal.MetalPickupType.GRENADES, (16600, 500, UP), 3.0)
     pickup("Pickup_Grenades_B", unreal.MetalPickupType.GRENADES, (16600, -500, UP), 3.0)
     pickup("Pickup_Ammo_Bunker", unreal.MetalPickupType.AMMO, (18600, 1100, UP), 0.6)
-    point_light("Bunker_Light", (BK, 0, UP + 600), (1.0, 0.3, 0.2), 4800.0, 2000.0)
+    point_light("Bunker_Light", (BK, 0, UP + 600), (1.0, 0.4, 0.25), 1800.0, 1600.0)
 
     # --- 8. Patrol yard (sneak) ---------------------------------------------------------------------
     YX0, YX1 = 18900, 23000
@@ -543,12 +552,12 @@ def build_alpha(archetypes, w):
     block("Pipe_Wall_In", PX0, PX1, PY1, PY1 + 60, UP, UP + 115, "MI_Env_Dark")
     block("Pipe_Roof", PX0, PX1, PY0 - 60, PY1 + 60, UP + 115, UP + 175, "MI_Alpha_Blue")
     for i, x in enumerate(range(PX0 + 400, PX1, 800)):
-        point_light(f"Pipe_Light_{i}", (x, (PY0 + PY1) / 2, UP + 80), (0.3, 0.6, 1.0), 1500.0, 500.0)
+        point_light(f"Pipe_Light_{i}", (x, (PY0 + PY1) / 2, UP + 80), (0.3, 0.6, 1.0), 700.0, 500.0)
     yard = [bot(f"Red_YardPatrol_{i}", A["shooter" if i % 3 else "soldier"], (x, y, UP), yaw, ("Yard",), 800.0)
             for i, (x, y, yaw) in enumerate([(20000, 300, 180.0), (20800, -500, 90.0), (21600, 500, -90.0), (22200, -200, 180.0)])]
     for i, (x, y) in enumerate([(19900, -200), (20800, 700), (21500, -500), (22300, 400)]):
         pillar(f"Yard_LampPost_{i}", x, y, UP, 650, 15, "MI_Env_Dark")
-        spot_light(f"Yard_Spot_{i}", (x, y, UP + 640), (1.0, 0.35, 0.25), 18000.0, 30.0, 1500.0)
+        spot_light(f"Yard_Spot_{i}", (x, y, UP + 640), (1.0, 0.45, 0.3), 9000.0, 30.0, 1500.0)
     banner("Yard_Banner_A", 19300, 1300, UP, "Red")
     banner("Yard_Banner_B", 22700, 1300, UP, "Red")
     # The robot dispenser backed against the north wall rebuilds every patrol that gets scrapped, so fighting
@@ -604,7 +613,7 @@ def build_alpha(archetypes, w):
     # The guard idles behind the see-through part of the fence (not the solid door), so the tether can reach.
     guard = bot("Red_GateGuard", A["soldier"], (GX + 650, 650, 0), 180.0, ("GateGuard",), 200.0, docile=True)
     console = spawn(unreal.MetalControlConsole, (GX + 500, -1250, 0), 90.0, "GateConsole", "Gates")
-    point_light("Gate_Light", (GX - 300, 0, 600), (1.0, 0.3, 0.15), 6000.0, 2200.0)
+    point_light("Gate_Light", (GX - 300, 0, 600), (1.0, 0.45, 0.25), 1200.0, 1500.0)
     # Blue reinforcements wait in a closed hangar; the console opens its door together with the gate.
     HX0, HX1, HY0, HY1 = 29500, 30700, 1000, 1550
     block("Hangar_Back", HX0, HX1, HY1, HY1 + 50, 0, 480, "MI_Alpha_Concrete")
@@ -622,7 +631,7 @@ def build_alpha(archetypes, w):
             comp.set_material(0, mat("MI_Alpha_Red"))
     for i, x in enumerate([29700, 29950, 30200, 30450]):
         bot(f"Blue_Reinforcement_{i}", A["blue_soldier" if i % 2 else "blue_shooter"], (x, 1280, 0), -90.0, patrol=300.0)
-    point_light("Hangar_Light", (30100, 1280, 380), (0.5, 0.7, 1.0), 1600.0, 800.0)
+    point_light("Hangar_Light", (30100, 1280, 380), (0.5, 0.7, 1.0), 1200.0, 800.0)
 
     # --- 12. Command yard ---------------------------------------------------------------------------
     CX0, CX1 = GX + 100, 37000
@@ -660,8 +669,8 @@ def build_alpha(archetypes, w):
     command_console = dispenser_console("Command_DispenserConsole", (36050, 1470, CW), -90.0, command_dispensers)
     for i, (x, y) in enumerate([(33500, 1300), (36500, -1300)]):
         banner(f"Command_Banner_{i}", x, y, 0, "Red", 800)
-    point_light("Command_Light_A", (33500, 0, 900), (1.0, 0.35, 0.15), 10000.0, 3500.0)
-    point_light("Command_Light_B", (36000, 0, 900), (1.0, 0.35, 0.15), 10000.0, 3500.0)
+    point_light("Command_Light_A", (33500, 0, 900), (1.0, 0.45, 0.25), 3500.0, 2800.0)
+    point_light("Command_Light_B", (36000, 0, 900), (1.0, 0.45, 0.25), 3500.0, 2800.0)
 
     # --- 13. Extraction -------------------------------------------------------------------------------
     extraction = zone("Zone_Extraction", (37400, 0, 150), (350, 350, 150), rgb=(0.2, 1.0, 0.3))
