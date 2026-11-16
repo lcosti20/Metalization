@@ -38,7 +38,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -61,8 +61,9 @@ namespace
 				{5.6f, EStep::Tether}, {6.0f, EStep::SolveHack}, {7.0f, EStep::AimEnemy}, {7.1f, EStep::Fire}, {10.0f, EStep::StopFire}, {10.5f, EStep::Tether}}},
 			// Hijack a guard through the energy fence, use the console, disconnect.
 			{TEXT("gate"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
-			// Hijack the Brute boss and turn its miniguns on the Soldiers.
-			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire}, {8.0f, EStep::StopFire}}},
+			// Hijack the Brute boss and turn its miniguns, and (holding the aim button) its shoulder rockets, on the Soldiers.
+			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire},
+				{2.7f, EStep::AimButton}, {8.0f, EStep::StopFire}, {8.1f, EStep::StopAimButton}}},
 			// Free-roam movement in the arena: run, double-jump flip, turn, then shoot (action camera).
 			{TEXT("arena"), {{1.0f, EStep::Run}, {2.0f, EStep::Jump}, {2.35f, EStep::Jump}, {3.6f, EStep::TurnLeft}, {4.4f, EStep::Jump},
 				{5.4f, EStep::TurnRight}, {6.4f, EStep::Stop}, {7.0f, EStep::AimEnemy}, {7.2f, EStep::Fire}, {8.5f, EStep::StopFire}}},
@@ -387,8 +388,9 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
 			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
-			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol")};
-	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::ScrapYardPatrol) + 1, "Every EStep needs a name");
+			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
+			TEXT("press aim button"), TEXT("release aim button")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::StopAimButton) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -459,6 +461,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::StopSneak:   Me->SetSneaking(false); break;
 	case EStep::Aim:         Me->SetAiming(true); break;
 	case EStep::StopAim:     Me->SetAiming(false); break;
+	case EStep::AimButton:     PC->PressAimButton(); break;
+	case EStep::StopAimButton: PC->ReleaseAimButton(); break;
 	case EStep::NextWeapon:  Me->CycleWeapon(1); break;
 	case EStep::AimMarksman: AimTarget = FindNearest(false, TEXT("Marksmen")); break;
 	case EStep::Grenade:     Me->ThrowGrenade(); break;

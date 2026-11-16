@@ -120,6 +120,12 @@ def make_weapons():
         display_name="Twin Miniguns", fire_mode=unreal.MetalFireMode.HITSCAN, automatic=True, infinite_ammo=True,
         spread_degrees=3.5, range=6000.0, muzzle_offset=0.0, tracer_color=color(1.0, 0.9, 0.2),
         levels=[level({}, 3.5, 0.08)])
+    # The Brute's shoulder rocket launcher: its secondary attack (archetype secondary_weapon). Fires on its own
+    # cooldown - far slower than the pickup Rocket Launcher (0.9 s) - with a smaller, weaker blast.
+    w["BruteRockets"] = setp(data_asset("WD_BruteRockets", unreal.MetalWeaponData),
+        display_name="Shoulder Rockets", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=False, infinite_ammo=True,
+        spread_degrees=0.8, projectile_speed=2400.0, explosion_radius=320.0, muzzle_offset=70.0, noise_radius=3500.0,
+        tracer_color=color(1.0, 0.35, 0.05), levels=[level({}, 60.0, 3.5)])
     # The Stalker's four arm guns fire in turn (MuzzleBones); slugs leave from the gun tips.
     w["StalkerCannons"] = setp(data_asset("WD_StalkerCannons", unreal.MetalWeaponData),
         display_name="Arm Cannons", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
@@ -150,7 +156,7 @@ def make_weapons():
         spread_degrees=0.4, range=9000.0, muzzle_offset=80.0, tracer_color=color(1.0, 0.15, 0.1), laser_sight=True,
         levels=[level({"shooter": held("sniper", "shooter")}, 28.0, 2.6)])
     sounds = {"Laser": "laser_fire", "Repeater": "repeater_fire", "Shotgun": "shotgun_fire", "RocketLauncher": "rocket_fire",
-              "EnemyLaser": "enemy_laser_fire", "ArmBlasters": "blaster_fire", "TwinMiniguns": "minigun_fire",
+              "BruteRockets": "rocket_fire", "EnemyLaser": "enemy_laser_fire", "ArmBlasters": "blaster_fire", "TwinMiniguns": "minigun_fire",
               "StalkerCannons": "blaster_fire", "TurretFlak": "blaster_fire", "Claw": "robot_hit", "EMPGrenade": "",
               "Sniper": "sniper_fire", "EnemySniper": "sniper_fire"}
     for key, sound in sounds.items():
@@ -308,6 +314,7 @@ def make_archetypes(manifest, w):
                  knee_bend_degrees=28.0, bob_height=6.0, aim_with_both_arms=True),
          hit_zones=[zone("Head", "bip_head", 35.0, 1.6)],
          starting_weapons=[w["TwinMiniguns"]], melee_weapon=w["Claw"], muzzle_bones=["minigun_R", "minigun_L"], team_colors=faction_colors,
+         secondary_weapon=w["BruteRockets"], secondary_muzzle_bone="rocketlauncher",
          sight_range=4500.0, preferred_range=1400.0, aim_error_degrees=5.5, burst_duration=1.6, burst_pause=2.0,
          squad_alert_radius=3000.0, camera_distance=620.0, camera_offset=unreal.Vector(0.0, 120.0, 160.0))
 

@@ -5,6 +5,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalEnergyField.h"
 #include "MetalTypes.h"
+#include "MetalWeaponData.h"
 #include "EngineUtils.h"
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
@@ -56,6 +57,7 @@ void AMetalBotAIController::SetState(EMetalAIState NewState)
 		if (AMetalBotCharacter* Bot = GetBot())
 		{
 			Bot->StopFire();
+			Bot->StopSecondaryFire();
 			const float Speed = Bot->Archetype ? Bot->Archetype->WalkSpeed : 500.f;
 			Bot->GetCharacterMovement()->MaxWalkSpeed = NewState == EMetalAIState::Patrol ? Speed * Bot->PatrolSpeedFraction : Speed;
 		}
@@ -390,6 +392,7 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 	{
 		StopMovement();
 		Bot->StopFire();
+		Bot->StopSecondaryFire();
 		// A long stun: keep sounding dazed.
 		if (Bot->IsStunned() && Now >= NextBarkTime)
 		{
@@ -501,6 +504,7 @@ void AMetalBotAIController::TickCombat(float Now)
 		else
 		{
 			Bot->StopFire();
+			Bot->StopSecondaryFire();
 		}
 		return;
 	}
@@ -509,6 +513,7 @@ void AMetalBotAIController::TickCombat(float Now)
 	if (!bTargetVisible)
 	{
 		Bot->StopFire();
+		Bot->StopSecondaryFire();
 		if (Now - LastSeenTime > 2.5f && Now >= NextMoveTime)
 		{
 			MoveToLocation(LastKnownLocation, 150.f, true, true, true);
@@ -528,6 +533,7 @@ void AMetalBotAIController::TickCombat(float Now)
 	if (bFieldBlocksShot)
 	{
 		Bot->StopFire();
+		Bot->StopSecondaryFire();
 		bBurstFiring = false;
 		if (Now >= NextMoveTime)
 		{
@@ -559,6 +565,19 @@ void AMetalBotAIController::TickCombat(float Now)
 		Bot->StopFire();
 	}
 
+	// Built-in secondary weapon (Brute rockets): one shot whenever it's ready and the target is far enough away
+	// that the blast won't catch the shooter, with a random extra wait so volleys don't land like clockwork.
+	if (Bot->HasSecondaryWeapon() && Now >= NextSecondaryTime && Bot->IsSecondaryReady()
+		&& Distance > Archetype->SecondaryWeapon->ExplosionRadius * 1.3f + Bot->GetSimpleCollisionRadius())
+	{
+		Bot->StartSecondaryFire();
+		NextSecondaryTime = Now + FMath::FRandRange(0.5f, 2.f);
+	}
+	else
+	{
+		Bot->StopSecondaryFire();
+	}
+
 	// Reposition: strafe around the target at the preferred range.
 	if (Now >= NextMoveTime)
 	{
@@ -576,6 +595,7 @@ void AMetalBotAIController::TickRetreat(float Now)
 {
 	AMetalBotCharacter* Bot = GetBot();
 	Bot->StopFire();
+	Bot->StopSecondaryFire();
 	// On entering the state, run to a random spot about 9 m directly away from the enemy.
 	if (Now - StateStartTime < 0.1f)
 	{

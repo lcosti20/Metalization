@@ -2,6 +2,7 @@
 
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
+#include "MetalBotArchetype.h"
 #include "MetalControlConsole.h"
 #include "MetalDialogue.h"
 #include "MetalBotAIController.h"
@@ -208,6 +209,20 @@ void AMetalHUD::DrawHUD()
 			float TW = 0.f, TH = 0.f;
 			MeasureText(GrenadeText, TW, TH, Small, UI * 1.3f);
 			DrawTextShadowed(GrenadeText, RightX - TW, GrenadeY, FLinearColor(0.6f, 0.75f, 1.f), Small, UI * 1.3f);
+		}
+		else if (Bot->HasSecondaryWeapon())
+		{
+			// Built-in second weapon (a hacked Brute's rockets) on the aim button, with a cooldown bar under it.
+			const bool bReady = Bot->GetSecondaryReadyFraction() >= 1.f;
+			const FString SecondaryText = FString::Printf(TEXT("[RMB] %s %s"), *Bot->Archetype->SecondaryWeapon->DisplayName.ToString().ToUpper(),
+				bReady ? TEXT("READY") : TEXT("LOADING"));
+			float TW = 0.f, TH = 0.f;
+			MeasureText(SecondaryText, TW, TH, Small, UI * 1.3f);
+			DrawTextShadowed(SecondaryText, RightX - TW, GrenadeY, bReady ? Amber : FLinearColor(1.f, 1.f, 1.f, 0.6f), Small, UI * 1.3f);
+			if (!bReady)
+			{
+				DrawBar(RightX - TW, GrenadeY - 2.f * UI, TW, 4.f * UI, Bot->GetSecondaryReadyFraction(), Amber);
+			}
 		}
 		// Weapon list (1-6).
 		const TArray<FMetalWeaponSlot>& Weapons = Bot->GetWeapons();

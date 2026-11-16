@@ -361,7 +361,16 @@ void AMetalPlayerController::FireReleased()
 
 void AMetalPlayerController::AimPressed()
 {
-	if (AMetalBotCharacter* Bot = GetBot())
+	AMetalBotCharacter* Bot = GetBot();
+	if (Bot && Bot->HasSecondaryWeapon())
+	{
+		// Robots with a built-in second weapon (the Brute's rockets) fire it with the aim button instead of zooming.
+		if (CanAct())
+		{
+			Bot->StartSecondaryFire();
+		}
+	}
+	else if (Bot)
 	{
 		Bot->SetAiming(true);
 	}
@@ -372,6 +381,7 @@ void AMetalPlayerController::AimReleased()
 	if (AMetalBotCharacter* Bot = GetBot())
 	{
 		Bot->SetAiming(false);
+		Bot->StopSecondaryFire();
 	}
 }
 
@@ -487,6 +497,7 @@ void AMetalPlayerController::OpenPauseMenu()
 	{
 		Bot->StopFire();
 		Bot->SetAiming(false);
+		Bot->StopSecondaryFire();
 		Bot->SetWantsSprint(false);
 	}
 	if (AMetalStalker* Flyer = GetFlyer())
@@ -667,6 +678,7 @@ void AMetalPlayerController::OpenHackPuzzle(AMetalBotCharacter* Target)
 	// Button releases won't reach the game while the window has the input: let go of everything now.
 	Body->StopFire();
 	Body->SetAiming(false);
+	Body->StopSecondaryFire();
 	Body->SetWantsSprint(false);
 
 	// "BP_<Unit>Controller", from the robot's name with anything that isn't a letter or digit dropped.
@@ -783,6 +795,7 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 
 	Body->StopFire();
 	Body->SetAiming(false);
+	Body->StopSecondaryFire();
 	Body->SetDormant(true);
 	Target->SetDormant(false);
 	if (!bAlly)
@@ -838,6 +851,7 @@ void AMetalPlayerController::EndPossession()
 	{
 		OldHost->StopFire();
 		OldHost->SetAiming(false);
+		OldHost->StopSecondaryFire();
 	}
 
 	if (Body && Body->IsAlive())

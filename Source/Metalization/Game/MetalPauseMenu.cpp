@@ -269,7 +269,7 @@ void UMetalPauseMenu::BuildTree()
 		{TEXT("Ctrl (hold) / C / R3"), TEXT("Sneak")},
 		{TEXT("Space / A"), TEXT("Jump, again in the air to double jump")},
 		{TEXT("Left click / RT"), TEXT("Shoot")},
-		{TEXT("Right click / LT"), TEXT("Aim (scope with the Sniper)")},
+		{TEXT("Right click / LT"), TEXT("Aim (scope with the Sniper); fires a hacked Brute's rockets")},
 		{TEXT("1-6, wheel / Y"), TEXT("Swap weapon arm")},
 		{TEXT("R / X"), TEXT("Reload")},
 		{TEXT("G / RB"), TEXT("Throw EMP grenade")},

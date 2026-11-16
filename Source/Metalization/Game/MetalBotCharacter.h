@@ -343,6 +343,23 @@ public:
 	/** Lobs one grenade (GrenadeWeapon) towards the aim point, if any are left. */
 	void ThrowGrenade();
 
+	// --- Secondary attack (archetype SecondaryWeapon, e.g. the Brute's rockets) ------------------
+
+	/** @return True if this robot's archetype has a built-in secondary weapon. */
+	bool HasSecondaryWeapon() const;
+
+	/** Holds the secondary trigger: Tick() fires the secondary weapon whenever its cooldown is over. */
+	void StartSecondaryFire();
+
+	/** Releases the secondary trigger. */
+	void StopSecondaryFire() { bSecondaryHeld = false; }
+
+	/** @return True when the secondary weapon could fire right now (cooldown over, robot able to shoot). */
+	bool IsSecondaryReady() const;
+
+	/** @return 0 just fired .. 1 ready, for the HUD's cooldown bar. */
+	float GetSecondaryReadyFraction() const;
+
 	/**
 	 * @param bNewAiming True while the aim button is held (zooms the action camera).
 	 */
@@ -567,6 +584,9 @@ protected:
 	 */
 	void FireMelee(const FMetalWeaponSlot& Slot);
 
+	/** Fires the archetype's SecondaryWeapon once from SecondaryMuzzleBone and starts its cooldown. */
+	void FireSecondaryOnce();
+
 	/** Moves rounds from the reserve into the clip at the end of a reload. */
 	void FinishReload();
 
@@ -772,7 +792,10 @@ protected:
 	bool bFirewallGlow = false;
 	bool bWeaponDisabled = false;
 	bool bFireHeld = false;
+	bool bSecondaryHeld = false;
 	bool bAiming = false;
+	/** World time the secondary weapon is ready again. */
+	float NextSecondaryFireTime = 0.f;
 	bool bHasAITarget = false;
 	FVector AITargetPoint = FVector::ZeroVector;
 	/** World time when the weapon may fire again. */

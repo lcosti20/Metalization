@@ -149,6 +149,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	TArray<FName> MuzzleBones;
 
+	/**
+	 * Built-in second weapon (the Brute's shoulder rocket launcher), fired alongside the main gun. Infinite ammo;
+	 * its level 0 FireInterval is the cooldown between shots. A player driving the robot fires it with the aim
+	 * button (right mouse / left trigger) instead of aiming. Null = no secondary attack.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TObjectPtr<UMetalWeaponData> SecondaryWeapon;
+
+	/** Bone the secondary weapon fires from (shots leave SecondaryWeapon->MuzzleOffset in front of it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	FName SecondaryMuzzleBone = NAME_None;
+
 	/** AI vision distance, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float SightRange = 3500.f;

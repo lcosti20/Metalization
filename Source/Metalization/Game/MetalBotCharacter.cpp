@@ -262,7 +262,7 @@ bool AMetalBotCharacter::IsInCombatStance() const
 		return bHasAITarget || bFireHeld;
 	}
 	const UWorld* World = GetWorld();
-	return !UsesActionCamera() || bAiming || bFireHeld || (World && World->GetTimeSeconds() - LastFireTime < 1.5f);
+	return !UsesActionCamera() || bAiming || bFireHeld || bSecondaryHeld || (World && World->GetTimeSeconds() - LastFireTime < 1.5f);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -732,6 +732,83 @@ void AMetalBotCharacter::StartFire()
 void AMetalBotCharacter::StopFire()
 {
 	bFireHeld = false;
+}
+
+bool AMetalBotCharacter::HasSecondaryWeapon() const
+{
+	return Archetype && Archetype->SecondaryWeapon;
+}
+
+void AMetalBotCharacter::StartSecondaryFire()
+{
+	if (!HasSecondaryWeapon())
+	{
+		return;
+	}
+	bSecondaryHeld = true;
+	if (UsesActionCamera() && GetController())
+	{
+		SetActorRotation(FRotator(0.f, GetController()->GetControlRotation().Yaw, 0.f));
+	}
+}
+
+bool AMetalBotCharacter::IsSecondaryReady() const
+{
+	return HasSecondaryWeapon() && !bDead && !bDormant && !bAssembling && !IsStunned() && !IsSwappingWeapon()
+		&& GetWorld()->GetTimeSeconds() >= NextSecondaryFireTime;
+}
+
+float AMetalBotCharacter::GetSecondaryReadyFraction() const
+{
+	if (!HasSecondaryWeapon())
+	{
+		return 0.f;
+	}
+	const float Interval = FMath::Max(0.01f, Archetype->SecondaryWeapon->GetLevel(0).FireInterval);
+	return FMath::Clamp(1.f - (NextSecondaryFireTime - GetWorld()->GetTimeSeconds()) / Interval, 0.f, 1.f);
+}
+
+void AMetalBotCharacter::FireSecondaryOnce()
+{
+	UWorld* World = GetWorld();
+	const UMetalWeaponData* Data = Archetype->SecondaryWeapon;
+	const FMetalWeaponLevel& Stats = Data->GetLevel(0);
+	NextSecondaryFireTime = World->GetTimeSeconds() + Stats.FireInterval;
+	LastFireTime = World->GetTimeSeconds();
+
+	// Shots leave MuzzleOffset in front of the launcher bone, along the aim.
+	const FVector Forward = GetAimForward();
+	const FName Bone = Archetype->SecondaryMuzzleBone;
+	const FVector Base = GetMesh()->GetBoneIndex(Bone) != INDEX_NONE ? GetMesh()->GetBoneLocation(Bone) : GetEyesLocation();
+	const FVector Muzzle = Base + Forward * Data->MuzzleOffset * GetMesh()->GetRelativeScale3D().X;
+	FVector AimDirection = (GetAimPoint() - Muzzle).GetSafeNormal();
+	if (FVector::DotProduct(AimDirection, Forward) < 0.2f)
+	{
+		AimDirection = Forward;
+	}
+	const float AIError = (!IsPlayerControlled() && Archetype) ? Archetype->AimErrorDegrees : 0.f;
+	const float Cone = FMath::DegreesToRadians(Data->SpreadDegrees + AIError);
+
+	for (int32 Pellet = 0; Pellet < FMath::Max(1, Data->Pellets); ++Pellet)
+	{
+		const FVector Direction = FMath::VRandCone(AimDirection, Cone);
+		FActorSpawnParameters Params;
+		Params.Owner = this;
+		Params.Instigator = this;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (AMetalProjectile* Projectile = World->SpawnActor<AMetalProjectile>(Muzzle, Direction.Rotation(), Params))
+		{
+			Projectile->Launch(Data, Stats.Damage, Direction * Data->ProjectileSpeed);
+		}
+	}
+
+	AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 14.f, 0.1f);
+	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.8f);
+	if (IsPlayerControlled())
+	{
+		AMetalBotAIController::ReportNoise(this, Muzzle, Data->NoiseRadius);
+	}
+	UE_LOG(LogMetal, Log, TEXT("%s fired secondary %s"), *GetName(), *Data->DisplayName.ToString());
 }
 
 void AMetalBotCharacter::Reload()
@@ -1606,7 +1683,7 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		// Sprint only while running forward-ish with nothing else going on. In the air, keep the momentum.
 		const FVector ViewForward = GetController() ? FRotator(0.f, GetController()->GetControlRotation().Yaw, 0.f).Vector() : GetActorForwardVector();
 		const bool bForward = Speed > 50.f && FVector::DotProduct(Velocity2D / Speed, ViewForward) > 0.3f;
-		const bool bFree = !bAiming && !bFireHeld && Now - LastFireTime > 0.4f && !IsSwappingWeapon() && !IsStunned() && !bDormant;
+		const bool bFree = !bAiming && !bFireHeld && !bSecondaryHeld && Now - LastFireTime > 0.4f && !IsSwappingWeapon() && !IsStunned() && !bDormant;
 		if (Move->IsFalling())
 		{
 			bSprinting = bSprinting && bWantsSprint;
@@ -1916,5 +1993,10 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		{
 			bFireHeld = false;
 		}
+	}
+	// The secondary trigger (built-in rockets) has its own cooldown and fires alongside the main gun.
+	if (bSecondaryHeld && IsSecondaryReady())
+	{
+		FireSecondaryOnce();
 	}
 }

@@ -194,6 +194,8 @@ private:
 	/** World time to flip between firing and pausing in a burst. */
 	float BurstToggleTime = 0.f;
 	bool bBurstFiring = false;
+	/** World time the AI may fire the robot's secondary weapon again (on top of the weapon's own cooldown). */
+	float NextSecondaryTime = 0.f;
 	bool bTargetVisible = false;
 	/** The target is in sight but behind an energy field (refreshed by Sense). */
 	bool bFieldBlocksShot = false;

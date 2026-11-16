@@ -76,6 +76,10 @@ public:
 	/** Hijack the robot under the crosshair, or disconnect from the current host. */
 	void ToggleTether() { TetherPressed(); }
 
+	/** Press / release the aim button (right mouse): aims, or fires the robot's secondary weapon if it has one. */
+	void PressAimButton() { AimPressed(); }
+	void ReleaseAimButton() { AimReleased(); }
+
 	/** Use the nearby console, if any. */
 	void Interact() { InteractPressed(); }
 
@@ -201,10 +205,10 @@ private:
 	/** Releases the trigger. */
 	void FireReleased();
 
-	/** Starts aiming (zoomed camera). */
+	/** Starts aiming (zoomed camera), or holds the secondary trigger on robots with a secondary weapon (Brute rockets). */
 	void AimPressed();
 
-	/** Stops aiming. */
+	/** Stops aiming and releases the secondary trigger. */
 	void AimReleased();
 
 	/** Reloads the equipped weapon. */
