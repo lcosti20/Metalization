@@ -6,6 +6,7 @@
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
+#include "MetalFX.h"
 #include "MetalGravLift.h"
 #include "MetalHangar.h"
 #include "MetalMission.h"
@@ -42,7 +43,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper, FxGallery };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -165,6 +166,8 @@ namespace
 			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
 			// Low-health warning: drop to 20% (red flash and double beep every second), then heal to stop it.
 			{TEXT("lowhealth"), {{0.5f, EStep::DropToLowHealth}, {3.6f, EStep::HealFully}}},
+			// Combat effects: every Niagara effect set off in a row in front of the camera, three times over.
+			{TEXT("fx"), {{1.0f, EStep::FxGallery}, {2.5f, EStep::FxGallery}, {4.0f, EStep::FxGallery}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
 			// Checkpoint snapshot: scrap a guard, step into the patrol yard checkpoint, scrap another, then get
@@ -416,8 +419,9 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
 			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
 			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
-			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy"), TEXT("give a sniper rifle")};
-	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::GiveSniper) + 1, "Every EStep needs a name");
+			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy"), TEXT("give a sniper rifle"),
+			TEXT("set off every combat effect")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::FxGallery) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -674,6 +678,35 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::SelfDestruct:
 		UGameplayStatics::ApplyDamage(Me, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
 		break;
+	case EStep::FxGallery:
+	{
+		// Left to right across the view, 7 m out: muzzle flash firing right, impact on the floor, explosion,
+		// burst, and a tracer plus a persistent beam crossing above them.
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		const FRotator Flat(0.f, ViewRotation.Yaw, 0.f);
+		const FVector Forward = Flat.Vector();
+		const FVector Right = FRotationMatrix(Flat).GetUnitAxis(EAxis::Y);
+		FVector Floor = Me->GetActorLocation() + Forward * 700.f;
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Floor + FVector(0.f, 0.f, 300.f), Floor - FVector(0.f, 0.f, 600.f), ECC_Visibility))
+		{
+			Floor = Hit.ImpactPoint;
+		}
+		const FLinearColor Laser(1.f, 0.35f, 0.1f);
+		const FLinearColor Cyan(0.1f, 0.8f, 1.f);
+		AMetalFX::SpawnMuzzleFlash(GetWorld(), Floor - Right * 330.f + FVector(0.f, 0.f, 120.f), Right, Laser, 14.f);
+		AMetalFX::SpawnImpact(GetWorld(), Floor - Right * 170.f, FVector::UpVector, Cyan, 10.f);
+		AMetalFX::SpawnExplosion(GetWorld(), Floor + Right * 60.f + FVector(0.f, 0.f, 230.f), FLinearColor(1.f, 0.5f, 0.15f), 110.f);
+		AMetalFX::SpawnBurst(GetWorld(), Floor + Right * 220.f + FVector(0.f, 0.f, 80.f), FLinearColor(0.2f, 1.f, 0.3f), 60.f, 0.4f);
+		AMetalFX::SpawnBeam(GetWorld(), Floor - Right * 400.f + FVector(0.f, 0.f, 260.f), Floor + Right * 400.f + FVector(0.f, 0.f, 260.f), Laser, 2.5f, 0.07f);
+		if (!FxBeam.IsValid())
+		{
+			FxBeam = AMetalFX::SpawnBeam(GetWorld(), Floor - Right * 400.f + FVector(0.f, 0.f, 330.f), Floor + Right * 400.f + FVector(0.f, 0.f, 360.f), Cyan, 1.5f, 0.f);
+		}
+		break;
+	}
 	case EStep::ClearSquad1:
 		// Skipping ahead with -MetalObjective leaves the earlier squad standing next to the bunker.
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)

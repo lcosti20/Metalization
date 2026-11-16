@@ -105,6 +105,8 @@ private:
 	int32 NextStep = 0;
 	int32 ShotIndex = 0;
 	TWeakObjectPtr<AMetalBotCharacter> AimTarget;
+	/** The persistent beam the fx scenario leaves up (spawned once). */
+	TWeakObjectPtr<class AMetalFX> FxBeam;
 	/** Aim at this bone of AimTarget instead of its centre. */
 	FName AimBone;
 	/** Aim at a component instead (a capital ship's subsystem). */

@@ -30,6 +30,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     -Scenario jetpack double jump in the Outpost hangar, filmed from behind (jetpack flames, back rack)
     -Scenario pickups  by the gate: grab the Rocket Launcher, fire + reload (reload bar), take grenades and ammo
     -Scenario lowhealth  drop to 20% health in the Outpost hangar: red flash + double beep each second, then heal
+    -Scenario fx         every Niagara combat effect (muzzle flash, impact, explosion, burst, tracer, beam) set off in a row
   Robot dispensers (MZ_DispenserTest):
     -Scenario dispenser  scrap an assigned guard and watch it be rebuilt; open the gate to start the timed
                          dispenser; shut both down from the console
@@ -47,7 +48,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "sound", "alpha", "swap", "reload", "draw", "lift", "liftai", "drop", "hop", "ditch", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint")]
+                 "sound", "alpha", "swap", "reload", "draw", "lift", "liftai", "drop", "hop", "ditch", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint", "fx")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -55,6 +56,8 @@ param(
 $Project = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $setups = @{
     "combat" = @("-MetalTeleport=2300,0,120,0", "-MetalShots=2.5,6.4,8.5,11", "-MetalQuitAt=13")
+    # Every Niagara effect in a row in the Outpost start area: shots just after each set goes off and as it fades.
+    "fx"     = @("-MetalTeleport=2300,0,120,0", "-MetalShots=1.04,1.12,1.3,2.55,2.8,4.6", "-MetalQuitAt=6")
     "gate"   = @("-MetalObjective=2", "-MetalTeleport=9200,-650,120,0", "-MetalShots=1.3,2.3,4,7", "-MetalQuitAt=9")
     "boss"   = @("-MetalObjective=4", "-MetalTeleport=11400,1000,150,-28", "-MetalShots=1.4,3,5.5,9", "-MetalQuitAt=10")
     "arena"  = @("-MetalShots=0.8,1.7,2.5,2.65,2.8,3.3,4.6,6.9,7.8,9", "-MetalQuitAt=10")

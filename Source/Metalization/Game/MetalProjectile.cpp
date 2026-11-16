@@ -188,7 +188,15 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 				}
 			}
 		}
-		AMetalFX::SpawnBurst(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		// An EMP is a clean pulse of light; anything else is a fireball.
+		if (StunDuration > 0.f)
+		{
+			AMetalFX::SpawnBurst(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		}
+		else
+		{
+			AMetalFX::SpawnExplosion(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		}
 		MetalAudio::PlayAt(this, StunDuration > 0.f ? TEXT("emp_blast") : TEXT("explosion"), Location, 1.f, 0.08f);
 		// Explosions are heard a long way off.
 		if (AMetalBotCharacter* Thrower = Cast<AMetalBotCharacter>(GetInstigator()); Thrower && Thrower->IsPlayerControlled())
@@ -203,7 +211,8 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 			UGameplayStatics::ApplyPointDamage(DirectHit->GetActor(), Damage, GetVelocity().GetSafeNormal(), *DirectHit,
 				InstigatorController, this, UDamageType::StaticClass());
 		}
-		AMetalFX::SpawnBurst(World, Location, Color, 18.f * Scale, 0.15f);
+		const FVector Normal = DirectHit ? FVector(DirectHit->ImpactNormal) : -GetVelocity().GetSafeNormal();
+		AMetalFX::SpawnImpact(World, Location, Normal, Color, 18.f * Scale);
 		MetalAudio::PlayAt(this, ImpactSound, Location, 0.5f, 0.1f);
 	}
 	Destroy();

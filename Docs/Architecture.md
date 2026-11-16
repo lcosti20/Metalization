@@ -164,7 +164,7 @@ One line per header in `Game/`; the header's own top comment and class comments 
 
 **Built in code, no editor assets for UI or input.** The HUD draws with Canvas calls, the pause and title menu builds its widget tree in C++, and the input actions and mapping contexts are created in `AMetalPlayerController::CreateInputObjects`. There are no widget blueprints or input assets to keep in sync. Each could be replaced by assets later without changing the gameplay code, because they only read public getters.
 
-**Content by name.** Gameplay code never references sound assets: it plays a name through `MetalAudio::PlayAt`/`Play2D`/`PlayLoop`, looked up in `DA_Sounds`. A missing name or library is silent, so the game runs before the pipeline has produced any audio. Effects work the same way: `AMetalFX` builds everything from engine shapes and one glow material.
+**Content by name.** Gameplay code never references sound assets: it plays a name through `MetalAudio::PlayAt`/`Play2D`/`PlayLoop`, looked up in `DA_Sounds`. A missing name or library is silent, so the game runs before the pipeline has produced any audio. Effects work the same way: `AMetalFX` plays Niagara systems from `/Game/Metalization/FX` by name (`MetalAssets::GetEffect`), and a missing system just logs a warning.
 
 **Global events instead of references.** Systems that need to react to something anywhere in the world subscribe to static multicast delegates rather than holding references:
 
@@ -181,7 +181,7 @@ Two other world-wide services are reached by function rather than by event: `UMe
 
 **Polling on timers instead of ticking everything.** Expensive queries run a few times a second rather than every frame: AI senses every 0.2 s, flyer pilots re-think every ~0.4 s, missions check objectives every 0.25 s, turrets pick targets every 0.3 s, hangars check for dead robots every 0.5 s. Look for `Next*Time` members.
 
-**Placeholders behind one interface.** Effects (`AMetalFX`), the animation (`UMetalBotAnimInstance`) and the sounds (`MetalAudio`) are deliberately simple stand-ins. Every call site goes through them, so swapping in Niagara effects, authored animation or recorded audio is a change in one place.
+**Swappable systems behind one interface.** Effects (`AMetalFX`), the animation (`UMetalBotAnimInstance`) and the sounds (`MetalAudio`) sit behind one interface each, and every call site goes through it. That is how the combat effects moved from glowing engine shapes to Niagara systems in one file. Authored animation or recorded audio could replace the other two the same way.
 
 ## 5. How a frame flows
 

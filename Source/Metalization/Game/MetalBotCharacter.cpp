@@ -874,7 +874,7 @@ void AMetalBotCharacter::FireSecondaryOnce()
 		}
 	}
 
-	AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 14.f, 0.1f);
+	AMetalFX::SpawnMuzzleFlash(World, Muzzle, AimDirection, Data->TracerColor, 14.f);
 	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.8f);
 	if (IsPlayerControlled())
 	{
@@ -1163,7 +1163,7 @@ void AMetalBotCharacter::FireOnce()
 			AMetalFX::SpawnBeam(World, Muzzle, Impact, Data->TracerColor, 2.5f, 0.07f);
 			if (bHit)
 			{
-				AMetalFX::SpawnBurst(World, Impact, Data->TracerColor, 10.f, 0.12f);
+				AMetalFX::SpawnImpact(World, Impact, Hit.ImpactNormal, Data->TracerColor, 10.f);
 				if (Pellet == 0)
 				{
 					MetalAudio::PlayAt(this, Data->ImpactSound, Impact, 0.6f, 0.1f);
@@ -1193,7 +1193,14 @@ void AMetalBotCharacter::FireOnce()
 		}
 	}
 
-	AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 8.f, 0.06f);
+	if (Data->FireMode == EMetalFireMode::Thrown)
+	{
+		AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 8.f, 0.06f);
+	}
+	else
+	{
+		AMetalFX::SpawnMuzzleFlash(World, Muzzle, AimDirection, Data->TracerColor, 8.f);
+	}
 	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.7f);
 	if (IsPlayerControlled())
 	{
@@ -1434,7 +1441,7 @@ void AMetalBotCharacter::DisableWeapon()
 		return;
 	}
 	bWeaponDisabled = true;
-	AMetalFX::SpawnBurst(GetWorld(), GetMuzzleLocation(), FLinearColor(1.f, 0.6f, 0.1f), 40.f, 0.4f);
+	AMetalFX::SpawnExplosion(GetWorld(), GetMuzzleLocation(), FLinearColor(1.f, 0.6f, 0.1f), 40.f, 0.4f);
 	RefreshWeaponVisual();
 }
 
@@ -1448,7 +1455,7 @@ void AMetalBotCharacter::BreakZone(const FMetalHitZone& Zone)
 	{
 		BrokenMuzzles.Add(Zone.DisablesMuzzleBone);
 		const float Scale = GetMesh()->GetRelativeScale3D().X;
-		AMetalFX::SpawnBurst(GetWorld(), GetMesh()->GetBoneLocation(Zone.DisablesMuzzleBone), FLinearColor(1.f, 0.6f, 0.1f), 120.f * Scale, 0.5f);
+		AMetalFX::SpawnExplosion(GetWorld(), GetMesh()->GetBoneLocation(Zone.DisablesMuzzleBone), FLinearColor(1.f, 0.6f, 0.1f), 120.f * Scale, 0.5f);
 		// The arm comes off: hide it and drop its physics bodies so shots pass through the gap.
 		GetMesh()->HideBoneByName(Zone.Bone, PBO_Term);
 		if (GetWorkingMuzzleCount() == 0)
@@ -1508,7 +1515,7 @@ void AMetalBotCharacter::Explode()
 		return;
 	}
 	const FVector Center = GetMesh()->GetComponentLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	AMetalFX::SpawnBurst(GetWorld(), Center, FLinearColor(1.f, 0.45f, 0.1f), 140.f * GetMesh()->GetRelativeScale3D().X, 0.5f);
+	AMetalFX::SpawnExplosion(GetWorld(), Center, FLinearColor(1.f, 0.45f, 0.1f), 140.f * GetMesh()->GetRelativeScale3D().X, 0.5f);
 	MetalAudio::PlayAt(this, TEXT("robot_explode"), Center, FMath::Clamp(GetMesh()->GetRelativeScale3D().X, 0.8f, 2.f));
 	if (IsPlayerControlled())
 	{

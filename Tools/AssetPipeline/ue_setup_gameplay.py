@@ -13,6 +13,7 @@ The maps are regenerated from scratch every run - make manual layout changes on 
     /Game/Metalization/Maps/MZ_ProductionAlpha  the Production Alpha mission, + MZ_Title (ue_setup_alpha.py)
     /Game/Metalization/Maps/MZ_DispenserTest     robot dispenser test map (ue_setup_dispenser.py)
     /Game/Metalization/Data/DA_Sounds           sound library (UMetalSoundLibrary) over /Game/Metalization/Audio
+    /Game/Metalization/FX/NS_*                  Niagara combat effects + their M_FX_* materials (ue_setup_fx.py)
 
 Maps are only rebuilt when their inputs changed (their level script, plus the model sizes/sockets the
 Outpost and Space maps place things by) or the map is missing; the hashes are kept under "levels" in
@@ -855,6 +856,9 @@ def main():
     archetypes = make_archetypes(manifest, weapons)
     make_sound_library()
     make_energy_field_material()
+    sys.path.insert(0, TOOLS_DIR)
+    import ue_setup_fx
+    ue_setup_fx.build()
     restore_template_game_mode()
     state = {}
     if os.path.exists(STATE_FILE):
