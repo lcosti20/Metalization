@@ -224,6 +224,7 @@ void AMetalBotAIController::Sense()
 	AMetalBotCharacter* Best = nullptr;
 	float BestDistance = Bot->Archetype->SightRange;
 	float BestRealDistance = 0.f;
+	bool bBestInCone = false;
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 	{
 		AMetalBotCharacter* Other = *It;
@@ -243,13 +244,29 @@ void AMetalBotAIController::Sense()
 			Best = Other;
 			BestDistance = Distance;
 			BestRealDistance = RealDistance;
+			bBestInCone = bInCone;
 		}
 	}
 
-	// The player isn't spotted at a glance: suspicion builds while they stay in view (see BuildSuspicion).
+	// The player isn't spotted at a glance: suspicion builds while they stay in view (see BuildSuspicion). That
+	// includes the player's own body left crouched as a console while they hack (only the player can crouch).
 	// Other robots - including the player's allies - are fought on sight.
-	const bool bSuspect = Best && Best->IsPlayerControlled() && State != EMetalAIState::Combat;
+	const bool bDisguisedBody = Best && Best->IsDormant() && Best->IsSneaking();
+	const bool bSuspect = Best && (Best->IsPlayerControlled() || bDisguisedBody) && State != EMetalAIState::Combat;
+	// Ducking into the console disguise right in front of a robot fools nobody: if it watched the player standing
+	// on its last look and now sees them crouched, it attacks at once. The automatic crouch of a hack is exempt.
+	const bool bDuckedInView = bSuspect && bBestInCone && Best->IsSneaking() && !Best->IsHackCrouching()
+		&& LastSeenSuspect.Get() == Best && bLastSeenStanding;
+	LastSeenSuspect = bSuspect ? Best : nullptr;
+	bLastSeenStanding = bSuspect && !Best->IsSneaking();
 	bSuspectInView = bSuspect;
+	if (bDuckedInView)
+	{
+		UE_LOG(LogMetal, Log, TEXT("[AI] %s saw %s crouch in front of it: attacking"), *Bot->GetActorNameOrLabel(), *Best->GetActorNameOrLabel());
+		LastKnownLocation = Best->GetActorLocation();
+		EnterCombat(Best, true);
+		return;
+	}
 	if (bSuspect)
 	{
 		BuildSuspicion(Best, BestRealDistance);
@@ -278,12 +295,21 @@ void AMetalBotAIController::BuildSuspicion(AMetalBotCharacter* Suspect, float Di
 	AMetalBotCharacter* Bot = GetBot();
 	const float Now = GetWorld()->GetTimeSeconds();
 	// Seconds of continuous sight before attacking: under half a second up close, ~3.5 s at the edge of
-	// sight. Sneaking stretches that, sprinting and shooting shorten it, and a robot of our own side
-	// (hijacked by the player) passes at a glance unless it does something stupid.
+	// sight. Sprinting and shooting shorten it. A robot of our own side (hijacked by the player) passes at a
+	// glance unless it does something stupid, and so does a player crouched into a console: both stretch it
+	// by the same DisguiseFactor. A console that slides around is less convincing and is spotted faster.
+	constexpr float DisguiseFactor = 4.f;
+	constexpr float SlidingDisguiseFactor = 2.f;
 	float Seconds = FMath::GetMappedRangeValueClamped(FVector2D(300.f, Bot->Archetype->SightRange), FVector2D(0.4f, 3.5f), Distance);
+	const bool bOurOwnHijacked = Suspect->IsHijacked() && Suspect->GetBaseTeam() == Bot->GetTeam();
 	if (Suspect->IsSneaking())
 	{
-		Seconds *= 2.5f;
+		const bool bSliding = Suspect->GetVelocity().Size2D() > 40.f;
+		Seconds *= bSliding ? SlidingDisguiseFactor : DisguiseFactor;
+	}
+	else if (bOurOwnHijacked)
+	{
+		Seconds *= DisguiseFactor;
 	}
 	if (Suspect->IsSprinting())
 	{
@@ -292,10 +318,6 @@ void AMetalBotAIController::BuildSuspicion(AMetalBotCharacter* Suspect, float Di
 	if (Now - Suspect->GetLastFireTime() < 1.5f)
 	{
 		Seconds *= 0.25f;
-	}
-	if (Suspect->IsHijacked() && Suspect->GetBaseTeam() == Bot->GetTeam())
-	{
-		Seconds *= 4.f;
 	}
 	const float Before = Suspicion;
 	Suspicion = FMath::Min(1.f, Suspicion + SenseInterval / FMath::Max(Seconds, 0.05f));

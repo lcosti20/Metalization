@@ -193,6 +193,30 @@ private:
 	/** Toggle sneak (C / right stick click). */
 	void SneakToggled();
 
+	/**
+	 * Called before an action a crouched robot can't do (shoot, aim, grenade, jump, sprint). With toggle sneak on
+	 * the press stands the robot up and the action goes ahead; while Ctrl is held, or while crouched for a hack,
+	 * the robot stays down and the action is refused.
+	 *
+	 * @return True if the action may go ahead (the robot is standing, or just stood up).
+	 */
+	bool StandUpForAction();
+
+	/** Applies the held/toggled sneak buttons to the robot (crouches or stands it). */
+	void ApplySneakInput();
+
+	/**
+	 * Crouches the player's body for a hack (puzzle open or linked to another robot). Called when the puzzle opens
+	 * and right before the body goes dormant for a link; does nothing if already crouched for the hack.
+	 */
+	void BeginHackCrouch();
+
+	/** Puts the body back the way it was before the hack: Tick calls it once the hack is over. */
+	void EndHackCrouch();
+
+	/** Turns a held Ctrl into toggle sneak, for when a window takes the input and the release would be lost. */
+	void LatchHeldSneak();
+
 	/** Jumps (a second press in mid-air is the double jump). */
 	void JumpPressed();
 
@@ -354,6 +378,14 @@ private:
 	bool bAllyLink = false;
 	/** Tilt the camera down on the next tick after a fresh spawn. */
 	bool bApplySpawnPitch = false;
+	/** Ctrl is held down (hold-to-sneak). */
+	bool bSneakHeld = false;
+	/** Toggle sneak (C) is on. */
+	bool bSneakToggle = false;
+	/** The body is crouched for a hack (puzzle or link); see UpdateHackCrouch. */
+	bool bHackCrouchActive = false;
+	/** The body was standing when the hack crouch began, so it stands back up when the hack ends. */
+	bool bStandAfterHack = false;
 	/** Subscription to AMetalBotCharacter::OnAnyBotDied. */
 	FDelegateHandle BotDiedHandle;
 };

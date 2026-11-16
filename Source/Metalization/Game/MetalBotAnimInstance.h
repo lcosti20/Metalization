@@ -54,8 +54,10 @@ struct FMetalBotAnimState
 	/** Flying robots: arms sweep back with boost and fold while parked. */
 	float BoostAlpha = 0.f;
 	float ParkedAlpha = 0.f;
-	/** 1 fully crouched (sneaking). */
+	/** 1 fully crouched (sneaking): arms and legs tucked into the body, which sits on the ground like a console. */
 	float CrouchAlpha = 0.f;
+	/** Height of the hips above the feet in the bind pose (bone units); the crouch sinks the body by most of it. */
+	float HipHeight = 0.f;
 	/** 0 at walk speed .. 1 at full sprint. */
 	float SprintAlpha = 0.f;
 	/** Acted-out weapon swap: off hand reaching to the gun arm, swinging over the shoulder, twisting. */
@@ -149,4 +151,6 @@ private:
 	float ParkedAlpha = 0.f;
 	FVector MoveDirection = FVector::ForwardVector;
 	FVector HitDirection = FVector::ForwardVector;
+	/** Bind-pose hip height, measured once from the mesh (-1 = not yet). */
+	float HipHeight = -1.f;
 };

@@ -36,6 +36,18 @@ DEFINE_LOG_CATEGORY(LogMetal);
 
 FOnMetalBotDied AMetalBotCharacter::OnAnyBotDied;
 
+namespace
+{
+	/** Ground handling on foot... */
+	constexpr float WalkFriction = 8.f;
+	constexpr float WalkBraking = 2000.f;
+	constexpr float WalkAcceleration = 2400.f;
+	/** ...and crouched, gliding on the console base: slow to get going, slow to stop. */
+	constexpr float SlideFriction = 0.6f;
+	constexpr float SlideBraking = 350.f;
+	constexpr float SlideAcceleration = 900.f;
+}
+
 AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -91,8 +103,9 @@ AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializ
 	Move->AirControl = 0.6f;
 	Move->MaxWalkSpeed = 500.f;
 	Move->JumpZVelocity = 650.f;
-	Move->MaxAcceleration = 2400.f;
-	Move->BrakingDecelerationWalking = 2000.f;
+	Move->MaxAcceleration = WalkAcceleration;
+	Move->BrakingDecelerationWalking = WalkBraking;
+	Move->GroundFriction = WalkFriction;
 	Move->RotationRate = FRotator(0.f, 600.f, 0.f);
 	Move->bOrientRotationToMovement = false;
 	// The player's own body keeps falling/landing while the player is busy driving another robot.
@@ -721,6 +734,11 @@ void AMetalBotCharacter::RefreshWeaponVisual()
 
 void AMetalBotCharacter::StartFire()
 {
+	if (bIsCrouched)
+	{
+		// Tucked into the console disguise: the gun arm is folded away.
+		return;
+	}
 	bFireHeld = true;
 	if (UsesActionCamera() && GetController())
 	{
@@ -741,7 +759,7 @@ bool AMetalBotCharacter::HasSecondaryWeapon() const
 
 void AMetalBotCharacter::StartSecondaryFire()
 {
-	if (!HasSecondaryWeapon())
+	if (!HasSecondaryWeapon() || bIsCrouched)
 	{
 		return;
 	}
@@ -1117,7 +1135,7 @@ void AMetalBotCharacter::FireMelee(const FMetalWeaponSlot& Slot)
 
 void AMetalBotCharacter::ThrowGrenade()
 {
-	if (GrenadeWeapon == nullptr || Grenades <= 0 || bDead || bDormant || IsStunned())
+	if (GrenadeWeapon == nullptr || Grenades <= 0 || bDead || bDormant || IsStunned() || bIsCrouched)
 	{
 		return;
 	}
@@ -1462,12 +1480,9 @@ bool AMetalBotCharacter::CanSneak() const
 
 void AMetalBotCharacter::SetWantsSprint(bool bNewWantsSprint)
 {
+	// Held while crouched it does nothing (TickLocomotion won't sprint a crouched robot) until the robot stands;
+	// the player controller decides when a sprint press stands the robot up.
 	bWantsSprint = bNewWantsSprint;
-	if (bWantsSprint && bIsCrouched)
-	{
-		// Breaking into a run stands the robot up.
-		UnCrouch();
-	}
 }
 
 void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
@@ -1478,12 +1493,30 @@ void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
 	}
 	if (bNewSneaking)
 	{
-		bWantsSprint = false;
+		// Tucking in folds the gun arm away: let go of the triggers and the scope.
+		bFireHeld = false;
+		bSecondaryHeld = false;
+		bAiming = false;
 		Crouch();
 	}
 	else
 	{
 		UnCrouch();
+	}
+	// The engine applies stance changes on its next movement update; do it now, so a press that stands the robot
+	// up can shoot or jump in the same frame, and a body crouched for a hack is down before it goes dormant.
+	// (Standing up fails, and is retried every update, while something is overhead.)
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	if (Move->bWantsToCrouch != bIsCrouched)
+	{
+		if (Move->bWantsToCrouch)
+		{
+			Move->Crouch(false);
+		}
+		else
+		{
+			Move->UnCrouch(false);
+		}
 	}
 }
 
@@ -1695,6 +1728,14 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		// Also restores full speed to a hijacked robot that was walking at its slow patrol pace.
 		Move->MaxWalkSpeed = bSprinting ? Archetype->SprintSpeed : Archetype->WalkSpeed;
 	}
+	if (CanSneak())
+	{
+		// Crouched, the robot has no legs out to walk on: it glides on its base, picking up speed slowly and
+		// drifting to a stop instead of planting its feet.
+		Move->GroundFriction = bIsCrouched ? SlideFriction : WalkFriction;
+		Move->BrakingDecelerationWalking = bIsCrouched ? SlideBraking : WalkBraking;
+		Move->MaxAcceleration = bIsCrouched ? SlideAcceleration : WalkAcceleration;
+	}
 	else
 	{
 		bSprinting = false;
@@ -1705,8 +1746,9 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 	const float SprintTarget = bSprinting ? FMath::Clamp((Speed - Archetype->WalkSpeed * 0.8f) / SprintRange, 0.f, 1.f) : 0.f;
 	SprintAlpha = FMath::FInterpTo(SprintAlpha, SprintTarget, DeltaSeconds, 6.f);
 
-	// Footsteps every half stride. Sneaking is near silent; walking and especially sprinting carry to enemies.
-	if (Move->IsMovingOnGround() && Speed > 40.f && !bDormant)
+	// Footsteps every half stride; walking and especially sprinting carry to enemies. A crouched robot slides
+	// on its base and makes no steps at all.
+	if (Move->IsMovingOnGround() && Speed > 40.f && !bDormant && !bIsCrouched)
 	{
 		StepDistance += Speed * DeltaSeconds;
 		const float Scale = GetMesh()->GetRelativeScale3D().X;
@@ -1715,10 +1757,10 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		{
 			StepDistance = 0.f;
 			const bool bHeavy = Scale > 1.5f || Archetype->CapsuleHalfHeight > 100.f;
-			const float Volume = bIsCrouched ? 0.12f : (bPlayer ? 0.55f : 0.4f);
+			const float Volume = bPlayer ? 0.55f : 0.4f;
 			const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 			MetalAudio::PlayAt(this, bHeavy ? TEXT("footstep_heavy") : (bSprinting ? TEXT("footstep_sprint") : TEXT("footstep")), Feet, Volume, 0.12f);
-			if (bPlayer && !bIsCrouched)
+			if (bPlayer)
 			{
 				AMetalBotAIController::ReportNoise(this, Feet, bSprinting ? 1300.f : 450.f);
 			}
@@ -1985,7 +2027,7 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 
 	// The trigger: fire whenever it is held and the weapon is ready. A player has to click again for each shot
 	// of a semi-automatic weapon; AI keeps holding the trigger for its bursts.
-	if (bFireHeld && !bDead && !bDormant && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
+	if (bFireHeld && !bDead && !bDormant && !bIsCrouched && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
 	{
 		FireOnce();
 		const FMetalWeaponSlot* Slot = GetCurrentWeapon();

@@ -361,9 +361,9 @@ public:
 	float GetSecondaryReadyFraction() const;
 
 	/**
-	 * @param bNewAiming True while the aim button is held (zooms the action camera).
+	 * @param bNewAiming True while the aim button is held (zooms the action camera). Ignored while crouched.
 	 */
-	void SetAiming(bool bNewAiming) { bAiming = bNewAiming; }
+	void SetAiming(bool bNewAiming) { bAiming = bNewAiming && !bIsCrouched; }
 
 	/** @return True while the aim button is held. */
 	bool IsAiming() const { return bAiming; }
@@ -383,15 +383,28 @@ public:
 	bool IsSprinting() const { return bSprinting; }
 
 	/**
-	 * Crouches into a sneak (slow, quiet, hard to spot) or stands back up. Ignored by robots that can't crouch.
+	 * Crouches into a sneak or stands back up. Ignored by robots that can't crouch. Crouched, the robot tucks its
+	 * arms and legs into its body to pass for a console and slides around on its base: it can't shoot, aim, throw
+	 * grenades, jump or sprint (StartFire, SetAiming, ThrowGrenade and Jump are ignored), but it can still hack.
 	 *
 	 * @param bNewSneaking True to sneak.
 	 */
 	void SetSneaking(bool bNewSneaking);
 
-	/** @return True while crouched. */
+	/** @return True while crouched (in the console disguise). */
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	bool IsSneaking() const { return bIsCrouched; }
+
+	/**
+	 * Marks the crouch as the automatic one taken while hacking. Enemies don't treat that crouch as suspicious
+	 * the way they treat a robot ducking down in front of them (see AMetalBotAIController::Sense).
+	 *
+	 * @param bNewHackCrouch True while the player is hacking from this body.
+	 */
+	void SetHackCrouch(bool bNewHackCrouch) { bHackCrouch = bNewHackCrouch; }
+
+	/** @return True while crouched because the player is hacking from this body. */
+	bool IsHackCrouching() const { return bHackCrouch && bIsCrouched; }
 
 	/** @return True if this robot's archetype can sprint / crouch at all. */
 	bool CanSprint() const;
@@ -720,6 +733,8 @@ protected:
 	bool bSprinting = false;
 	/** Smoothed 0..1 crouch amount, for the animator. */
 	float CrouchAlpha = 0.f;
+	/** Crouched automatically for a hack (see SetHackCrouch). */
+	bool bHackCrouch = false;
 	/** Smoothed 0..1 sprint amount, for the animator and camera. */
 	float SprintAlpha = 0.f;
 	/** Distance walked since the last footstep. */

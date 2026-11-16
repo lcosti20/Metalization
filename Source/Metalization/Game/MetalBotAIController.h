@@ -233,4 +233,7 @@ private:
 	float AlertTime = -100.f;
 	/** Last Sense() saw a player-driven suspect (so suspicion shouldn't decay). */
 	bool bSuspectInView = false;
+	/** The suspect last Sense() saw, and whether it was standing then: crouching in front of us gives it away. */
+	TWeakObjectPtr<AMetalBotCharacter> LastSeenSuspect;
+	bool bLastSeenStanding = false;
 };

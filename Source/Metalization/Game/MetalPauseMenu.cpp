@@ -266,7 +266,7 @@ void UMetalPauseMenu::BuildTree()
 		{TEXT("WASD / Left stick"), TEXT("Move")},
 		{TEXT("Mouse / Right stick"), TEXT("Look")},
 		{TEXT("Shift / L3"), TEXT("Sprint (hold)")},
-		{TEXT("Ctrl (hold) / C / R3"), TEXT("Sneak")},
+		{TEXT("Ctrl (hold) / C / R3"), TEXT("Crouch into console disguise")},
 		{TEXT("Space / A"), TEXT("Jump, again in the air to double jump")},
 		{TEXT("Left click / RT"), TEXT("Shoot")},
 		{TEXT("Right click / LT"), TEXT("Aim (scope with the Sniper); fires a hacked Brute's rockets")},

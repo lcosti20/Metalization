@@ -147,10 +147,10 @@ void AMetalHUD::DrawHUD()
 		// The bar's hue slides from its healthy green at full health, through yellow and orange, to red when empty.
 		const FLinearColor HealthColor = FLinearColor::LerpUsingHSV(Danger, FLinearColor(0.3f, 1.f, 0.4f), FMath::Clamp(HealthFraction, 0.f, 1.f));
 		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthColor);
-		// Stance: sneaking keeps you hidden, sprinting is loud.
+		// Stance: the console disguise keeps you hidden (best when still), sprinting is loud.
 		if (Bot->IsSneaking())
 		{
-			DrawTextShadowed(TEXT("SNEAKING - quiet, hard to spot"), BarX, BarY + 24.f * UI, Cyan, Small, UI * 1.2f);
+			DrawTextShadowed(TEXT("CONSOLE DISGUISE - keep still"), BarX, BarY + 24.f * UI, Cyan, Small, UI * 1.2f);
 		}
 		else if (Bot->IsSprinting())
 		{

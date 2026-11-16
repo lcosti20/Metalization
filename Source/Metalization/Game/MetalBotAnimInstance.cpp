@@ -2,7 +2,9 @@
 
 #include "MetalBotCharacter.h"
 #include "MetalStalker.h"
+#include "AnimationRuntime.h"
 #include "Animation/AnimNodeBase.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 namespace MetalBotAnim
@@ -87,7 +89,9 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const float TargetMoveAlpha = (bCanMove && !bFalling) ? FMath::Clamp(GroundSpeed / 200.f, 0.f, 1.f) : 0.f;
 	MoveAlpha = FMath::FInterpTo(MoveAlpha, TargetMoveAlpha, DeltaSeconds, 10.f);
 	InAirAlpha = FMath::FInterpTo(InAirAlpha, bFalling && bCanMove ? 1.f : 0.f, DeltaSeconds, 8.f);
-	SlumpAlpha = FMath::FInterpTo(SlumpAlpha, Bot->IsSlumped() && !bFlyer ? 1.f : 0.f, DeltaSeconds, 5.f);
+	// A body left crouched while the player hacks stays a tidy console instead of sagging.
+	const bool bConsole = Bot->IsAlive() && Bot->IsSneaking();
+	SlumpAlpha = FMath::FInterpTo(SlumpAlpha, Bot->IsSlumped() && !bFlyer && !bConsole ? 1.f : 0.f, DeltaSeconds, 5.f);
 	BoostAlpha = FMath::FInterpTo(BoostAlpha, Flyer && Flyer->IsBoosting() ? 1.f : 0.f, DeltaSeconds, 5.f);
 	ParkedAlpha = FMath::FInterpTo(ParkedAlpha, Flyer && (Flyer->IsParked() || Flyer->IsDormant()) ? 1.f : 0.f, DeltaSeconds, 3.f);
 	StunAlpha = Bot->IsStunned() ? 1.f : FMath::FInterpTo(StunAlpha, 0.f, DeltaSeconds, 6.f);
@@ -127,6 +131,21 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	State.BoostAlpha = BoostAlpha;
 	State.ParkedAlpha = ParkedAlpha;
 	State.CrouchAlpha = Bot->GetCrouchAlpha();
+	if (HipHeight < 0.f && Bot->CanSneak())
+	{
+		// Feet are at the mesh origin, so the left thigh's bind-pose height is how far the body can sink.
+		HipHeight = 0.f;
+		if (const USkeletalMesh* Mesh = Bot->GetMesh()->GetSkeletalMeshAsset())
+		{
+			const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
+			const int32 Thigh = RefSkeleton.FindBoneIndex(Rig.ThighL);
+			if (Thigh != INDEX_NONE)
+			{
+				HipHeight = FMath::Max(0.f, static_cast<float>(FAnimationRuntime::GetComponentSpaceTransformRefPose(RefSkeleton, Thigh).GetLocation().Z));
+			}
+		}
+	}
+	State.HipHeight = FMath::Max(0.f, HipHeight);
 	State.SprintAlpha = SprintAlpha;
 
 	// Weapon swap beats (see AMetalBotCharacter::TickWeaponSwap): reach to the gun arm and twist the gun off
@@ -163,8 +182,10 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	const FMetalBotAnimState& S = State;
 	const FMetalBotRig& Rig = S.Rig;
 
-	// Character-space rotation (and translation for the pelvis) to apply to each bone, accumulated below.
+	// Character-space rotation (and translation for the pelvis) to apply to each bone, accumulated below, and a
+	// uniform scale for limbs pulled into the body (children inherit it).
 	TMap<int32, FQuat> Rotations;
+	TMap<int32, float> Scales;
 	FVector PelvisOffset = FVector::ZeroVector;
 
 	auto Find = [&Bones](FName Name) -> int32
@@ -200,6 +221,8 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	const int32 ForearmL = Find(Rig.ForearmL);
 	const int32 ForearmR = Find(Rig.ForearmR);
 
+	// Crouched, the robot is a console gliding on its base: no steps, bob or lean, just the crouch pose below.
+	const float Standing = 1.f - S.CrouchAlpha;
 	const float Cycle = S.GaitPhase * UE_TWO_PI;
 	const float Sin = FMath::Sin(Cycle);
 	const float Cos = FMath::Cos(Cycle);
@@ -218,25 +241,26 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	const float LeftArmFree = 1.f - FMath::Max(S.SwapReach, S.SwapStow);
 
 	// Walk cycle: legs swing along the movement direction, knees fold while the leg travels forward.
-	// Sprinting swings them further; sneaking takes short, careful steps.
-	const float Swing = Rig.LegSwingDegrees * S.MoveAlpha * (1.f + 0.35f * S.SprintAlpha) * (1.f - 0.4f * S.CrouchAlpha);
+	// Sprinting swings them further.
+	const float Step = S.MoveAlpha * Standing;
+	const float Swing = Rig.LegSwingDegrees * Step * (1.f + 0.35f * S.SprintAlpha);
 	Add(ThighL, SwingToward(S.MoveDirection, Swing * Sin));
 	Add(ThighR, SwingToward(S.MoveDirection, -Swing * Sin));
-	Add(KneeL, SwingToward(S.MoveDirection, -Rig.KneeBendDegrees * S.MoveAlpha * FMath::Max(0.f, Cos)));
-	Add(KneeR, SwingToward(S.MoveDirection, -Rig.KneeBendDegrees * S.MoveAlpha * FMath::Max(0.f, -Cos)));
-	PelvisOffset.Z += Rig.BobHeight * S.MoveAlpha * (FMath::Abs(Sin) - 0.5f);
-	Add(Pelvis, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(3.f * S.MoveAlpha * Sin)));
+	Add(KneeL, SwingToward(S.MoveDirection, -Rig.KneeBendDegrees * Step * FMath::Max(0.f, Cos)));
+	Add(KneeR, SwingToward(S.MoveDirection, -Rig.KneeBendDegrees * Step * FMath::Max(0.f, -Cos)));
+	PelvisOffset.Z += Rig.BobHeight * Step * (FMath::Abs(Sin) - 0.5f);
+	Add(Pelvis, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(3.f * Step * Sin)));
 
 	// Idle "breathing" so the robots never freeze completely.
-	const float Idle = (1.f - S.MoveAlpha) * Upright;
+	const float Idle = (1.f - S.MoveAlpha) * Upright * Standing;
 	PelvisOffset.Z += Idle * 0.6f * FMath::Sin(S.Time * 2.2f);
 	Add(Head, Yaw(Idle * 12.f * FMath::Sin(S.Time * 0.45f)));
 
 	// Free running: lean into the stride (legs counter-rotated so the feet stay under the body),
 	// both arms pump against the legs with the elbows bent.
-	Add(Pelvis, PitchUp(-S.Lean));
-	Add(ThighL, SwingToward(FVector::ForwardVector, S.Lean));
-	Add(ThighR, SwingToward(FVector::ForwardVector, S.Lean));
+	Add(Pelvis, PitchUp(-S.Lean * Standing));
+	Add(ThighL, SwingToward(FVector::ForwardVector, S.Lean * Standing));
+	Add(ThighR, SwingToward(FVector::ForwardVector, S.Lean * Standing));
 	const float Pump = Rig.ArmSwingDegrees * 1.6f * S.MoveAlpha * ArmsRelaxed * (1.f + 0.6f * S.SprintAlpha);
 	Add(UpperArmL, SwingToward(FVector::ForwardVector, -Pump * Sin * LeftArmFree));
 	Add(UpperArmR, SwingToward(FVector::ForwardVector, (Rig.ArmSwingDegrees * S.MoveAlpha * ArmsRelaxed + Pump) * Sin));
@@ -274,19 +298,36 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 		PelvisOffset.Z -= 9.f * S.LandAlpha;
 	}
 
-	// Sneaking: sink into a deep crouch with the body hunched forward over bent legs. The capsule shrinks
-	// around its bottom and the character raises the mesh to match, so the pelvis drops to stay grounded.
+	// Sneaking: the console disguise. The legs fold up and the arms fold against the sides, and both pull into
+	// the body (shrinking to nothing at the joint, gun included) while the body sinks to sit on the ground, upright
+	// and boxy with the head facing slightly down like a screen. The capsule shrinks around its bottom and the
+	// character raises the mesh to match, so the pelvis drops by about the hip height to reach the floor.
 	if (S.CrouchAlpha > KINDA_SMALL_NUMBER)
 	{
 		const float C = S.CrouchAlpha;
 		const float KneeSign = Rig.KneeBendDegrees >= 0.f ? 1.f : -1.f;
-		Add(ThighL, SwingToward(FVector::ForwardVector, 55.f * KneeSign * C));
-		Add(ThighR, SwingToward(FVector::ForwardVector, 55.f * KneeSign * C));
-		Add(KneeL, SwingToward(FVector::ForwardVector, -100.f * KneeSign * C));
-		Add(KneeR, SwingToward(FVector::ForwardVector, -100.f * KneeSign * C));
-		Add(Pelvis, PitchUp(-14.f * C));
-		Add(Head, PitchUp(10.f * C));
-		PelvisOffset.Z -= Rig.CrouchDrop * C;
+		Add(ThighL, SwingToward(FVector::ForwardVector, 80.f * KneeSign * C));
+		Add(ThighR, SwingToward(FVector::ForwardVector, 80.f * KneeSign * C));
+		Add(KneeL, SwingToward(FVector::ForwardVector, -150.f * KneeSign * C));
+		Add(KneeR, SwingToward(FVector::ForwardVector, -150.f * KneeSign * C));
+		Add(UpperArmL, SwingToward(FVector::RightVector, 25.f * C));
+		Add(UpperArmR, SwingToward(FVector::LeftVector, 25.f * C));
+		Add(ForearmL, SwingToward(FVector::ForwardVector, 90.f * C));
+		Add(ForearmR, SwingToward(FVector::ForwardVector, 90.f * C));
+		// The limbs retract once they've started folding, so the fold reads before they vanish.
+		const float Tuck = 1.f - 0.97f * FMath::SmoothStep(0.15f, 0.85f, C);
+		for (const int32 Limb : {ThighL, ThighR, UpperArmL, UpperArmR})
+		{
+			if (Limb != INDEX_NONE)
+			{
+				Scales.Add(Limb, Tuck);
+			}
+		}
+		Add(Head, PitchUp(-8.f * C));
+		// Gliding: a slight tilt into the slide.
+		Add(Pelvis, SwingToward(S.MoveDirection, -5.f * S.MoveAlpha * C));
+		const float Drop = S.HipHeight > 0.f ? S.HipHeight * 0.8f : Rig.CrouchDrop;
+		PelvisOffset.Z -= Drop * C;
 	}
 
 	// Weapon swap, off hand: reach across to the gun arm, twist, then swing up over the shoulder to the back
@@ -390,6 +431,10 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 		{
 			const FQuat ComponentDelta = ToComponent * (*Delta) * S.MeshToCharacter;
 			Bone.SetRotation((ComponentDelta * Bone.GetRotation()).GetNormalized());
+		}
+		if (const float* Shrink = Scales.Find(Index.GetInt()))
+		{
+			Bone.SetScale3D(Bone.GetScale3D() * *Shrink);
 		}
 		if (Index.GetInt() == Pelvis)
 		{

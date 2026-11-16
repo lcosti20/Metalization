@@ -50,7 +50,7 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | Mechanic | Controls | Where it lives |
 |---|---|---|
 | Sprint | Hold Shift / L3 | `AMetalBotCharacter::SetWantsSprint`, `TickLocomotion`; `UMetalBotArchetype::SprintSpeed` (player 1000 cm/s, walk 600) |
-| Sneak (crouch) | Hold Ctrl, or toggle with C / R3 | `SetSneaking` (engine crouch with a shorter capsule), `UMetalBotArchetype::CrouchSpeed` (260) |
+| Sneak (crouch) | Hold Ctrl, or toggle with C / R3 | `SetSneaking` (engine crouch with a shorter capsule), `UMetalBotArchetype::CrouchSpeed` (260). The robot tucks its arms and legs in to pass for a console and slides on its base. No shooting, aiming, grenades, jumping or sprinting while crouched (hacking is fine); with toggle on, pressing one of those stands the robot up. Hacking crouches the body automatically. |
 | Hearing and suspicion | — | `AMetalBotAIController::ReportNoise`, `HearNoise`, `BuildSuspicion`; HUD `DrawAwareness` |
 | Sniper rifle | RMB scope, LMB fire | `WD_Sniper`: `AimFOV` 16, `AimArmLengthScale` 0 (eye level), `bScopeOverlay`, `HipSpreadDegrees` 5; HUD `DrawScope` |
 | Anti-gravity lift | Walk in | `AMetalGravLift` (`Source/Metalization/Game/MetalGravLift.*`) |
@@ -96,15 +96,20 @@ instantly.
 - **Sight.** Spotting the player isn't instant any more. While the player is in view, a robot's suspicion
   fills from 0 to 1:
   - **Distance.** About 0.4 s up close, 3.5 s at the edge of sight.
-  - **Stance.** Sneaking makes it 2.5× slower; sprinting makes it 1.7× faster.
+  - **Stance.** Sprinting makes it 1.7× faster.
   - **Shooting.** Firing in the last 1.5 s makes it 4× faster.
-  - **Disguise.** A hijacked robot of the watcher's own side makes it 4× slower.
+  - **Disguise.** A hijacked robot of the watcher's own side, or a player crouched still as a console, makes
+    it 4× slower. A console sliding around is only 2× slower.
+  - **Ducking in view.** Crouching while a robot is watching you standing skips suspicion: it attacks at once.
+    The automatic crouch when you start a hack doesn't count.
+  - **Hacking.** The player's body, left crouched while linked to another robot, builds suspicion the same
+    way instead of being fought on sight.
 - **What a sneaking robot gets.** It is only seen at about 60% of the normal range, and isn't felt behind
   the back.
 - **What suspicion does.** At half, the robot walks over to look. When full, it attacks and alerts its squad.
 - **Other robots.** Robots that aren't the player are fought on sight, as before.
 - **Noise.** Every noise is heard within its radius, and the hearer goes to investigate:
-  - footsteps: walking 4.5 m, sprinting 13 m, sneaking silent;
+  - footsteps: walking 4.5 m, sprinting 13 m, crouched silent (it slides, no steps);
   - gunshots: the weapon's `NoiseRadius` (sniper 45 m);
   - explosions: 18 m.
 - **HUD.** A yellow "?" with a meter over curious robots, and a red "!" for 2.5 s when one spots you.
@@ -120,7 +125,7 @@ instantly.
 - **HUD additions.**
   - **Control tips:** a card under the objective (`FMetalObjective::Hint`).
   - **Objective marker:** with distance, pinned to the screen edge when off screen.
-  - **Stance line:** SNEAKING / SPRINTING.
+  - **Stance line:** CONSOLE DISGUISE / SPRINTING.
   - **Scope overlay.**
   - **Suspicion markers.**
   - **Swap state:** "SWAPPING ARM..." on the weapon panel.

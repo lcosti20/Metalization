@@ -110,7 +110,7 @@ void AMetalPlayerController::CreateInputObjects()
 	Map(Actions[TEXT("Tether")], EKeys::Gamepad_LeftShoulder);
 	Map(MakeAction(TEXT("Interact"), Bool), EKeys::E);
 	Map(Actions[TEXT("Interact")], EKeys::Gamepad_FaceButton_Right);
-	// Hold Shift to sprint; hold Ctrl (or tap C / click the left stick) to sneak.
+	// Hold Shift to sprint; hold Ctrl (or tap C / click the right stick) to crouch into the console disguise.
 	Map(MakeAction(TEXT("Sprint"), Bool), EKeys::LeftShift);
 	Map(Actions[TEXT("Sprint")], EKeys::Gamepad_LeftThumbstick);
 	Map(MakeAction(TEXT("Sneak"), Bool), EKeys::LeftControl);
@@ -291,7 +291,9 @@ void AMetalPlayerController::SprintPressed()
 {
 	if (AMetalBotCharacter* Bot = GetBot(); Bot && GetFlyer() == nullptr)
 	{
+		// Held while crouched by Ctrl, the sprint starts once Ctrl is let go.
 		Bot->SetWantsSprint(true);
+		StandUpForAction();
 	}
 }
 
@@ -305,31 +307,102 @@ void AMetalPlayerController::SprintReleased()
 
 void AMetalPlayerController::SneakPressed()
 {
-	if (AMetalBotCharacter* Bot = GetBot(); Bot && CanAct() && GetFlyer() == nullptr)
+	if (AMetalBotCharacter* Bot = GetBot(); Bot && Bot->CanSneak() && CanAct() && GetFlyer() == nullptr)
 	{
-		Bot->SetSneaking(true);
+		bSneakHeld = true;
+		ApplySneakInput();
 	}
 }
 
 void AMetalPlayerController::SneakReleased()
 {
-	if (AMetalBotCharacter* Bot = GetBot())
+	if (bSneakHeld)
 	{
-		Bot->SetSneaking(false);
+		bSneakHeld = false;
+		ApplySneakInput();
 	}
 }
 
 void AMetalPlayerController::SneakToggled()
 {
-	if (AMetalBotCharacter* Bot = GetBot(); Bot && CanAct() && GetFlyer() == nullptr)
+	if (AMetalBotCharacter* Bot = GetBot(); Bot && Bot->CanSneak() && CanAct() && GetFlyer() == nullptr)
 	{
-		Bot->SetSneaking(!Bot->IsSneaking());
+		// Crouched without Ctrl held, C always stands up (whatever crouched the robot); otherwise it flips the toggle.
+		bSneakToggle = (Bot->IsSneaking() && !bSneakHeld) ? false : !bSneakToggle;
+		ApplySneakInput();
+	}
+}
+
+void AMetalPlayerController::ApplySneakInput()
+{
+	AMetalBotCharacter* Bot = GetBot();
+	if (Bot && Bot->CanSneak() && GetFlyer() == nullptr)
+	{
+		Bot->SetSneaking(bSneakHeld || bSneakToggle || Bot->IsHackCrouching());
+	}
+}
+
+void AMetalPlayerController::LatchHeldSneak()
+{
+	if (bSneakHeld)
+	{
+		bSneakHeld = false;
+		bSneakToggle = true;
+	}
+}
+
+bool AMetalPlayerController::StandUpForAction()
+{
+	AMetalBotCharacter* Bot = GetBot();
+	if (Bot == nullptr || !Bot->IsSneaking())
+	{
+		return true;
+	}
+	if (bSneakHeld || Bot->IsHackCrouching())
+	{
+		return false;
+	}
+	bSneakToggle = false;
+	Bot->SetSneaking(false);
+	// Under a low ceiling the robot can't stand, and stays a console.
+	return !Bot->IsSneaking();
+}
+
+void AMetalPlayerController::BeginHackCrouch()
+{
+	AMetalBotCharacter* Body = PlayerBody.Get();
+	if (bHackCrouchActive || Body == nullptr || !Body->CanSneak() || !Body->IsAlive())
+	{
+		return;
+	}
+	bHackCrouchActive = true;
+	bStandAfterHack = !Body->IsSneaking();
+	// The window or the link takes the input, so a held Ctrl would never see its release.
+	LatchHeldSneak();
+	Body->SetHackCrouch(true);
+	Body->SetSneaking(true);
+}
+
+void AMetalPlayerController::EndHackCrouch()
+{
+	if (!bHackCrouchActive)
+	{
+		return;
+	}
+	bHackCrouchActive = false;
+	if (AMetalBotCharacter* Body = PlayerBody.Get())
+	{
+		Body->SetHackCrouch(false);
+		if (bStandAfterHack && !bSneakHeld && !bSneakToggle && Body->IsAlive() && !Body->IsDormant())
+		{
+			Body->SetSneaking(false);
+		}
 	}
 }
 
 void AMetalPlayerController::JumpPressed()
 {
-	if (CanAct())
+	if (CanAct() && StandUpForAction())
 	{
 		GetBot()->Jump();
 	}
@@ -345,7 +418,7 @@ void AMetalPlayerController::JumpReleased()
 
 void AMetalPlayerController::FirePressed()
 {
-	if (CanAct())
+	if (CanAct() && StandUpForAction())
 	{
 		GetBot()->StartFire();
 	}
@@ -365,12 +438,12 @@ void AMetalPlayerController::AimPressed()
 	if (Bot && Bot->HasSecondaryWeapon())
 	{
 		// Robots with a built-in second weapon (the Brute's rockets) fire it with the aim button instead of zooming.
-		if (CanAct())
+		if (CanAct() && StandUpForAction())
 		{
 			Bot->StartSecondaryFire();
 		}
 	}
-	else if (Bot)
+	else if (Bot && StandUpForAction())
 	{
 		Bot->SetAiming(true);
 	}
@@ -395,7 +468,7 @@ void AMetalPlayerController::ReloadPressed()
 
 void AMetalPlayerController::GrenadePressed()
 {
-	if (CanAct())
+	if (CanAct() && StandUpForAction())
 	{
 		GetBot()->ThrowGrenade();
 	}
@@ -500,6 +573,8 @@ void AMetalPlayerController::OpenPauseMenu()
 		Bot->StopSecondaryFire();
 		Bot->SetWantsSprint(false);
 	}
+	// A held Ctrl's release won't arrive either: stay crouched, as if toggled.
+	LatchHeldSneak();
 	if (AMetalStalker* Flyer = GetFlyer())
 	{
 		Flyer->SetBoostHeld(false);
@@ -553,6 +628,8 @@ void AMetalPlayerController::OnPossess(APawn* InPawn)
 		// A fresh spawn (start of level or respawn) is always the player's own body.
 		PlayerBody = Cast<AMetalBotCharacter>(InPawn);
 		Host.Reset();
+		bSneakToggle = false;
+		bHackCrouchActive = false;
 		// Start looking slightly down at the robot rather than level with the horizon. Applied next
 		// tick: the game mode resets the control rotation after possession (FinishRestartPlayer).
 		bApplySpawnPitch = true;
@@ -680,6 +757,8 @@ void AMetalPlayerController::OpenHackPuzzle(AMetalBotCharacter* Target)
 	Body->SetAiming(false);
 	Body->StopSecondaryFire();
 	Body->SetWantsSprint(false);
+	// Hacking is done tucked into the console disguise.
+	BeginHackCrouch();
 
 	// "BP_<Unit>Controller", from the robot's name with anything that isn't a letter or digit dropped.
 	FString UnitName;
@@ -796,6 +875,8 @@ void AMetalPlayerController::BeginPossession(AMetalBotCharacter* Target)
 	Body->StopFire();
 	Body->SetAiming(false);
 	Body->StopSecondaryFire();
+	// The body waits out the link crouched as a console (a dormant robot can't change stance, so do it first).
+	BeginHackCrouch();
 	Body->SetDormant(true);
 	Target->SetDormant(false);
 	if (!bAlly)
@@ -947,6 +1028,12 @@ void AMetalPlayerController::Tick(float DeltaSeconds)
 		{
 			TetherBeam->SetBeamEndpoints(Body->GetMuzzleLocation(), Target->GetActorLocation());
 		}
+	}
+
+	// The hack is over (puzzle closed without a link, or the link ended): put the body back how it was.
+	if (bHackCrouchActive && HackPuzzle == nullptr && !Host.IsValid())
+	{
+		EndHackCrouch();
 	}
 
 	HackCandidate = HackPuzzle ? nullptr : FindHackCandidate();
