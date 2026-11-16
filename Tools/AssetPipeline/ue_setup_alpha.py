@@ -12,11 +12,12 @@ west to east, and every section teaches one thing, simplest first, each gated by
     5  Cliff                anti-gravity lift
     6  Forward post         shooting, first weapon-arm swap (Repeater)
     7  Bunker               EMP grenades
-    8  Patrol yard          sneaking (suspicion meters, crawl pipe)
+    8  Patrol yard          sneaking (suspicion meters, crawl pipe) to a robot dispenser's off switch
     9  Sniper perch         lift + sniper rifle vs Red marksmen
     10 Shield gate          Hack Tether a Red guard
     11 Gate console         consoles (only Reds may use it); Blue reinforcements pour out
-    12 Command yard         everything at once: Blue vs Red battle, lifts, the Brute commander
+    12 Command yard         everything at once: Blue vs Red battle, lifts, the Brute commander, then
+                            shut down the two robot dispensers that keep the Reds coming
     13 Extraction
 
 Called from ue_setup_gameplay.py (MZ_LEVELS=alpha,title) after the data assets exist. The maps are rebuilt
@@ -211,6 +212,41 @@ def lift(label, pad, height, exit_dir=(1.0, 0.0, 0.0), radius=140.0, rgb=(0.25, 
 def gate(label, loc, yaw=0.0, material="MI_Alpha_Red"):
     actor = spawn(unreal.MetalGate, loc, yaw, label, "Gates")
     actor.get_component_by_class(unreal.StaticMeshComponent).set_material(0, mat(material))
+    return actor
+
+
+def dispenser(label, loc, yaw, assigned=(), choices=(), interval=5.0, max_alive=4, gate=None, tags=(), patrol=900.0, folder="Dispensers"):
+    """AMetalRobotDispenser (SM_RobotDispenser). With `assigned` robots it rebuilds them when destroyed
+    (Respawn mode); with `choices` [(archetype, weight)] it builds a random one every `interval` seconds
+    (Continuous). `gate`: stays idle until that AMetalGate opens. Its front (+X) faces `yaw`."""
+    actor = spawn(unreal.MetalRobotDispenser, loc, yaw, label, folder)
+    mesh = load(ROOT + "/Ships/SM_RobotDispenser")
+    if mesh:
+        setp(actor, dispenser_mesh=mesh)
+    if assigned:
+        setp(actor, mode=unreal.MetalDispenserMode.RESPAWN, assigned_units=list(assigned))
+        actor.record_assigned_units()
+    else:
+        setp(actor, mode=unreal.MetalDispenserMode.CONTINUOUS, spawn_interval=interval, max_alive=max_alive,
+             spawn_patrol_radius=patrol, spawn_tags=[unreal.Name(t) for t in tags],
+             spawn_choices=[setp(unreal.MetalDispenserChoice(), archetype=a, weight=wt) for a, wt in choices])
+    if gate:
+        setp(actor, activation_gate=gate)
+    return actor
+
+
+def dispenser_console(label, loc, yaw, dispensers, folder="Dispensers"):
+    """Console anyone (the player included) can use; it shuts the dispensers down. Blue screen, so it reads
+    differently from the Red-only gate consoles."""
+    actor = spawn(unreal.MetalControlConsole, loc, yaw, label, folder)
+    setp(actor, required_faction=unreal.MetalTeam.NEUTRAL, linked_dispensers=list(dispensers),
+         locked_color=unreal.LinearColor(0.1, 0.45, 1.0, 1.0),
+         prompt_text="[E] Shut down the robot dispenser" if len(dispensers) == 1 else "[E] Shut down the robot dispensers",
+         granted_text="DISPENSER OFFLINE - production halted." if len(dispensers) == 1 else "DISPENSERS OFFLINE - production halted.",
+         done_text="Already offline.")
+    for comp in actor.get_components_by_class(unreal.StaticMeshComponent):
+        if comp.get_name() == "Base":
+            comp.set_material(0, mat("MI_Alpha_Blue"))
     return actor
 
 
@@ -506,7 +542,11 @@ def build_alpha(archetypes, w):
         spot_light(f"Yard_Spot_{i}", (x, y, UP + 640), (1.0, 0.35, 0.25), 18000.0, 30.0, 1500.0)
     banner("Yard_Banner_A", 19300, 1300, UP, "Red")
     banner("Yard_Banner_B", 22700, 1300, UP, "Red")
-    zone_yard_exit = zone("Zone_YardExit", (22850, 0, UP + 150), (150, 1500, 150), rgb=(0.3, 0.9, 1.0))
+    # The robot dispenser against the north wall rebuilds every patrol that gets scrapped, so fighting
+    # through is pointless: sneak round behind it to the console that shuts it down. Its front is lit; the
+    # strip between its back plate and the cliff is dark.
+    yard_dispenser = dispenser("Yard_Dispenser", (21600, 1080, UP), -90.0, assigned=yard)
+    yard_console = dispenser_console("Yard_DispenserConsole", (21600, 1490, UP), -90.0, [yard_dispenser])
 
     # --- 9. Sniper perch (lift + sniper) ------------------------------------------------------------
     PERCH = UP + 900
@@ -601,6 +641,13 @@ def build_alpha(archetypes, w):
                bot("Red_CommandSoldier_2", A["soldier"], (35500, 500, 0), 180.0, ("Command",), 350.0),
                bot("Red_CommandCatwalk", A["shooter"], (35800, 1300, CW), 180.0, ("Command",), 0.0)]
     boss = bot("Red_Commander_Brute", A["brute"], (36300, 0, 0), 180.0, ("Boss",), 300.0)
+    # Two robot dispensers, one each side of the yard, start welding Reds the moment the gate opens: a Shooter
+    # (2/3) or a Soldier (1/3) every 5 s each, while fewer than three of theirs stand. Their off switch is
+    # on the catwalk (the raised platform on the right), guarded by its marksman.
+    reds = [(A["shooter"], 2.0), (A["soldier"], 1.0)]
+    command_dispensers = [dispenser("Command_Dispenser_S", (35000, -1250, 0), 90.0, choices=reds, max_alive=3, gate=main_gate),
+                          dispenser("Command_Dispenser_N", (36700, 1250, 0), -90.0, choices=reds, max_alive=3, gate=main_gate)]
+    command_console = dispenser_console("Command_DispenserConsole", (36050, 1470, CW), -90.0, command_dispensers)
     for i, (x, y) in enumerate([(33500, 1300), (36500, -1300)]):
         banner(f"Command_Banner_{i}", x, y, 0, "Red", 800)
     point_light("Command_Light_A", (33500, 0, 900), (1.0, 0.35, 0.15), 10000.0, 3500.0)
@@ -647,14 +694,15 @@ def build_alpha(archetypes, w):
             line("Bunker ahead. Those Reds are hunkered down behind the wall - only their heads show. Hard to hit."),
             line("Grab the grenades and lob one on them - aim and press G. EMP stuns every robot in the blast. Then pick them off."),
         ]),
-        objective("Sneak through the patrol yard", OT.REACH_ZONE, target=zone_yard_exit,
-                  hint="Hold [Ctrl] / tap [C] to sneak     ? = suspicious     ! = spotted", dialogue=[
-            line("Patrol yard. Too many to fight - sneak through. Hold Ctrl, or tap C, to crouch down."),
-            line("Crouched, you're quiet and hard to see. Stay out of the lights, or crawl through the pipe on your left."),
+        objective("Sneak behind the robot dispenser and shut it down", OT.ACTIVATE_CONSOLE, target=yard_console,
+                  hint="Hold [Ctrl] / tap [C] to sneak     ? = suspicious     ! = spotted     [E] use the console", dialogue=[
+            line("Patrol yard. See that machine by the north wall? A robot dispenser - scrap a Red and it welds a new one.", 5.5),
+            line("So don't fight. Hold Ctrl, or tap C, to crouch: you're quiet and hard to see. Stay out of the lights.", 5.5),
+            line("Its off switch is the console tucked behind it. Sneak round the back and hit E. The pipe on your left gets you past the first guards."),
             line("A question mark means one's getting curious. If one spots you, the whole yard comes running."),
         ]),
         objective("Take the perch and grab the sniper rifle", OT.REACH_ZONE, target=zone_perch, hint="Walk into the lift by the tower", dialogue=[
-            line("Good work. Ride the lift up that tower - there's a sniper rifle on the perch."),
+            line("Dispenser's dead. Whatever you scrap now stays scrapped. Ride the lift up that tower - there's a sniper rifle on the perch.", 5.5),
         ]),
         objective("Snipe the Red marksmen in the valley", OT.ELIMINATE_TAGGED, tag="Marksmen",
                   hint="[RMB] scope in   [LMB] fire   (the sniper is only accurate scoped)", dialogue=[
@@ -671,10 +719,16 @@ def build_alpha(archetypes, w):
         ]),
         objective("Destroy the Red commander", OT.ELIMINATE_TAGGED, tag="Boss", hint="Rockets and EMP grenades work wonders on a Brute", dialogue=[
             line("Gate's open! Blue squad, go go go! Their commander's a Brute - bring it down and the valley's ours."),
+            line("Heads up - their robot dispensers just powered on. They'll keep welding Reds until we shut them down.", 5.5),
             line("There's a rocket launcher by the gate. Use the lift to the catwalk if you need the high ground."),
         ]),
+        objective("Shut down the robot dispensers", OT.ACTIVATE_CONSOLE, target=command_console,
+                  hint="Take the lift to the catwalk     [E] use the console", dialogue=[
+            line("Commander's down! But those two dispensers are still welding Reds faster than we can scrap them."),
+            line("Their off switch is on the catwalk, past the marksman. Ride the lift up and shut them down."),
+        ]),
         objective("Reach the extraction pad", OT.REACH_ZONE, target=extraction, hint="", dialogue=[
-            line("Commander's down! Get to the extraction pad, soldier."),
+            line("Dispensers are offline - the yard's ours. Get to the extraction pad, soldier."),
         ]),
     ])
     mission.set_editor_property("completion_dialogue", [line("Outstanding work. The valley's ours. Blue Command out.", 6.0)])

@@ -280,6 +280,17 @@ bool AMetalBotCharacter::IsHostileTo(const AMetalBotCharacter* Other) const
 	return Other && Other != this && Team != EMetalTeam::Neutral && Other->Team != EMetalTeam::Neutral && Team != Other->Team;
 }
 
+void AMetalBotCharacter::SetAssembling(bool bNewAssembling)
+{
+	bAssembling = bNewAssembling;
+	SetCanBeDamaged(!bAssembling);
+	StopFire();
+	if (bAssembling)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+	}
+}
+
 bool AMetalBotCharacter::IsStunned() const
 {
 	return GetWorld() && GetWorld()->GetTimeSeconds() < StunEndTime;
@@ -327,7 +338,7 @@ void AMetalBotCharacter::RestoreHealth(float NewHealth)
 
 bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall) const
 {
-	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled() || (!bIgnoreFirewall && IsFirewalled()))
+	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bAssembling || bHijacked || IsPlayerControlled() || (!bIgnoreFirewall && IsFirewalled()))
 	{
 		return false;
 	}
@@ -1121,7 +1132,7 @@ int32 AMetalBotCharacter::FindHitZone(const FDamageEvent& DamageEvent) const
 
 float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (bDead || DamageAmount <= 0.f)
+	if (bDead || bAssembling || DamageAmount <= 0.f)
 	{
 		return 0.f;
 	}

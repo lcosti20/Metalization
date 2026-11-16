@@ -89,6 +89,13 @@ public:
 	/** @return The enemy this robot is fighting, or null. */
 	AMetalBotCharacter* GetTarget() const { return Target.Get(); }
 
+	/**
+	 * Moves the patrol centre, e.g. a robot built at a dispenser walks back to the post of the one it replaces.
+	 *
+	 * @param NewHome New centre of the patrol.
+	 */
+	void SetHome(const FVector& NewHome) { Home = NewHome; LastKnownLocation = NewHome; }
+
 	/** Senses on a timer, then runs the current state's Tick* function. Idle while stunned or dormant. */
 	virtual void Tick(float DeltaSeconds) override;
 

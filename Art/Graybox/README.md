@@ -12,7 +12,8 @@ Art/Graybox/
 ├── Weapons/<Name>.blend             held weapons (Laser Level 1, Repeater Level 1, Sniper Rifle, ...)
 ├── Grenades/<Name>.blend            thrown items (EMP Grenade, ...)
 ├── Pickups/<Name>.blend             pickup models (Wrench = repair kit, Ammo Crate)
-└── Ships/<Group>/<Part>.blend       capital ship pieces and the hangar kit (static meshes)
+└── Ships/<Group>/<Part>.blend       capital ship pieces, the hangar kit and other static props
+                                     (Dispenser/RobotDispenser.blend = the robot dispenser)
 ```
 
 ## Rules the pipeline relies on

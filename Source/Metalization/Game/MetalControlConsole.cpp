@@ -6,6 +6,7 @@
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
 #include "MetalGate.h"
+#include "MetalRobotDispenser.h"
 #include "TimerManager.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -15,7 +16,6 @@
 
 namespace
 {
-	const FLinearColor LockedColor(1.f, 0.15f, 0.05f);
 	const FLinearColor OpenColor(0.1f, 1.f, 0.3f);
 }
 
@@ -80,20 +80,27 @@ void AMetalControlConsole::RestoreActivated()
 			Gate->OpenInstantly();
 		}
 	}
+	for (AActor* Actor : LinkedDispensers)
+	{
+		if (AMetalRobotDispenser* Dispenser = Cast<AMetalRobotDispenser>(Actor))
+		{
+			Dispenser->Disable(true);
+		}
+	}
 }
 
 FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 {
 	if (bActivated)
 	{
-		return NSLOCTEXT("Metalization", "ConsoleDone", "The gate is already open.");
+		return DoneText;
 	}
 	// The archetype's team, not GetTeam(): a hijacked Villain fights for the Heroes but keeps its clearance.
 	// So the player's own body is refused at an enemy console and must hack a guard to use it.
 	const EMetalTeam UserFaction = User && User->Archetype ? User->Archetype->Team : EMetalTeam::Neutral;
 	// The terminal chatters as it reads the user's credentials, then answers once it has finished.
 	MetalAudio::PlayAt(this, TEXT("console_beep"), GetActorLocation(), 0.9f, 0.f);
-	if (UserFaction != RequiredFaction)
+	if (RequiredFaction != EMetalTeam::Neutral && UserFaction != RequiredFaction)
 	{
 		PlayAfterBeep(TEXT("console_denied"), 0.8f);
 		return NSLOCTEXT("Metalization", "ConsoleDenied", "ACCESS DENIED - enemy personnel only. (Maybe borrow one?)");
@@ -109,7 +116,14 @@ FText AMetalControlConsole::TryActivate(AMetalBotCharacter* User)
 			Gate->Open();
 		}
 	}
-	return NSLOCTEXT("Metalization", "ConsoleOpened", "ACCESS GRANTED - gate opening.");
+	for (AActor* Actor : LinkedDispensers)
+	{
+		if (AMetalRobotDispenser* Dispenser = Cast<AMetalRobotDispenser>(Actor))
+		{
+			Dispenser->Disable();
+		}
+	}
+	return GrantedText;
 }
 
 void AMetalControlConsole::PlayAfterBeep(FName Sound, float Volume)

@@ -145,6 +145,26 @@ namespace
 			{TEXT("checkpoint"), {{0.3f, EStep::ScrapNearestEnemy}, {0.6f, EStep::GoToCheckpoint}, {1.0f, EStep::CountRobots},
 				{1.5f, EStep::ScrapNearestEnemy}, {2.0f, EStep::CountRobots}, {2.5f, EStep::SelfDestruct}}},
 			{TEXT("checkpoint_restored"), {{0.5f, EStep::CountRobots}}},
+
+			// Robot dispensers (MZ_DispenserTest): scrap an assigned guard and watch the left dispenser weld a
+			// copy together; open the gate so the right one starts building on its timer; then shut both down
+			// from the blue console.
+
+			{TEXT("dispenser"), {{0.3f, EStep::ScrapNearestEnemy}, {0.5f, EStep::CountRobots}, {4.6f, EStep::CountRobots},
+				{5.0f, EStep::GoToConsole}, {5.5f, EStep::Interact}, {9.0f, EStep::GoToConsole}, {9.5f, EStep::Interact},
+				{10.0f, EStep::CountRobots}, {13.5f, EStep::CountRobots}}},
+
+			// Production Alpha patrol yard: scrap a patrol (the yard dispenser welds a copy), then shut the
+			// dispenser down from the console behind it.
+
+			{TEXT("yard"), {{0.3f, EStep::ScrapNearestEnemy}, {0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots},
+				{5.5f, EStep::GoToConsole}, {6.0f, EStep::Interact}, {7.0f, EStep::CountRobots}}},
+
+			// Production Alpha command yard: hack the gate guard and open the gate, which powers on the two
+			// dispensers; watch them build, then shut them down from the catwalk console.
+
+			{TEXT("command"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole},
+				{3.2f, EStep::Interact}, {13.0f, EStep::GoToConsole}, {13.5f, EStep::Interact}, {14.0f, EStep::CountRobots}}},
 			// Pickups by the shield gate: walk into the Rocket Launcher, fire and reload it (reload bar + sound),
 			// then step onto the grenades (sphere) and the ammo crate. The repair wrench stays (full health).
 			{TEXT("pickups"), {{0.5f, EStep::Run}, {1.4f, EStep::Stop}, {4.0f, EStep::Fire}, {4.15f, EStep::StopFire}, {4.3f, EStep::Reload},
@@ -560,12 +580,23 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::DodgeLeft:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(-1.f); } break;
 	case EStep::DodgeRight:  if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(1.f); } break;
 	case EStep::GoToConsole:
+	{
+		// The nearest console not used yet (Production Alpha has dispenser consoles as well as the gate's).
+		const AMetalControlConsole* Best = nullptr;
 		for (TActorIterator<AMetalControlConsole> It(GetWorld()); It; ++It)
 		{
-			Me->TeleportTo(It->GetActorLocation() + It->GetActorForwardVector() * 120.f + FVector(0.f, 0.f, 80.f), Me->GetActorRotation());
-			break;
+			if (!It->IsActivated() && (Best == nullptr ||
+				FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), Me->GetActorLocation())))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			Me->TeleportTo(Best->GetActorLocation() + Best->GetActorForwardVector() * 120.f + FVector(0.f, 0.f, 80.f), Best->GetActorRotation() + FRotator(0.f, 180.f, 0.f));
 		}
 		break;
+	}
 	}
 }
 

@@ -76,6 +76,9 @@
   "material:GB_W_SprayerL1": "f44c087a4ff7836e3efc5968610c71a58071b6e5593bcb561b8191380dfbdeb0",
   "material:GB_W_SprayerL3": "f44c087a4ff7836e3efc5968610c71a58071b6e5593bcb561b8191380dfbdeb0",
   "material:GB_WeaponDark": "5573853cf511adbd04a8136f068d9fbab8abe111012fe9ef3f8d526ed225479d",
+  "material:GB_disp_Band": "ac6717d0e33333dea135e1f2614ad5081a627efe492d3d7aeb933102ae37f8b2",
+  "material:GB_disp_Glow": "e7f2712f8e73045e80e6c5f03b15c4b4fdd39ff2296b1f9e2b6cb67f5c1e6885",
+  "material:GB_disp_Tank": "c29734e9204d4fd48007ab93c6b547945971d709f569fac05b134224d24489fa",
   "material:GB_hangar_Floor": "9b60d1a53e58464883a2b025cad60abf06a7b700bf9bfba37fdc59bd76d4dcc2",
   "material:GB_hangar_Hazard": "3240ed481c6bbbf97c3c80f64db9694813a09904574ee818e9dfe5412ee2bc1f",
   "material:GB_hangar_Wall": "6a573c6283416ee075d327ff755cc4ad41cf5fe42e505cb378c76f171eb7c53a",
@@ -170,6 +173,7 @@
   "ship:Hangar_BlastDoor": "bc52e5952f7cf18ce8f18a5cfbb2506cc28d67fabc264bf6c39daf13a699e315",
   "ship:Hangar_Pad": "767b8aa06b8c37fadd27be342d7a24d44f88b11f9d33e331bd9f0be6d292c3cb",
   "ship:Hangar_Shell": "65d5f3d83216b64cb0facd655f5676779d6b2b9e46c1e61806fc3d8f82721cee",
+  "ship:RobotDispenser": "d674dec2456dbbdf13b5ec5f98426bca255de1bfe22d12192d0f2bdd6758d660",
   "sound:alert": "1614e5c050d508f4fbcfe8f995b671d99032f59416863a15d9d518d5a5764e3a",
   "sound:ambience_loop": "770deb9957d0ce1653168f0af72175a5d5c557b47891597cd870f20d9ed5d9ff",
   "sound:battle_loop": "0619ae65c81d72dfdebfe955f59c49bb70d4952056943c163020aa55e9537db9",
@@ -178,6 +182,9 @@
   "sound:console_beep": "d38113d28f6b2723c72817bc89f4d1257ff27f16a3f309793e7aba965570a383",
   "sound:console_denied": "0be82840c4b3c36ef31e8eda41122632f610b42f06253199d90e5c5ed255b705",
   "sound:console_granted": "1217e98c4a52551aa486bf3588e9b2057814bd62461b6c8ce1df3829dc0f8a10",
+  "sound:dispenser_drill": "bf7043383a0571c3eeadb1cbc4a9b4d654b181b9ff38077e80b37c5db110630f",
+  "sound:dispenser_hammer": "ab4ed2f47926b3d14c34c9becbc97778723bf770380231b034382e8b71f85e3a",
+  "sound:dispenser_shutdown": "77e79fa93704bb87e340db58d5d2ec7f85a65cbf919ea734a3b0cd9725b099d3",
   "sound:double_jump": "0b7b49979c6e896d56e3896cae3a856ee23eb442a4ddc6d9ce947315c1e7d82a",
   "sound:emp_blast": "56b4eb34615553f38e40b549b71d6ef09890a769f6181cd8585e273c778699c7",
   "sound:enemy_laser_fire": "dd74fa2eaf950cba64bd0a4cbbe8811740038d5d3744c76a8acde3a5a92aaaf7",
@@ -263,11 +270,12 @@
   "sound:voice_pain6": "89ab72ae3fec67c1266a9f7ece4405fd7dd01dc96106a4340fd6697eb09ae288"
  },
  "levels": {
-  "alpha": "8bac9e1b1032e570fe89bffa94daf333f9f4d18b36b6f43302d3af0334ec1fdf",
+  "alpha": "a6689910a3e648a1d5290279c9d019640b312aaad5fceda32535039feb1d0977",
   "arena": "e70aea65785067975a6f976dbb734f05f6146c54f0a488562a28c4535434eedd",
+  "dispenser": "63ce3ccca0be24e4270aadb9f5cff933bc2529cb4ac97374c50e45792c328d87",
   "flight": "7a3a05c335f91bb93f3417ccc810da90664a8e437ab9317d95e24ce2921835e3",
-  "outpost": "21b9b10cd9cb5e4b4fc4e878cacdd60e97179bf2ab2820b3be34547e1df048f6",
-  "space": "2f9a34fddded1dcb106833a185561014276d5005eb7b2cd3f2bc0906ebb4e76f",
-  "title": "8bac9e1b1032e570fe89bffa94daf333f9f4d18b36b6f43302d3af0334ec1fdf"
+  "outpost": "9d740a072da39febbbe345f0d661cdfb348056edc99dd7b4ae4ed568080711d9",
+  "space": "549c2c61a875871f4cc4151fd62d0393e093441da81969639671550b96fb424d",
+  "title": "a6689910a3e648a1d5290279c9d019640b312aaad5fceda32535039feb1d0977"
  }
 }

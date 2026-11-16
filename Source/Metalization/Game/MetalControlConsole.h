@@ -27,13 +27,29 @@ public:
 	/** Builds the placeholder base, screen and light from engine cubes. */
 	AMetalControlConsole();
 
-	/** Robots on this team can operate the console. */
+	/** Robots on this team can operate the console; Neutral lets anyone (the player included) use it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
 	EMetalTeam RequiredFaction = EMetalTeam::Villains;
 
 	/** Gates (AMetalGate) opened on activation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
 	TArray<TObjectPtr<AActor>> LinkedGates;
+
+	/** Robot dispensers (AMetalRobotDispenser) shut down on activation. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
+	TArray<TObjectPtr<AActor>> LinkedDispensers;
+
+	/** Screen colour until the console is used. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
+	FLinearColor LockedColor = FLinearColor(1.f, 0.15f, 0.05f);
+
+	/** Shown when the console is used successfully. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
+	FText GrantedText = NSLOCTEXT("Metalization", "ConsoleOpened", "ACCESS GRANTED - gate opening.");
+
+	/** Shown when the console is used again. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")
+	FText DoneText = NSLOCTEXT("Metalization", "ConsoleDone", "The gate is already open.");
 
 	/** Distance in cm within which the player is offered the prompt. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Console")

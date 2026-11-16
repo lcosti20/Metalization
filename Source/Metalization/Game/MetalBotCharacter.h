@@ -191,8 +191,19 @@ public:
 	/** Powered down: body left behind during possession, or a robot with no ragdoll that died. */
 	bool IsSlumped() const { return bDormant || (bDead && !bRagdoll); }
 
-	/** @return True while the robot is switched off (its controller is driving another robot). */
-	bool IsDormant() const { return bDormant; }
+	/** @return True while the robot is switched off (its controller is driving another robot), or still being assembled. */
+	bool IsDormant() const { return bDormant || bAssembling; }
+
+	/** @return True while an AMetalRobotDispenser is still building this robot. */
+	bool IsAssembling() const { return bAssembling; }
+
+	/**
+	 * Marks the robot as being built by a robot dispenser: like dormant (no AI, firing or moving) but it
+	 * stands upright, can't be damaged or hacked, and the dispenser decides which parts are drawn.
+	 *
+	 * @param bNewAssembling True while the dispenser works on it; false powers it on.
+	 */
+	void SetAssembling(bool bNewAssembling);
 
 	/** @return True once the weapon arm (or every built-in gun) has been shot off; the robot then fights in melee. */
 	bool IsWeaponDisabled() const { return bWeaponDisabled; }
@@ -752,6 +763,8 @@ protected:
 	bool bRagdoll = false;
 	/** Switched off: no firing, moving or footsteps (see SetDormant). */
 	bool bDormant = false;
+	/** Being built by a robot dispenser (see SetAssembling). */
+	bool bAssembling = false;
 	bool bHijacked = false;
 	/** World time the firewall from a failed hack drops (see RaiseFirewall). */
 	float FirewallEndTime = -1.f;

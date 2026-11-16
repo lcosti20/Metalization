@@ -38,11 +38,11 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | 5 | Cliff | **Anti-grav lift** | A 10 m cliff. The lift (`AMetalGravLift`) carries you up and drops you on the plateau. |
 | 6 | Forward post | Shooting, **weapon-arm swap** | A Blue squad holds the sandbags while a Red squad waits beyond sight range. A Repeater lies by the sandbags, and picking it up plays the first acted-out arm swap. Pushing forward pulls the Reds into a firefight with you and the Blues. |
 | 7 | Bunker | Grenades | Three Reds hunker behind a chest-high wall, with only their heads showing. Grab grenades and lob one (it arcs onto the crosshair); the EMP blast stuns them all. |
-| 8 | Patrol yard | **Sneaking** | A walled yard with four patrols under red spotlights and low walls. A crawl pipe on the left only fits a crouched robot. Suspicion meters show who's getting curious; being spotted brings the yard running (no mission fail). **Checkpoint.** |
+| 8 | Patrol yard | **Sneaking**, robot dispenser | A walled yard with four patrols under red spotlights and low walls. A crawl pipe on the left only fits a crouched robot. Suspicion meters show who's getting curious; being spotted brings the yard running (no mission fail). A **robot dispenser** by the north wall rebuilds every patrol that gets scrapped, so the goal is to sneak round behind it to the console that shuts it down. **Checkpoint.** |
 | 9 | Sniper perch | Lift + **sniper** | A lift to a tower perch with the sniper rifle. Three Red marksmen with red laser sights cover the valley from their towers. **Checkpoint** on the perch. |
 | 10 | Shield gate | Hacking | A Red-only energy fence. The Hack Tether goes through it to take over the guard. **Checkpoint** across the valley just short of the fence. |
 | 11 | Gate console | Consoles | Walk the hijacked Red to the Red-only console. Reds barely suspect one of their own. The console opens the gate and the Blue reinforcement hangar. |
-| 12 | Command yard | Everything | Blue reinforcements storm in. Reds, a catwalk reached by lift and a Brute commander. A rocket launcher waits by the gate. |
+| 12 | Command yard | Everything | Blue reinforcements storm in. Reds, a catwalk reached by lift and a Brute commander. A rocket launcher waits by the gate. Two **robot dispensers**, one on each side, power on with the gate and weld a Shooter (2/3) or a Soldier (1/3) every 5 s while fewer than three of theirs stand. After the Brute, shut them down from the console on the catwalk. |
 | 13 | Extraction | — | Reach the pad, then the results screen. |
 
 ## New mechanics
@@ -56,6 +56,7 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | Anti-gravity lift | Walk in | `AMetalGravLift` (`Source/Metalization/Game/MetalGravLift.*`) |
 | Acted-out weapon swap | 1–6 / wheel / Y | `EquipWeapon` → `TickWeaponSwap`; poses in `UMetalBotAnimInstance` |
 | Jetpack | fires on the double jump | `BuildJetpack` / `FireJetpack` / `TickJetpack`; archetype `bHasJetpack`, rig `JetpackOffset` / `JetpackSpread` |
+| Robot dispenser | [E] at its console | `AMetalRobotDispenser` (`MetalRobotDispenser.*`): Respawn mode rebuilds its `AssignedUnits`, Continuous mode builds from weighted `SpawnChoices` every `SpawnInterval`; each robot takes `AssemblyTime` (2 s), welded on part by part. `AMetalControlConsole::LinkedDispensers` shuts it down. Test map `MZ_DispenserTest` |
 
 ### Jetpack
 
@@ -148,6 +149,9 @@ Each new beat has an autopilot smoke test that drives it and records a log and s
 | `sneak` | Crawl the pipe past the yard patrols without being spotted (logs every robot's suspicion) |
 | `sniper` | Scope in from the perch and drop a marksman with one shot |
 | `hack` | Hijack the guard through the fence, open the gate, Blue reinforcements engage |
+| `yard` | Scrap a yard patrol, watch the dispenser rebuild it, then shut the dispenser down from the console behind it |
+| `command` | Open the gate (the command-yard dispensers power on and start building), then shut them down from the catwalk console |
+| `dispenser` | `MZ_DispenserTest`: an assigned guard is rebuilt, the gate starts the timed dispenser, the console shuts both down |
 | `title` | Title screen and menu |
 
 ```powershell

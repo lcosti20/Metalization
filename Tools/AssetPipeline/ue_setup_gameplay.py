@@ -11,11 +11,12 @@ Run after ue_import_assets.py (see run_pipeline.ps1). Creates:
 
 The maps are regenerated from scratch every run - make manual layout changes on a copy.
     /Game/Metalization/Maps/MZ_ProductionAlpha  the Production Alpha mission, + MZ_Title (ue_setup_alpha.py)
+    /Game/Metalization/Maps/MZ_DispenserTest     robot dispenser test map (ue_setup_dispenser.py)
     /Game/Metalization/Data/DA_Sounds           sound library (UMetalSoundLibrary) over /Game/Metalization/Audio
 
 Maps are only rebuilt when their inputs changed (their level script, plus the model sizes/sockets the
 Outpost and Space maps place things by) or the map is missing; the hashes are kept under "levels" in
-import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space to
+import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space,dispenser to
 force those, or MZ_FULL=1 to rebuild them all.
 """
 import hashlib
@@ -805,6 +806,7 @@ LEVELS = {
     "arena": (["ue_setup_arena.py"], [], ["MZ_Arena"]),
     "flight": (["ue_setup_flight.py"], [], ["MZ_FlightTest"]),
     "space": (["ue_setup_space.py"], ["ships"], ["MZ_SpaceBattle", "MZ_CapitalShip_Interior"]),
+    "dispenser": (["ue_setup_dispenser.py", "ue_setup_alpha.py"], [], ["MZ_DispenserTest"]),
 }
 
 
@@ -872,6 +874,9 @@ def main():
     if "space" in levels:
         import ue_setup_space
         ue_setup_space.build_space_maps(archetypes)
+    if "dispenser" in levels:
+        import ue_setup_dispenser
+        ue_setup_dispenser.build_dispenser_test(archetypes)
     # Record what the rebuilt maps were made from (the import stage owns the "imports" section). Adopting
     # records every map as up to date without rebuilding it.
     for name in (list(LEVELS) if os.environ.get("MZ_ADOPT") == "1" else levels):

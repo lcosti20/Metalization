@@ -656,6 +656,28 @@ def build(name, rng):
             pew = env(osc(0.18, rng.uniform(900, 1600), "saw", 250, curve=0.5), 0.001, curve=5)
             parts.append((lowpass(pew, 1500), t, rng.uniform(0.05, 0.15)))
         return loopable(mix(*parts)[:int(10.6 * RATE)], 0.6)
+    if name == "dispenser_drill":
+        # ~0.4 s (one part of the robot dispenser's 2 s build): a power drill spinning up, biting with a
+        # chattering whine, and spinning down.
+        n = int(0.42 * RATE)
+        motor = osc(0.42, 520, "saw", 880, curve=0.4, vibrato=0.03, vibrato_rate=37)
+        bite = [0.55 + 0.45 * abs(math.sin(TWO_PI * 19 * i / RATE)) for i in range(n)]
+        whine = [x * b for x, b in zip(lowpass(motor, 3800), bite)]
+        grit = [x * b for x, b in zip(bandpass(noise(0.42, rng), 1800, 6000), bite)]
+        shape = [min(1.0, i / (0.05 * RATE)) * min(1.0, (n - i) / (0.08 * RATE)) for i in range(n)]
+        return drive([v * g for v, g in zip(mix((whine, 0, 0.8), (grit, 0, 0.45)), shape)], 1.8)
+    if name == "dispenser_hammer":
+        # A part hammered home: a dull thump, a bright metal clang and a short ring-out.
+        thump = env(osc(0.25, 120, "sine", 48, curve=0.5), 0.001, curve=7)
+        clang = ring(0.45, [610, 1490, 2370, 3650, 5100], rng, 6)
+        click = env(highpass(noise(0.03, rng), 2000), 0.0, curve=8)
+        return drive(mix((thump, 0, 1.0), (clang, 0, 0.6), (click, 0, 0.5)), 2.2)
+    if name == "dispenser_shutdown":
+        # The dispenser powering down for good: the motor winds down, sputters, and a relay clunks off.
+        wind = env(osc(1.3, 420, "saw", 35, curve=0.6, vibrato=0.05, vibrato_rate=9), 0.01, curve=2)
+        sputter = [x if (i // 1500) % 3 else 0.0 for i, x in enumerate(env(bandpass(noise(1.0, rng), 300, 2500), 0.0, curve=3))]
+        clunk = mix(env(osc(0.3, 90, "sine", 40), 0.001, curve=6), (ring(0.4, [430, 1170, 1990], rng, 6), 0, 0.5))
+        return drive(mix((lowpass(wind, 2200), 0, 0.8), (sputter, 0.1, 0.3), (clunk, 1.15, 1.0)), 1.8)
     if name.startswith("voice_"):
         return robot_voice(name[len("voice_"):].rstrip("0123456789"), rng)
     raise KeyError(name)
@@ -671,7 +693,10 @@ SOUNDS = [
     "ui_move", "ui_select", "ambience_loop", "battle_loop",
     # New sounds go last: each sound's random seed is its index, so inserting would change the others.
     "low_health", "radio_whistle_loop", "console_beep",
-] + VOICE_SOUNDS
+] + VOICE_SOUNDS + [
+    # Added after the voices so their seeds (= list index) stay the same.
+    "dispenser_drill", "dispenser_hammer", "dispenser_shutdown",
+]
 
 
 # Library name -> file in Art/Music. Names ending _loop loop. Credit every track in CREDITS.txt.
