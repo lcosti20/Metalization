@@ -38,7 +38,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -155,7 +155,7 @@ namespace
 				{10.0f, EStep::CountRobots}, {13.5f, EStep::CountRobots}}},
 
 			// Production Alpha patrol yard: scrap a patrol (the yard dispenser welds a copy), then shut the
-			// dispenser down from the console behind it.
+			// dispenser down from the console beside it.
 
 			{TEXT("yard"), {{0.3f, EStep::ScrapNearestEnemy}, {0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots},
 				{5.5f, EStep::GoToConsole}, {6.0f, EStep::Interact}, {7.0f, EStep::CountRobots}}},
@@ -165,6 +165,28 @@ namespace
 
 			{TEXT("command"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole},
 				{3.2f, EStep::Interact}, {13.0f, EStep::GoToConsole}, {13.5f, EStep::Interact}, {14.0f, EStep::CountRobots}}},
+
+			// Production Alpha final area out of order: open the gate, scrap the yard while the dispensers still
+			// run (the "clear the yard" objective stays locked and they weld replacements), shut them down with
+			// two of their robots standing (checkpoint), then get scrapped. "endgame_restored" must bring those
+			// two back (the yard objective still open), clears the yard with the Brute still alive, then
+			// finishes the Brute, which must be what unlocks the extraction objective.
+
+			{TEXT("endgame"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole},
+				{3.2f, EStep::Interact}, {7.5f, EStep::Tether}, {8.0f, EStep::ScrapCommandYard}, {8.5f, EStep::CountRobots},
+				{11.5f, EStep::GoToConsole}, {12.0f, EStep::Interact}, {12.5f, EStep::CountRobots}, {13.0f, EStep::SelfDestruct}}},
+
+			// Patrol yard (Respawn dispenser): scrap a patrol, let the dispenser rebuild it, step into the yard
+			// checkpoint, get scrapped. The rebuilt copy must come back in its slot, without a second copy being
+			// welded (the count must hold steady after the retry).
+
+			{TEXT("yardcheckpoint"), {{0.3f, EStep::ScrapYardPatrol}, {0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots},
+				{5.2f, EStep::GoToCheckpoint}, {5.6f, EStep::SelfDestruct}}},
+
+			{TEXT("yardcheckpoint_restored"), {{0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots}}},
+
+			{TEXT("endgame_restored"),{{0.5f, EStep::CountRobots}, {1.0f, EStep::ScrapCommandYard}, {1.5f, EStep::CountRobots},
+				{2.0f, EStep::ScrapBoss}, {2.5f, EStep::CountRobots}}},
 			// Pickups by the shield gate: walk into the Rocket Launcher, fire and reload it (reload bar + sound),
 			// then step onto the grenades (sphere) and the ammo crate. The repair wrench stays (full health).
 			{TEXT("pickups"), {{0.5f, EStep::Run}, {1.4f, EStep::Stop}, {4.0f, EStep::Fire}, {4.15f, EStep::StopFire}, {4.3f, EStep::Reload},
@@ -364,7 +386,9 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
 			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
-			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup")};
+			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
+			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::ScrapYardPatrol) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -451,8 +475,38 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		{
 			Standing += It->IsAlive() && Me->IsHostileTo(*It) ? 1 : 0;
 		}
-		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hostile robots standing: %d (objective %d, at %s)"), Standing,
-			GameMode && GameMode->GetMission() ? GameMode->GetMission()->GetCurrentObjectiveIndex() : -1, *Me->GetActorLocation().ToCompactString());
+		// The current objective group: + done, > active, - locked.
+		FString Group;
+		if (const AMetalMission* Mission = GameMode ? GameMode->GetMission() : nullptr)
+		{
+			for (const FMetalObjectiveStatus& Status : Mission->GetObjectiveList())
+			{
+				Group += FString::Printf(TEXT(" %c%d"), Status.State == EMetalObjectiveState::Done ? TEXT('+') : Status.State == EMetalObjectiveState::Locked ? TEXT('-') : TEXT('>'), Status.Index);
+			}
+		}
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hostile robots standing: %d (objective %d [%s ], mission %s, at %s)"), Standing,
+			GameMode && GameMode->GetMission() ? GameMode->GetMission()->GetCurrentObjectiveIndex() : -1, *Group,
+			GameMode && GameMode->IsMissionComplete() ? TEXT("complete") : TEXT("running"), *Me->GetActorLocation().ToCompactString());
+		break;
+	}
+	case EStep::ScrapCommandYard:
+	case EStep::ScrapBoss:
+	case EStep::ScrapYardPatrol:
+	{
+		const FName Tag = Action == EStep::ScrapBoss ? FName(TEXT("Boss")) : Action == EStep::ScrapYardPatrol ? FName(TEXT("Yard")) : FName(TEXT("Command"));
+		int32 Scrapped = 0;
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			if (It->ActorHasTag(Tag) && It->IsAlive() && !It->IsHijacked())
+			{
+				UGameplayStatics::ApplyDamage(*It, 1.e6f, PC, Me, UDamageType::StaticClass());
+				if (++Scrapped == 1 && Action == EStep::ScrapYardPatrol)
+				{
+					break;
+				}
+			}
+		}
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    scrapped %d robots tagged %s"), Scrapped, *Tag.ToString());
 		break;
 	}
 	case EStep::ScrapNearestEnemy:

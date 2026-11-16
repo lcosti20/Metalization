@@ -54,8 +54,12 @@ When the player's own body dies:
    running level, and restores the weapons the player died with (each topped up by half its maximum reserve) and
    at least two grenades.
 
-Only actors placed in the map are tracked. An actor spawned during play that should survive a checkpoint would
-need its own entry in the snapshot.
+Only actors placed in the map are tracked, with one exception: robots built by an `AMetalRobotDispenser` that are
+finished and standing are saved too (`DispensedBots`: dispenser, slot, archetype, transform, health). After the
+other restores, each dispenser puts its own back fully built (`RestoreBuiltRobot`): into its Respawn slot, so it
+doesn't weld a second copy, or counted against `MaxAlive`. A robot still on the pad isn't saved; the dispenser
+just builds it again. Any other actor spawned during play that should survive a checkpoint would need its own
+entry in the snapshot.
 
 ### Completion
 
@@ -89,6 +93,18 @@ An `AMetalMission` actor placed in the level holds an ordered list of `FMetalObj
 
 To add an objective type, add the enum value and a case in `AMetalMission::IsObjectiveComplete`.
 
+**Objective groups.** An objective with `bWithNext` is active at the same time as the next one; a run of them
+is a group. The player can complete a group's objectives in any order, and the mission only moves on once all
+of them are done. Inside a group, `Requires` lists the `Id`s of objectives that must be done first: until then
+the objective is locked (listed greyed out, not checked, and its `StartDialogue` waits until it unlocks). The
+HUD lists the whole group with `[x]` for done ones, shows the hint card and marker of every active one, and
+each completion plays the objective's `CompleteDialogue`. `bCheckpointOnComplete` saves a checkpoint where the
+player's own body stands when the objective is done (and repairs it). The checkpoint snapshot stores the group's
+first index and which of its objectives were done, so a retry resumes with the same ones ticked off.
+
+Production Alpha's command yard is one group: destroy the Brute, shut down the dispensers (`Id`
+`Dispensers`, checkpoint), clear the yard (`Requires` `Dispensers`). Extraction follows the group.
+
 In non-shipping builds, `-MetalObjective=N` on the command line starts at objective N.
 
 ## Level actors
@@ -97,7 +113,7 @@ In non-shipping builds, `-MetalObjective=N` on the command line starts at object
 |---|---|
 | `AMetalTriggerZone` | Box volume with an optional glowing floor disc. With `bIsCheckpoint`, the first time the player's **own body** enters it sets the checkpoint and fully repairs the player. Its `Dialogue` plays the first time the player enters in any body. Also the target of `ReachZone` objectives |
 | `AMetalControlConsole` | Opens its `LinkedGates` and shuts down its `LinkedDispensers` when operated by a robot whose **archetype** belongs to `RequiredFaction` (Villains by default; `Neutral` lets anyone, the player included, use it). With Villains the player can't use it in their own body; they have to hijack an enemy and walk it over. A hijacked robot fights for the Heroes but keeps its archetype, which is why the check uses the archetype's team. `LockedColor`, `PromptText`, `GrantedText` and `DoneText` set its screen colour and messages |
-| `AMetalRobotDispenser` | A Villain machine (`SM_RobotDispenser`) that welds robots together on its pad in `AssemblyTime` (2 s). The parts appear one at a time (legs and torso, each arm, head, then the gun) under sparks, with drill and hammer sounds, and the robot only powers on (`AMetalBotCharacter::SetAssembling`) once it is finished. **Respawn** mode rebuilds each of its `AssignedUnits` `RespawnDelay` seconds after it is destroyed and sends the copy back to the original's post. `RecordAssignedUnits` (run by the level scripts) stores what to rebuild, so units that a checkpoint restore removes are rebuilt too. **Continuous** mode picks from the weighted `SpawnChoices` every `SpawnInterval` seconds while fewer than `MaxAlive` of its robots stand. `ActivationGate` keeps it idle until that gate opens, and a standing robot on the pad holds up the next build. A console's `Disable` is permanent; checkpoints restore it through the console |
+| `AMetalRobotDispenser` | A Villain machine (`SM_RobotDispenser`) that welds robots together on its pad in `AssemblyTime` (2 s). The parts appear one at a time (legs and torso, each arm, head, then the gun) under sparks, with drill and hammer sounds, and the robot only powers on (`AMetalBotCharacter::SetAssembling`) once it is finished. **Respawn** mode rebuilds each of its `AssignedUnits` `RespawnDelay` seconds after it is destroyed and sends the copy back to the original's post. `RecordAssignedUnits` (run by the level scripts) stores what to rebuild, so units that a checkpoint restore removes are rebuilt too. **Continuous** mode picks from the weighted `SpawnChoices` every `SpawnInterval` seconds while fewer than `MaxAlive` of its robots stand. `ActivationGate` keeps it idle until that gate opens, and a standing robot on the pad holds up the next build. A console's `Disable` is permanent; checkpoints restore it through the console, and bring back the finished robots it had built |
 | `AMetalGate` | A door slab that slides by `OpenOffset` over `OpenTime` once `Open()` is called |
 | `AMetalPickup` | Floating, spinning collectible: repair, ammo (fraction of reserve), grenades, or a weapon (granted, or upgraded one level if owned). Only the player's own body collects it, and it stays put if it would have no effect |
 

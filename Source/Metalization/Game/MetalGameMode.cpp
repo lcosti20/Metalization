@@ -93,7 +93,7 @@ void AMetalGameMode::BeginPlay()
 	}
 	if (Mission && bRestoredFromCheckpoint && RestoreSnapshot.ObjectiveIndex != INDEX_NONE)
 	{
-		Mission->RestoreObjective(this, RestoreSnapshot.ObjectiveIndex);
+		Mission->RestoreObjective(this, RestoreSnapshot.ObjectiveIndex, RestoreSnapshot.CompletedObjectives);
 		ShowBanner(NSLOCTEXT("Metalization", "CheckpointRestored", "CHECKPOINT"), 2.f);
 	}
 	else if (Mission)

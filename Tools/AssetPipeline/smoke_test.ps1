@@ -33,6 +33,8 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
                          dispenser; shut both down from the console
     -Scenario yard       Production Alpha patrol yard: scrap a patrol, watch the dispenser rebuild it, shut it down
     -Scenario command    Production Alpha: open the gate, the command-yard dispensers start; shut them down on the catwalk
+  -Scenario endgame   Production Alpha final area out of order: yard before Brute, die after the dispenser checkpoint (their robots come back), finish the Brute
+  -Scenario yardcheckpoint  Production Alpha patrol yard: a rebuilt patrol saved at the checkpoint comes back once, not twice
 
 Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
 Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
@@ -43,7 +45,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command")]
+                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -77,10 +79,12 @@ $setups = @{
     "pickups" = @("-MetalObjective=10", "-MetalTeleport=30300,-700,120,0", "-MetalShots=0.3,1.6,4.45,4.9,5.3,6.8,7.6", "-MetalQuitAt=8.5")
     "dispenser" = @("-MetalCam=1900,-850,230,-6,-20;1900,-850,230,-6,-20;1900,-850,230,-6,-20;1900,-850,230,-6,-20;1900,850,230,-6,20;1900,850,230,-6,20;1900,850,230,-6,20;600,0,700,-25,0",
                     "-MetalShots=1.0,2.6,3.2,3.9,6.3,6.9,7.6,10.2", "-MetalQuitAt=14")
-    "yard" = @("-MetalObjective=7", "-MetalTeleport=21000,1350,1330,-90", "-MetalCam=20700,250,1650,-12,50;20700,250,1650,-12,50;20700,250,1650,-12,50;21100,1900,1700,-30,-60",
+    "yard" = @("-MetalObjective=7", "-MetalTeleport=20650,1350,1330,-90", "-MetalCam=20700,250,1650,-12,50;20700,250,1650,-12,50;20700,250,1650,-12,50;21100,1900,1700,-30,-60",
                "-MetalShots=1.0,2.9,3.6,6.6", "-MetalQuitAt=8")
     # No -MetalCam: the tether aims from the view, so a fixed camera would make the hack miss.
     "command" = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=5.5,8.5,13.2,14.5", "-MetalQuitAt=16")
+    "yardcheckpoint" = @("-MetalObjective=7", "-MetalTeleport=18600,-1225,1330,0", "-MetalQuitAt=19")
+    "endgame" = @("-MetalObjective=10", "-MetalTeleport=30650,650,120,0", "-MetalShots=8.7,12.4", "-MetalQuitAt=27")
     "bridge" = @("-MetalObjective=3", "-MetalTeleport=9100,0,120,0", "-MetalShots=1.0,1.4,2.0,3.0", "-MetalQuitAt=4")
     "checkpoint" = @("-MetalObjective=7", "-MetalTeleport=18600,-1225,1330,0", "-MetalShots=1.2,2.2,3.0", "-MetalQuitAt=9")
     "bunker" = @("-MetalObjective=6", "-MetalTeleport=16550,500,1330,0", "-MetalShots=1.2,2.6,4.5,8,11", "-MetalQuitAt=13")
@@ -88,7 +92,7 @@ $setups = @{
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }
 $maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
-           "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "field" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "yard" = "MZ_ProductionAlpha"; "command" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "dispenser" = "MZ_DispenserTest"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
+           "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "field" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "yard" = "MZ_ProductionAlpha"; "command" = "MZ_ProductionAlpha"; "endgame" = "MZ_ProductionAlpha"; "yardcheckpoint" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "dispenser" = "MZ_DispenserTest"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
 $suffix = if ($Packaged) { "_packaged" } else { "" }
 $log = "$Project\Saved\smoke_$Scenario$suffix.log".Replace("\", "/")

@@ -29,6 +29,27 @@ struct FMetalBotSnapshot
 	bool bDormant = false;
 };
 
+/** A robot an AMetalRobotDispenser had built (spawned during play, so not a placed actor). */
+USTRUCT()
+struct FMetalDispensedBotSnapshot
+{
+	GENERATED_BODY()
+
+	/** Key of the dispenser that built it. */
+	UPROPERTY()
+	FString Dispenser;
+
+	/** Its Respawn slot, or INDEX_NONE for a Continuous build. */
+	UPROPERTY()
+	int32 Slot = INDEX_NONE;
+
+	UPROPERTY()
+	TObjectPtr<UMetalBotArchetype> Archetype;
+
+	UPROPERTY()
+	FMetalBotSnapshot State;
+};
+
 /**
  * Everything about a level that a checkpoint restores. Actors are identified by their path inside the
  * world ("PersistentLevel.Bot_Shooter3"), which is the same every time the map loads, so only actors
@@ -59,9 +80,13 @@ struct FMetalLevelSnapshot
 	UPROPERTY()
 	int32 Grenades = 0;
 
-	/** AMetalMission's active objective. */
+	/** AMetalMission's active objective (the first of its group). */
 	UPROPERTY()
 	int32 ObjectiveIndex = INDEX_NONE;
+
+	/** Objectives of that group that were already complete. */
+	UPROPERTY()
+	TArray<int32> CompletedObjectives;
 
 	/** Villains the player had destroyed. */
 	UPROPERTY()
@@ -74,6 +99,10 @@ struct FMetalLevelSnapshot
 	/** Living robots, by actor path. */
 	UPROPERTY()
 	TMap<FString, FMetalBotSnapshot> Bots;
+
+	/** Living robots built by dispensers; their dispensers spawn them again on restore. */
+	UPROPERTY()
+	TArray<FMetalDispensedBotSnapshot> DispensedBots;
 
 	/** Consoles that had been activated (their gates open). */
 	UPROPERTY()

@@ -162,6 +162,25 @@ public:
 	/** @return True while a robot is being built on the pad. */
 	bool IsAssembling() const { return Building.IsValid(); }
 
+	/**
+	 * Calls Visit for every finished robot this dispenser built that is still standing (for checkpoint
+	 * snapshots, which only track placed actors otherwise). Placed originals in AssignedUnits are skipped.
+	 *
+	 * @param Visit Called with the robot and its Respawn slot (INDEX_NONE for a Continuous build).
+	 */
+	void ForEachBuiltRobot(TFunctionRef<void(AMetalBotCharacter* Robot, int32 Slot)> Visit) const;
+
+	/**
+	 * Puts back a robot it had built when a checkpoint was saved: spawned finished (no assembly), in its
+	 * Respawn slot (so it isn't rebuilt) or counted against MaxAlive.
+	 *
+	 * @param Archetype What it was.
+	 * @param Slot      Respawn slot, or INDEX_NONE.
+	 * @param Transform Where it stood.
+	 * @return The robot, or null if it couldn't be spawned.
+	 */
+	AMetalBotCharacter* RestoreBuiltRobot(UMetalBotArchetype* Archetype, int32 Slot, const FTransform& Transform);
+
 	/** Runs the build in progress and, a few times a second, decides what to build next. */
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -202,6 +221,17 @@ private:
 
 	/** Starts building a robot. Slot is the Respawn slot it replaces, or INDEX_NONE (Continuous). @return True if started. */
 	bool StartBuild(UMetalBotArchetype* Archetype, int32 Slot);
+
+	/**
+	 * Spawns one of its robots with the slot's (or SpawnTags') tags, patrol and team, and registers it in
+	 * the slot or in Spawned.
+	 *
+	 * @param bAssembling Spawn it powered off for a build on the pad.
+	 */
+	AMetalBotCharacter* SpawnRobot(UMetalBotArchetype* Archetype, int32 Slot, const FTransform& Transform, bool bAssembling);
+
+	/** @return Where a robot from Slot patrols: the original's post, or a spot in front of the machine. */
+	FVector PostFor(int32 Slot) const;
 
 	/** Advances the robot on the pad: welds on the parts in turn and finishes it. */
 	void TickBuild(float Now);

@@ -274,32 +274,53 @@ void AMetalHUD::DrawHUD()
 		MeasureText(TEXT("Ag"), LabelW, LabelH, Small, UI * 1.2f);
 		MeasureText(TEXT("Ag"), ObjW, ObjH, Medium, UI);
 		const float ObjectiveY = 24.f * UI + LabelH;
-		const float HintY = ObjectiveY + ObjH + 16.f * UI;
-		const FText Objective = GameMode->GetObjectiveText();
-		if (!Objective.IsEmpty())
-		{
-			DrawTextShadowed(TEXT("OBJECTIVE"), 40.f * UI, 24.f * UI, Amber, Small, UI * 1.2f);
-			DrawTextShadowed(Objective.ToString(), 40.f * UI, ObjectiveY, FLinearColor::White, Medium, UI);
-		}
 		if (const AMetalMission* Mission = GameMode->GetMission(); Mission && !GameMode->IsMissionComplete())
 		{
-			// Control tip for the current step, in a panel under the objective.
-			const FText Hint = Mission->GetCurrentHint();
-			if (!Hint.IsEmpty())
+			// The current group's objectives: active in white, still locked in grey, done in green.
+			const TArray<FMetalObjectiveStatus> List = Mission->GetObjectiveList();
+			float HintY = ObjectiveY;
+			if (List.Num() > 0)
+			{
+				DrawTextShadowed(List.Num() > 1 ? TEXT("OBJECTIVES") : TEXT("OBJECTIVE"), 40.f * UI, 24.f * UI, Amber, Small, UI * 1.2f);
+				float Y = ObjectiveY;
+				for (const FMetalObjectiveStatus& Status : List)
+				{
+					FString Text = Mission->Objectives[Status.Index].Description.ToString();
+					FLinearColor Color = FLinearColor::White;
+					if (List.Num() > 1)
+					{
+						switch (Status.State)
+						{
+						case EMetalObjectiveState::Done:   Text = TEXT("[x] ") + Text; Color = FLinearColor(0.35f, 0.95f, 0.45f); break;
+						case EMetalObjectiveState::Locked: Text = TEXT("[ ] ") + Text; Color = FLinearColor(0.5f, 0.5f, 0.5f); break;
+						default:                           Text = TEXT("[ ] ") + Text; break;
+						}
+					}
+					DrawTextShadowed(Text, 40.f * UI, Y, Color, Medium, UI);
+					Y += ObjH + 6.f * UI;
+				}
+				HintY = Y + 10.f * UI;
+			}
+			// Control tips for the active steps, in panels under the objectives.
+			for (const FText& Hint : Mission->GetCurrentHints())
 			{
 				float TW = 0.f, TH = 0.f;
 				MeasureText(Hint.ToString(), TW, TH, Medium, UI);
-				const float Y = HintY;
-				DrawRect(Panel, 34.f * UI, Y - 6.f * UI, TW + 24.f * UI, TH + 12.f * UI);
-				DrawRect(Cyan, 34.f * UI, Y - 6.f * UI, 4.f * UI, TH + 12.f * UI);
-				DrawTextShadowed(Hint.ToString(), 46.f * UI, Y, FLinearColor(0.85f, 0.97f, 1.f), Medium, UI);
+				DrawRect(Panel, 34.f * UI, HintY - 6.f * UI, TW + 24.f * UI, TH + 12.f * UI);
+				DrawRect(Cyan, 34.f * UI, HintY - 6.f * UI, 4.f * UI, TH + 12.f * UI);
+				DrawTextShadowed(Hint.ToString(), 46.f * UI, HintY, FLinearColor(0.85f, 0.97f, 1.f), Medium, UI);
+				HintY += TH + 20.f * UI;
 			}
 			// Where to go (hidden while scoped so it doesn't clutter the sight picture).
-			FVector Target;
-			if (Bot && Scope < 0.5f && Mission->GetObjectiveMarker(Target))
+			if (Bot && Scope < 0.5f)
 			{
-				const int32 Meters = FMath::RoundToInt(FVector::Dist(Target, Bot->GetActorLocation()) / 100.f);
-				DrawMarker(Target, FString::Printf(TEXT("%d m"), Meters), Amber, UI, true);
+				TArray<FVector> Targets;
+				Mission->GetObjectiveMarkers(Targets);
+				for (const FVector& Target : Targets)
+				{
+					const int32 Meters = FMath::RoundToInt(FVector::Dist(Target, Bot->GetActorLocation()) / 100.f);
+					DrawMarker(Target, FString::Printf(TEXT("%d m"), Meters), Amber, UI, true);
+				}
 			}
 		}
 		// System notices.

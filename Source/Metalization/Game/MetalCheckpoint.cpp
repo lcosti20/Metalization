@@ -3,6 +3,7 @@
 #include "MetalControlConsole.h"
 #include "MetalGameMode.h"
 #include "MetalMission.h"
+#include "MetalRobotDispenser.h"
 #include "MetalTriggerZone.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
@@ -45,6 +46,7 @@ void UMetalCheckpointSubsystem::Capture(const AMetalGameMode* GameMode, const AM
 		Snapshot.Grenades = PlayerBody->Grenades;
 	}
 	Snapshot.ObjectiveIndex = GameMode->GetMission() ? GameMode->GetMission()->GetCurrentObjectiveIndex() : INDEX_NONE;
+	Snapshot.CompletedObjectives = GameMode->GetMission() ? GameMode->GetMission()->GetCompletedInGroup() : TArray<int32>();
 	Snapshot.Kills = GameMode->GetKills();
 
 	for (TActorIterator<AActor> It(World); It; ++It)
@@ -71,6 +73,19 @@ void UMetalCheckpointSubsystem::Capture(const AMetalGameMode* GameMode, const AM
 		{
 			Snapshot.ActivatedConsoles.Add(Key);
 		}
+		else if (const AMetalRobotDispenser* Dispenser = Cast<AMetalRobotDispenser>(Actor))
+		{
+			Dispenser->ForEachBuiltRobot([this, &Key](AMetalBotCharacter* Robot, int32 Slot)
+			{
+				FMetalDispensedBotSnapshot& Entry = Snapshot.DispensedBots.AddDefaulted_GetRef();
+				Entry.Dispenser = Key;
+				Entry.Slot = Slot;
+				Entry.Archetype = Robot->Archetype;
+				Entry.State.Transform = Robot->GetActorTransform();
+				Entry.State.Health = Robot->GetHealth();
+				Entry.State.bDormant = Robot->IsDormant();
+			});
+		}
 		else if (const AMetalTriggerZone* Zone = Cast<AMetalTriggerZone>(Actor))
 		{
 			if (Zone->IsCheckpointUsed())
@@ -85,8 +100,8 @@ void UMetalCheckpointSubsystem::Capture(const AMetalGameMode* GameMode, const AM
 		Snapshot.LiveActors.Add(Key);
 	}
 	bHasSnapshot = true;
-	UE_LOG(LogMetal, Log, TEXT("[Checkpoint] snapshot of %s: objective %d, %d robots standing, %d placed actors"),
-		*Snapshot.MapName, Snapshot.ObjectiveIndex, Snapshot.Bots.Num(), Snapshot.LiveActors.Num());
+	UE_LOG(LogMetal, Log, TEXT("[Checkpoint] snapshot of %s: objective %d, %d robots standing (+%d built by dispensers), %d placed actors"),
+		*Snapshot.MapName, Snapshot.ObjectiveIndex, Snapshot.Bots.Num(), Snapshot.DispensedBots.Num(), Snapshot.LiveActors.Num());
 }
 
 void UMetalCheckpointSubsystem::PrepareRetry(int32 Deaths, float Elapsed)
@@ -180,6 +195,33 @@ void UMetalCheckpointSubsystem::ApplyAfterBeginPlay(UWorld* World, const FMetalL
 		{
 			Console->RestoreActivated();
 		}
+	}
+
+	// Robots the dispensers had built: each dispenser puts its own back, finished, so it doesn't build
+	// them again (Respawn slots) and counts them against its limit (Continuous).
+	TMap<FString, AMetalRobotDispenser*> Dispensers;
+	for (TActorIterator<AMetalRobotDispenser> It(World); It; ++It)
+	{
+		Dispensers.Add(KeyOf(*It), *It);
+	}
+	int32 Rebuilt = 0;
+	for (const FMetalDispensedBotSnapshot& Entry : Snapshot.DispensedBots)
+	{
+		AMetalRobotDispenser* const* Dispenser = Dispensers.Find(Entry.Dispenser);
+		AMetalBotCharacter* Robot = Dispenser ? (*Dispenser)->RestoreBuiltRobot(Entry.Archetype, Entry.Slot, Entry.State.Transform) : nullptr;
+		if (Robot)
+		{
+			Robot->RestoreHealth(Entry.State.Health);
+			if (Entry.State.bDormant)
+			{
+				Robot->SetDormant(true);
+			}
+			Rebuilt++;
+		}
+	}
+	if (Snapshot.DispensedBots.Num() > 0)
+	{
+		UE_LOG(LogMetal, Log, TEXT("[Checkpoint] put back %d of %d robots built by dispensers"), Rebuilt, Snapshot.DispensedBots.Num());
 	}
 
 	const APlayerController* PC = World->GetFirstPlayerController();

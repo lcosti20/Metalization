@@ -281,32 +281,11 @@ bool AMetalRobotDispenser::StartBuild(UMetalBotArchetype* Archetype, int32 Slot)
 	const FVector Pad = SocketLocation(TEXT("assembly"), FVector(25.f, 0.f, 30.f));
 	const FVector Location = Pad + FVector(0.f, 0.f, Archetype->CapsuleHalfHeight + 3.f);
 	const FRotator Facing(0.f, GetActorRotation().Yaw, 0.f);
-
-	FActorSpawnParameters Params;
-	Params.OverrideLevel = GetLevel();
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Params.bDeferConstruction = true;
-	AMetalBotCharacter* Robot = GetWorld()->SpawnActor<AMetalBotCharacter>(AMetalBotCharacter::StaticClass(), Location, Facing, Params);
+	AMetalBotCharacter* Robot = SpawnRobot(Archetype, Slot, FTransform(Facing, Location), true);
 	if (Robot == nullptr)
 	{
 		return false;
 	}
-	Robot->Archetype = Archetype;
-	if (UnitRecords.IsValidIndex(Slot))
-	{
-		const FMetalDispenserUnit& Record = UnitRecords[Slot];
-		Robot->Tags = Record.Tags;
-		Robot->PatrolRadius = Record.PatrolRadius;
-		Robot->bOverrideTeam = Record.bOverrideTeam;
-		Robot->TeamOverride = Record.TeamOverride;
-	}
-	else
-	{
-		Robot->Tags = SpawnTags;
-		Robot->PatrolRadius = SpawnPatrolRadius;
-	}
-	Robot->SetAssembling(true);
-	Robot->FinishSpawning(FTransform(Facing, Location));
 
 	// Nothing shows until the first part is welded on. The body appears part by part through hidden bones;
 	// the gun and the extra parts (all following the body's pose) wait for the end.
@@ -372,6 +351,40 @@ bool AMetalRobotDispenser::StartBuild(UMetalBotArchetype* Archetype, int32 Slot)
 	NextPart = 0;
 	DrilledPart = INDEX_NONE;
 	NextSparkTime = 0.f;
+	return true;
+}
+
+AMetalBotCharacter* AMetalRobotDispenser::SpawnRobot(UMetalBotArchetype* Archetype, int32 Slot, const FTransform& Transform, bool bAssembling)
+{
+	FActorSpawnParameters Params;
+	Params.OverrideLevel = GetLevel();
+	Params.SpawnCollisionHandlingOverride = bAssembling ? ESpawnActorCollisionHandlingMethod::AlwaysSpawn
+		: ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	Params.bDeferConstruction = true;
+	AMetalBotCharacter* Robot = GetWorld()->SpawnActor<AMetalBotCharacter>(AMetalBotCharacter::StaticClass(), Transform, Params);
+	if (Robot == nullptr)
+	{
+		return nullptr;
+	}
+	Robot->Archetype = Archetype;
+	if (UnitRecords.IsValidIndex(Slot))
+	{
+		const FMetalDispenserUnit& Record = UnitRecords[Slot];
+		Robot->Tags = Record.Tags;
+		Robot->PatrolRadius = Record.PatrolRadius;
+		Robot->bOverrideTeam = Record.bOverrideTeam;
+		Robot->TeamOverride = Record.TeamOverride;
+	}
+	else
+	{
+		Robot->Tags = SpawnTags;
+		Robot->PatrolRadius = SpawnPatrolRadius;
+	}
+	if (bAssembling)
+	{
+		Robot->SetAssembling(true);
+	}
+	Robot->FinishSpawning(Transform);
 	if (Slots.IsValidIndex(Slot))
 	{
 		Slots[Slot].Robot = Robot;
@@ -381,7 +394,54 @@ bool AMetalRobotDispenser::StartBuild(UMetalBotArchetype* Archetype, int32 Slot)
 	{
 		Spawned.Add(Robot);
 	}
-	return true;
+	return Robot;
+}
+
+FVector AMetalRobotDispenser::PostFor(int32 Slot) const
+{
+	return UnitRecords.IsValidIndex(Slot) ? UnitRecords[Slot].Post : GetActorLocation() + GetActorForwardVector() * LaunchDistance;
+}
+
+void AMetalRobotDispenser::ForEachBuiltRobot(TFunctionRef<void(AMetalBotCharacter* Robot, int32 Slot)> Visit) const
+{
+	// A robot still on the pad isn't saved: the dispenser simply builds it again after the retry.
+	auto Standing = [this](const AMetalBotCharacter* Robot)
+	{
+		return Robot && Robot->IsAlive() && !Robot->IsActorBeingDestroyed() && Robot != Building.Get() && !Robot->IsAssembling();
+	};
+	for (int32 Index = 0; Index < Slots.Num(); ++Index)
+	{
+		AMetalBotCharacter* Robot = Slots[Index].Robot.Get();
+		const bool bOriginal = AssignedUnits.IsValidIndex(Index) && AssignedUnits[Index].Get() == Robot;
+		if (Standing(Robot) && !bOriginal)
+		{
+			Visit(Robot, Index);
+		}
+	}
+	for (const TWeakObjectPtr<AMetalBotCharacter>& Weak : Spawned)
+	{
+		if (AMetalBotCharacter* Robot = Weak.Get(); Standing(Robot))
+		{
+			Visit(Robot, INDEX_NONE);
+		}
+	}
+}
+
+AMetalBotCharacter* AMetalRobotDispenser::RestoreBuiltRobot(UMetalBotArchetype* Archetype, int32 Slot, const FTransform& Transform)
+{
+	if (Archetype == nullptr || (Slot != INDEX_NONE && !Slots.IsValidIndex(Slot)))
+	{
+		return nullptr;
+	}
+	AMetalBotCharacter* Robot = SpawnRobot(Archetype, Slot, Transform, false);
+	if (Robot)
+	{
+		if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(Robot->GetController()))
+		{
+			AI->SetHome(PostFor(Slot));
+		}
+	}
+	return Robot;
 }
 
 void AMetalRobotDispenser::TickBuild(float Now)
@@ -452,8 +512,7 @@ void AMetalRobotDispenser::FinishBuild()
 	Robot->SetAssembling(false);
 	Robot->Speak(EMetalBark::Chatter);
 	// Off the pad and on to its post: the original's for a rebuilt unit, a spot in front of the machine otherwise.
-	const FVector Post = UnitRecords.IsValidIndex(Slot) ? UnitRecords[Slot].Post
-		: GetActorLocation() + GetActorForwardVector() * LaunchDistance;
+	const FVector Post = PostFor(Slot);
 	if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(Robot->GetController()))
 	{
 		AI->SetHome(Post);
