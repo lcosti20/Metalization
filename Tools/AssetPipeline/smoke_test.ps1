@@ -1,4 +1,4 @@
-﻿<#
+<#
 Launches the demo in standalone game mode with the dev autopilot and collects screenshots.
 
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1                 # combat loop
@@ -45,7 +45,7 @@ Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
-                 "sound", "alpha", "swap", "lift", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint")]
+                 "sound", "alpha", "swap", "lift", "liftai", "drop", "hop", "ditch", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint")]
     [string]$Scenario = "combat",
     [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
     [switch]$Packaged
@@ -67,6 +67,10 @@ $setups = @{
     "alpha"  = @("-MetalObjective=1", "-MetalTeleport=1300,0,120,0", "-MetalShots=1.5,3.5,5.5,8", "-MetalQuitAt=10")
     "swap"   = @("-MetalObjective=5", "-MetalTeleport=12650,350,1330,0", "-MetalCam=12790,470,1350,-8,-140",
                  "-MetalShots=1.5,3.25,3.45,3.65,3.85,4.1,5.4,9", "-MetalQuitAt=10")
+    "ditch"  = @("-MetalLureAt=8100,-300,-80", "-MetalObjective=3", "-MetalTeleport=8700,300,120,0", "-MetalShots=1.5,3,4.5", "-MetalQuitAt=9")
+    "hop"    = @("-MetalLureAt=7250,-300,100", "-MetalObjective=3", "-MetalTeleport=6400,300,120,0", "-MetalShots=1.5,3,4.5", "-MetalQuitAt=9")
+    "drop"   = @("-MetalLureAt=12100,-300,1330", "-MetalObjective=4", "-MetalTeleport=10900,300,370,0", "-MetalShots=3,5,7,10", "-MetalQuitAt=12")
+    "liftai" = @("-MetalObjective=5", "-MetalTeleport=12300,0,1350,180", "-MetalShots=2,5,8,11", "-MetalQuitAt=13")
     "lift"   = @("-MetalObjective=4", "-MetalTeleport=10850,0,370,0", "-MetalShots=1.2,2.2,3.0,4.5", "-MetalQuitAt=6")
     "sneak"  = @("-MetalObjective=7", "-MetalTeleport=19000,-1225,1330,0", "-MetalShots=2,6,10,14", "-MetalQuitAt=16")
     "sniper" = @("-MetalObjective=9", "-MetalTeleport=23380,1000,2240,0", "-MetalShots=0.8,2.6,3.2,5.2", "-MetalQuitAt=7")
@@ -91,7 +95,7 @@ $setups = @{
     "ships"  = @("-MetalCam=-150000,0,60000,-20,0;40000,-140000,25000,-19,124;18000,30000,2000,-2,90;-18000,-30000,2000,-2,-90",
                  "-MetalShots=1.5,2.5,3.5,4.5", "-MetalQuitAt=5.5")
 }
-$maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
+$maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "liftai" = "MZ_ProductionAlpha"; "drop" = "MZ_ProductionAlpha"; "hop" = "MZ_ProductionAlpha"; "ditch" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
            "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "field" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "yard" = "MZ_ProductionAlpha"; "command" = "MZ_ProductionAlpha"; "endgame" = "MZ_ProductionAlpha"; "yardcheckpoint" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "dispenser" = "MZ_DispenserTest"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
 $map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
 $suffix = if ($Packaged) { "_packaged" } else { "" }

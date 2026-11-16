@@ -4,6 +4,9 @@
 #include "MetalBotCharacter.h"
 #include "MetalFX.h"
 #include "MetalStalker.h"
+#include "AIController.h"
+#include "NavLinkCustomComponent.h"
+#include "NavAreas/NavArea_Null.h"
 #include "Components/AudioComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -62,6 +65,8 @@ AMetalGravLift::AMetalGravLift()
 	Light->SetAttenuationRadius(900.f);
 	Light->SetCastShadows(false);
 	Light->SetLightColor(FLinearColor(0.25f, 0.85f, 1.f));
+
+	NavLink = CreateDefaultSubobject<UNavLinkCustomComponent>(TEXT("NavLink"));
 }
 
 void AMetalGravLift::OnConstruction(const FTransform& Transform)
@@ -87,12 +92,42 @@ void AMetalGravLift::OnConstruction(const FTransform& Transform)
 		Light->SetRelativeLocation(FVector(0.f, 0.f, PadZ + 60.f));
 		Light->SetLightColor(Color);
 	}
+
+	// No navmesh inside the column: AI never strolls through it by accident, and generated jump links can't
+	// land in it (a robot dropping off a ledge into the beam would just be carried back up).
+	NavLink->ClearNavigationObstacle();
+	NavLink->AddNavigationObstacle(UNavArea_Null::StaticClass(), FVector(Radius, Radius, Half + 40.f), FVector(0.f, 0.f, Half));
+
+	// AI nav link: from just behind the column -> a point on the landing just past it, one way (the lift only
+	// goes up). The robot walks forward into the beam from there. Trace down at the landing spot for its floor
+	// height; fall back to the usual "landing is 80 cm below the top of the column" the level scripts use.
+	const FVector Exit = ExitDirection.GetSafeNormal2D();
+	if (Exit.IsNearlyZero())
+	{
+		NavLink->SetEnabled(false);
+		return;
+	}
+	NavLink->SetEnabled(true);
+	FVector End = Exit * (Radius + NavLandingDistance) + FVector(0.f, 0.f, LiftHeight - 80.f);
+	if (UWorld* World = GetWorld())
+	{
+		const FVector Above = Transform.TransformPosition(Exit * (Radius + NavLandingDistance) + FVector(0.f, 0.f, LiftHeight + 100.f));
+		const FVector Below = Above - FVector(0.f, 0.f, 600.f);
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(GravLiftLanding), false, this);
+		if (World->LineTraceSingleByChannel(Hit, Above, Below, ECC_WorldStatic, Params))
+		{
+			End.Z = Transform.InverseTransformPosition(Hit.ImpactPoint).Z;
+		}
+	}
+	NavLink->SetLinkData(-Exit * (Radius + 60.f) + FVector(0.f, 0.f, 10.f), End, ENavLinkDirection::LeftToRight);
 }
 
 void AMetalGravLift::BeginPlay()
 {
 	Super::BeginPlay();
 	Trigger->OnComponentEndOverlap.AddDynamic(this, &AMetalGravLift::OnEndOverlap);
+	NavLink->SetMoveReachedLink(this, &AMetalGravLift::OnAIReachedLink);
 	if (UMaterialInterface* Glow = MetalAssets::GetGlowMaterial())
 	{
 		auto Paint = [this, Glow](UStaticMeshComponent* Mesh, float Intensity) {
@@ -117,6 +152,17 @@ bool AMetalGravLift::IsCarrying(const AActor* Actor) const
 	return Riders.Contains(TWeakObjectPtr<AMetalBotCharacter>(const_cast<AMetalBotCharacter*>(Cast<AMetalBotCharacter>(Actor))));
 }
 
+void AMetalGravLift::OnAIReachedLink(UNavLinkCustomComponent* Link, UObject* PathFollowing, const FVector& Destination)
+{
+	if (const UActorComponent* Component = Cast<UActorComponent>(PathFollowing))
+	{
+		if (AAIController* AI = Cast<AAIController>(Component->GetOwner()))
+		{
+			Boarding.Add(AI, GetWorld()->GetTimeSeconds());
+		}
+	}
+}
+
 void AMetalGravLift::OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	if (AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(OtherActor); Bot && Riders.Contains(Bot))
@@ -134,6 +180,11 @@ void AMetalGravLift::Release(AMetalBotCharacter* Bot, bool bAtTop)
 		Move->SetMovementMode(MOVE_Falling);
 	}
 	Move->MaxFlySpeed = 600.f;
+	if (AAIController* AI = Cast<AAIController>(Bot->GetController()))
+	{
+		AI->ResumeMove(FAIRequestID::CurrentRequest);
+		UE_LOG(LogMetal, Display, TEXT("[AI] %s leaves %s %s"), *Bot->GetName(), *GetName(), bAtTop ? TEXT("at the top") : TEXT("sideways"));
+	}
 	if (bAtTop)
 	{
 		// Toss the rider onto the landing and give back a mid-air jump for anything just out of reach.
@@ -192,9 +243,29 @@ void AMetalGravLift::Tick(float DeltaSeconds)
 			}
 			continue;
 		}
+		// AI robots only board when their path took them to the nav link (in the last few seconds). One
+		// brushing the beam while strafing, or dropping down through it from a ledge, is going somewhere else:
+		// carrying it up would undo its move.
+		AAIController* AI = Cast<AAIController>(Bot->GetController());
+		if (!bRiding && AI)
+		{
+			const float* Reached = Boarding.Find(AI);
+			if (Reached == nullptr || GetWorld()->GetTimeSeconds() - *Reached > 5.f)
+			{
+				continue;
+			}
+			Boarding.Remove(AI);
+		}
 		if (!bRiding)
 		{
 			Riders.Add(Bot);
+			// An AI rider stops steering (its path would pull it out of the column sideways) and picks the
+			// path up again when it's let go at the top.
+			if (AI)
+			{
+				AI->PauseMove(AI->GetCurrentMoveRequestID());
+				UE_LOG(LogMetal, Display, TEXT("[AI] %s rides %s"), *Bot->GetName(), *GetName());
+			}
 			Bot->UnCrouch();
 			Move->SetMovementMode(MOVE_Flying);
 			Move->MaxFlySpeed = LiftSpeed + 300.f;

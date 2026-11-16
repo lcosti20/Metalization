@@ -54,6 +54,9 @@ private:
 	 */
 	AMetalBotCharacter* FindNearest(bool bHackableOnly, FName Tag) const;
 
+	/** Enemy the liftai scenario dropped at a lift, reported by ReportHeights. */
+	TWeakObjectPtr<AMetalBotCharacter> LuredEnemy;
+
 	/** Closest friendly robot the player can link to (a parked Stalker). */
 	AMetalBotCharacter* FindNearestLinkable() const;
 

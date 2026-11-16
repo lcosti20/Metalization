@@ -99,6 +99,9 @@ public:
 	/** Senses on a timer, then runs the current state's Tick* function. Idle while stunned or dormant. */
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Refuses new moves while a gravlift carries the robot, so the paused path through the lift survives. */
+	virtual FPathFollowingRequestResult MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath = nullptr) override;
+
 protected:
 	/** Remembers the spawn point as Home (the patrol centre) and starts patrolling. */
 	virtual void OnPossess(APawn* InPawn) override;
@@ -174,10 +177,28 @@ private:
 	 *
 	 * @param Center  Centre of the search.
 	 * @param Radius  Search radius in cm.
-	 * @param bStrafe Keep facing the focus (the target) while moving.
+	 * @param bStrafe Keep facing the focus (the target) while moving. Strafe points must be walkable (no jump
+	 *                links or lifts on the way); if none is found near Center it sidesteps near itself instead.
+	 * @param bAllowClimb With bStrafe: if nothing is walkable, take a point that needs a jump (the target is
+	 *                    above it, e.g. it's down in a pit, so climbing out is the point).
 	 * @return True if a move request was started.
 	 */
-	bool MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe);
+	bool MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe, bool bAllowClimb = false);
+
+	/**
+	 * Jumps across generated jump links (ledge drops, hops onto ledges and over low obstacles) when the path
+	 * following starts one, and uses a mid-air jump if the robot has one and is still short of the landing.
+	 * Big drops are just walked off. Custom links (gravlifts) are left to their owners.
+	 */
+	void TickNavLinkJump();
+
+	/** Path and segment of the jump link being crossed, so each link is jumped once. */
+	const void* JumpLinkPath = nullptr;
+	int32 JumpLinkSegment = INDEX_NONE;
+	/** Height of the landing point of the jump link being crossed. */
+	float JumpLinkEndZ = 0.f;
+	/** The link being crossed climbs, so a mid-air jump may be needed to reach its end. */
+	bool bJumpLinkRises = false;
 
 	/** Enemy being fought, if any. */
 	TWeakObjectPtr<AMetalBotCharacter> Target;

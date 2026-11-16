@@ -11,6 +11,8 @@
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "NavMesh/NavMeshPath.h"
 
 namespace
 {
@@ -384,15 +386,60 @@ void AMetalBotAIController::ReportNoise(AMetalBotCharacter* Instigator, const FV
 	}
 }
 
-bool AMetalBotAIController::MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe)
+FPathFollowingRequestResult AMetalBotAIController::MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath)
+{
+	// Walkers only fly while a gravlift carries them (flyers have their own controller). The lift paused the
+	// move that led into it and resumes it at the top; a new request now would replan from mid-air.
+	const AMetalBotCharacter* Bot = GetBot();
+	if (Bot && Bot->GetCharacterMovement()->MovementMode == MOVE_Flying)
+	{
+		FPathFollowingRequestResult Result;
+		Result.Code = EPathFollowingRequestResult::Failed;
+		return Result;
+	}
+	return Super::MoveTo(MoveRequest, OutPath);
+}
+
+bool AMetalBotAIController::MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe, bool bAllowClimb)
 {
 	UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	FNavLocation Point;
-	if (Nav && Nav->GetRandomReachablePointInRadius(Center, Radius, Point))
+	const AMetalBotCharacter* Bot = GetBot();
+	if (Nav == nullptr || Bot == nullptr)
 	{
+		return false;
+	}
+	// Strafing is a sidestep, not a trip: prefer points the robot can walk to over ones it could only reach by a
+	// jump link or a lift (the other side of a barricade, the level above), which would have it hopping back and
+	// forth mid-fight. The last tries look around the robot itself. If nothing is walkable and the target is
+	// above (it's down in a pit), take a jump: it climbs out.
+	FVector Fallback = FVector::ZeroVector;
+	bool bHasFallback = false;
+	// (With a climb allowed, climbing beats sidestepping inside the pit, so skip the tries near itself.)
+	for (int32 Try = 0; Try < (bStrafe ? (bAllowClimb ? 4 : 6) : 1); ++Try)
+	{
+		FNavLocation Point;
+		const bool bNearSelf = Try >= 4;
+		if (!Nav->GetRandomReachablePointInRadius(bNearSelf ? Bot->GetNavAgentLocation() : Center, bNearSelf ? 400.f : Radius, Point))
+		{
+			break;
+		}
+		if (bStrafe)
+		{
+			UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(GetWorld(), Bot->GetNavAgentLocation(), Point.Location, const_cast<AMetalBotCharacter*>(Bot));
+			if (Path == nullptr || !Path->IsValid() || Path->IsPartial())
+			{
+				continue;
+			}
+			if (Path->GetPath()->GetPathPoints().ContainsByPredicate([](const FNavPathPoint& P) { return FNavMeshNodeFlags(P.Flags).IsNavLink(); }))
+			{
+				Fallback = Point.Location;
+				bHasFallback = bAllowClimb;
+				continue;
+			}
+		}
 		return MoveToLocation(Point.Location, 50.f, true, true, false, bStrafe) != EPathFollowingRequestResult::Failed;
 	}
-	return false;
+	return bHasFallback && MoveToLocation(Fallback, 50.f, true, true, false, bStrafe) != EPathFollowingRequestResult::Failed;
 }
 
 void AMetalBotAIController::Tick(float DeltaSeconds)
@@ -458,6 +505,75 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 	case EMetalAIState::Retreat:     TickRetreat(Now); break;
 	default: break;
 	}
+	TickNavLinkJump();
+}
+
+namespace
+{
+	/** Minimum launch speed for AI jumps across generated nav links, cm/s (~1.5 m high, the player's jump). */
+	constexpr float AILinkJumpZ = 700.f;
+	/** Clearance over a climb's top edge the launch aims for, cm, and the strongest launch allowed (~2.6 m). */
+	constexpr float AILinkClimbClearance = 50.f;
+	constexpr float AILinkMaxJumpZ = 900.f;
+}
+
+void AMetalBotAIController::TickNavLinkJump()
+{
+	AMetalBotCharacter* Bot = GetBot();
+	const UPathFollowingComponent* Follow = GetPathFollowingComponent();
+	UCharacterMovementComponent* Move = Bot->GetCharacterMovement();
+	if (Follow == nullptr || Follow->GetStatus() != EPathFollowingStatus::Moving || !Follow->GetPath().IsValid())
+	{
+		JumpLinkPath = nullptr;
+		return;
+	}
+	const FNavigationPath* Path = Follow->GetPath().Get();
+	const int32 Index = static_cast<int32>(Follow->GetCurrentPathIndex());
+
+	// Already in the air over a link: use the mid-air jump once the first one peaks short of the landing.
+	if (Move->IsFalling())
+	{
+		if (Path == JumpLinkPath && Index == JumpLinkSegment && bJumpLinkRises && Move->Velocity.Z <= 0.f && Bot->JumpCurrentCount < Bot->JumpMaxCount
+			&& Bot->GetActorLocation().Z - Bot->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() < JumpLinkEndZ + 10.f)
+		{
+			Bot->Jump();
+		}
+		return;
+	}
+	if (!Move->IsMovingOnGround() || (Path == JumpLinkPath && Index == JumpLinkSegment))
+	{
+		return;
+	}
+	const TArray<FNavPathPoint>& Points = Path->GetPathPoints();
+	if (!Points.IsValidIndex(Index + 1) || !FNavMeshNodeFlags(Points[Index].Flags).IsNavLink() || Points[Index].CustomNavLinkId != FNavLinkId::Invalid)
+	{
+		return;
+	}
+	// The segment starts once the robot reaches the link's start, so it is at the edge (or the obstacle) now.
+	// Launch it on an arc that comes down on the link's far end: a full jump for hops up and over obstacles, a
+	// small hop off ledges (walking off would fall short of the landing, sometimes into a lift beam).
+	JumpLinkPath = Path;
+	JumpLinkSegment = Index;
+	JumpLinkEndZ = Points[Index + 1].Location.Z;
+	const FVector Feet = Bot->GetActorLocation() - FVector(0.f, 0.f, Bot->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	const FVector To = Points[Index + 1].Location;
+	const float Rise = To.Z - Feet.Z;
+	bJumpLinkRises = Rise > 0.f;
+	const float Gravity = -Move->GetGravityZ();
+	// At least the player's jump (about 1.5 m), so the AI clears the waist-high cover the player is taught to hop,
+	// and enough to top a taller climb (out of the barricade ditch) with some clearance.
+	const float ClimbZ = Gravity > 0.f ? FMath::Sqrt(2.f * Gravity * (FMath::Max(Rise, 0.f) + AILinkClimbClearance)) : 0.f;
+	const float LaunchZ = Rise < -150.f ? 250.f : FMath::Clamp(ClimbZ, FMath::Max(Move->JumpZVelocity, AILinkJumpZ), AILinkMaxJumpZ);
+	const float Discriminant = LaunchZ * LaunchZ - 2.f * Gravity * Rise;
+	if (Gravity <= 0.f || Discriminant < 0.f)
+	{
+		// Higher than one jump reaches: jump, and the falling branch above adds the mid-air jump if it has one.
+		Bot->Jump();
+		return;
+	}
+	const float Airtime = (LaunchZ + FMath::Sqrt(Discriminant)) / Gravity;
+	const float Speed = FMath::Min(FVector::Dist2D(Feet, To) / Airtime, Move->GetMaxSpeed() * 1.5f);
+	Bot->LaunchCharacter((To - Feet).GetSafeNormal2D() * Speed + FVector(0.f, 0.f, LaunchZ), true, true);
 }
 
 void AMetalBotAIController::TickPatrol(float Now)
@@ -609,7 +725,7 @@ void AMetalBotAIController::TickCombat(float Now)
 		// Aim for a point at the preferred range, offset sideways by half that range so the robot circles
 		// the target instead of backing straight off; the clamp keeps it from drifting beyond the range.
 		const FVector Desired = Enemy->GetActorLocation() + (Away * Archetype->PreferredRange + Side * Archetype->PreferredRange * 0.5f).GetClampedToMaxSize(Archetype->PreferredRange);
-		MoveToRandomPointNear(Desired, 250.f, true);
+		MoveToRandomPointNear(Desired, 250.f, true, Enemy->GetActorLocation().Z > Bot->GetActorLocation().Z + 100.f);
 	}
 }
 

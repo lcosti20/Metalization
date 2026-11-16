@@ -6,6 +6,7 @@
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
+#include "MetalGravLift.h"
 #include "MetalHangar.h"
 #include "MetalMission.h"
 #include "MetalHackPuzzle.h"
@@ -25,6 +26,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
+#include "NavigationPath.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshPath.h"
 #include "Misc/Parse.h"
 #include "UnrealClient.h"
 
@@ -38,7 +42,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -106,6 +110,21 @@ namespace
 			{TEXT("alpha"), {{0.8f, EStep::Run}, {1.0f, EStep::Sprint}, {6.5f, EStep::StopSprint}, {7.5f, EStep::Jump}, {9.0f, EStep::Stop}}},
 			// Pick up the Repeater (acted-out swap), then swap back and forth: twist off, rack, snap on.
 			{TEXT("swap"), {{3.0f, EStep::NextWeapon}, {5.0f, EStep::NextWeapon}, {7.0f, EStep::NextWeapon}}},
+			// AI and lifts: an enemy dropped at the foot of the cliff lift, alerted to the player up on the plateau,
+			// must path through the lift (nav link) and ride it up rather than wait under the cliff.
+			{TEXT("liftai"), {{0.5f, EStep::LureToLift}, {3.0f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights},
+				{9.0f, EStep::ReportHeights}, {12.0f, EStep::ReportHeights}}},
+			// AI and ledges: the player waits at the foot of the cliff and the nearest enemy up on the plateau is
+			// alerted; it must path down via a generated jump link (drop off the cliff) instead of staying put.
+			{TEXT("drop"), {{0.3f, EStep::AlertNearest}, {2.0f, EStep::ReportHeights}, {3.0f, EStep::ReportHeights}, {4.0f, EStep::ReportHeights}, {5.0f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights},
+				{7.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}, {10.0f, EStep::ReportHeights}, {11.5f, EStep::ReportHeights}}},
+			// AI and obstacles: an enemy behind the first (full-width, 110 cm) barricade must jump it to reach the
+			// player (Over link) instead of standing behind it.
+			{TEXT("hop"), {{0.3f, EStep::AlertNearest}, {1.5f, EStep::ReportHeights}, {2.5f, EStep::ReportHeights}, {3.5f, EStep::ReportHeights},
+				{4.5f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}}},
+			// AI and the barricade ditch: an enemy down in the ditch must jump out (Climb link) to reach the player.
+			{TEXT("ditch"), {{0.3f, EStep::AlertNearest}, {1.5f, EStep::ReportHeights}, {2.5f, EStep::ReportHeights}, {3.5f, EStep::ReportHeights},
+				{4.5f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}}},
 			// Walk into the cliff lift and ride it to the top.
 			{TEXT("lift"), {{0.5f, EStep::Run}, {1.6f, EStep::Stop}}},
 			// Crouch and creep through the crawl pipe past the yard patrols.
@@ -389,8 +408,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
 			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
 			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
-			TEXT("press aim button"), TEXT("release aim button")};
-	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::StopAimButton) + 1, "Every EStep needs a name");
+			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::AlertNearest) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -463,6 +482,81 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::StopAim:     Me->SetAiming(false); break;
 	case EStep::AimButton:     PC->PressAimButton(); break;
 	case EStep::StopAimButton: PC->ReleaseAimButton(); break;
+	case EStep::LureToLift:
+	{
+		const AMetalGravLift* Lift = nullptr;
+		for (TActorIterator<AMetalGravLift> It(GetWorld()); It; ++It)
+		{
+			if (Lift == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Lift->GetActorLocation(), Me->GetActorLocation()))
+			{
+				Lift = *It;
+			}
+		}
+		AMetalBotCharacter* Enemy = FindNearest(false, NAME_None);
+		AMetalBotAIController* AI = Enemy ? Cast<AMetalBotAIController>(Enemy->GetController()) : nullptr;
+		if (Lift && AI)
+		{
+			// 7 m back from the pad, on the side away from the exit, so it has to walk in and ride up.
+			const FVector Back = -Lift->GetActorRotation().RotateVector(Lift->ExitDirection).GetSafeNormal2D();
+			const FVector Spot = Lift->GetActorLocation() + Back * 700.f + FVector(0.f, 0.f, Enemy->GetSimpleCollisionHalfHeight() + 20.f);
+			Enemy->TeleportTo(Spot, Enemy->GetActorRotation());
+			LuredEnemy = Enemy;
+			AI->Alert(Me);
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    lured %s to %s at %s"), *Enemy->GetName(), *Lift->GetName(), *Spot.ToCompactString());
+		}
+		break;
+	}
+	case EStep::AlertNearest:
+		if (AMetalBotCharacter* Enemy = LuredEnemy.IsValid() ? LuredEnemy.Get() : FindNearest(false, NAME_None))
+		{
+			// -MetalLureAt=X,Y,Z puts the enemy somewhere specific first (only the first time).
+			FString LureAt;
+			if (!LuredEnemy.IsValid() && FParse::Value(FCommandLine::Get(), TEXT("MetalLureAt="), LureAt, false))
+			{
+				TArray<FString> Parts;
+				LureAt.ParseIntoArray(Parts, TEXT(","));
+				if (Parts.Num() == 3)
+				{
+					const FVector At(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+					Enemy->TeleportTo(At, Enemy->GetActorRotation());
+					// The player's allies there would just shoot it: send them back to the start camp (scrapping
+					// them would catch it in the blasts).
+					int32 Moved = 0;
+					for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+					{
+						if (*It != Me && It->IsAlive() && !Me->IsHostileTo(*It) && FVector::Dist(It->GetActorLocation(), At) < 3000.f)
+						{
+							It->TeleportTo(FVector(-400.f, -1000.f + 250.f * Moved++, 150.f), It->GetActorRotation());
+						}
+					}
+				}
+			}
+			LuredEnemy = Enemy;
+			if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(Enemy->GetController()))
+			{
+				AI->Alert(Me);
+			}
+			// Show whether the navmesh has a full path (it needs a generated jump link off the ledge).
+			UNavigationPath* Path = UNavigationSystemV1::FindPathToActorSynchronously(GetWorld(), Enemy->GetNavAgentLocation(), Me, 0.f, Enemy);
+			int32 Links = 0;
+			if (Path && Path->GetPath().IsValid())
+			{
+				for (const FNavPathPoint& Point : Path->GetPath()->GetPathPoints())
+				{
+					Links += FNavMeshNodeFlags(Point.Flags).IsNavLink() ? 1 : 0;
+				}
+			}
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    alerted %s at %s: path valid=%d partial=%d links=%d"), *Enemy->GetName(),
+				*Enemy->GetActorLocation().ToCompactString(), Path && Path->IsValid(), Path && Path->IsPartial(), Links);
+		}
+		break;
+	case EStep::ReportHeights:
+		if (const AMetalBotCharacter* Enemy = LuredEnemy.Get())
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s at %s (player at %s)"), *Enemy->GetName(), *Enemy->GetActorLocation().ToCompactString(),
+				*Me->GetActorLocation().ToCompactString());
+		}
+		break;
 	case EStep::NextWeapon:  Me->CycleWeapon(1); break;
 	case EStep::AimMarksman: AimTarget = FindNearest(false, TEXT("Marksmen")); break;
 	case EStep::Grenade:     Me->ThrowGrenade(); break;
