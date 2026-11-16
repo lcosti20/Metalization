@@ -427,6 +427,12 @@ public:
 	/** @return Slot the current swap will equip, or INDEX_NONE. */
 	int32 GetSwapTargetSlot() const { return IsSwappingWeapon() ? SwapTargetSlot : INDEX_NONE; }
 
+	/**
+	 * @return 0..1 progress through the quick weapon draw (gun arm drops out of view, the new gun comes up) used
+	 * by robots without an acted-out swap, or -1 when not drawing.
+	 */
+	float GetDrawProgress() const;
+
 	// --- Aim / scope ---------------------------------------------------------------------------------
 
 	/** @return 0..1 how far the camera has zoomed into a scoped weapon's sight (drives the HUD overlay). */
@@ -472,6 +478,20 @@ public:
 
 	/** @return How far the current reload has got, 0-1 (0 when not reloading). Drives the HUD's reload bar. */
 	float GetReloadFraction() const;
+
+	/**
+	 * Timeline of the reload animation. The reload sound is ~1.15 s long and is timed to end with the reload, so
+	 * longer reloads open with a "fetch a fresh cell" pre-roll and the eject / seat / rack beats always land on
+	 * the sound's clicks.
+	 *
+	 * @param OutElapsed   Seconds since the reload started.
+	 * @param OutSoundTime Seconds into the reload sound (negative during the pre-roll).
+	 * @return False when not reloading.
+	 */
+	bool GetReloadTimeline(float& OutElapsed, float& OutSoundTime) const;
+
+	/** Length of the "reload" sound in seconds; the animation beats are authored against it. */
+	static constexpr float ReloadSoundLength = 1.15f;
 
 	/** Weapon thrown by ThrowGrenade(). Filled from the archetype at BeginPlay if left empty. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Metalization|Combat")
@@ -654,6 +674,12 @@ protected:
 	/** Advances an acted-out weapon swap through its detach / rack / attach beats. */
 	void TickWeaponSwap(float Now);
 
+	/** Plays the reload's sound and its eject / seat sparks on the beats of the animation. */
+	void TickReload();
+
+	/** Swaps the gun mesh at the bottom of a quick draw and ends it. */
+	void TickWeaponDraw(float Now);
+
 	/** Shows the most recently stowed weapons on the back rack. */
 	void RefreshRack();
 
@@ -749,6 +775,12 @@ protected:
 	int32 SwapTargetSlot = INDEX_NONE;
 	/** 0 reaching, 1 gun off, 2 racked/drawn, 3 attached. */
 	int32 SwapStage = 0;
+	/** World time the quick draw started, or -1. */
+	float DrawStartTime = -1.f;
+	/** True once the quick draw has swapped the gun mesh (half way). */
+	bool bDrawSwapped = false;
+	/** Seconds the quick draw takes. */
+	static constexpr float DrawDuration = 0.45f;
 	/** Slots most recently stowed first; the first two are drawn on the rack. */
 	TArray<int32> RackOrder;
 
@@ -819,6 +851,8 @@ protected:
 	float ReloadEndTime = 0.f;
 	/** Length of the current reload in seconds (the weapon's ReloadTime when it started). */
 	float ReloadDuration = 0.f;
+	/** Reload beats already played: 0 none, 1 sound started, 2 cell ejected, 3 fresh cell seated. */
+	int32 ReloadBeat = 0;
 	float StunEndTime = 0.f;
 	/** 1 right after a hit, fading to 0; drives the HitFlash material parameter. */
 	float HitFlash = 0.f;

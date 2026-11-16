@@ -42,7 +42,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -110,6 +110,14 @@ namespace
 			{TEXT("alpha"), {{0.8f, EStep::Run}, {1.0f, EStep::Sprint}, {6.5f, EStep::StopSprint}, {7.5f, EStep::Jump}, {9.0f, EStep::Stop}}},
 			// Pick up the Repeater (acted-out swap), then swap back and forth: twist off, rack, snap on.
 			{TEXT("swap"), {{3.0f, EStep::NextWeapon}, {5.0f, EStep::NextWeapon}, {7.0f, EStep::NextWeapon}}},
+			// Reload animation (same spot as swap): spray the Repeater, then reload: gun arm drops and rolls, off hand
+			// fetches a cell from the hip, the spent cell pops, the hand slaps the new one home and racks it.
+			{TEXT("reload"), {{2.0f, EStep::Fire}, {2.6f, EStep::StopFire}, {2.7f, EStep::Reload},
+				{5.0f, EStep::Fire}, {5.5f, EStep::StopFire}, {5.6f, EStep::Reload}}},
+			// Quick draw (robots without the acted-out swap): hijack the gate guard, hand it a second gun (it drops
+			// its arm and brings the new one up), then swap back and forth.
+			{TEXT("draw"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {3.0f, EStep::GiveSniper},
+				{4.5f, EStep::NextWeapon}, {6.0f, EStep::NextWeapon}}},
 			// AI and lifts: an enemy dropped at the foot of the cliff lift, alerted to the player up on the plateau,
 			// must path through the lift (nav link) and ride it up rather than wait under the cliff.
 			{TEXT("liftai"), {{0.5f, EStep::LureToLift}, {3.0f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights},
@@ -408,8 +416,8 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
 			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
 			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
-			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy")};
-	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::AlertNearest) + 1, "Every EStep needs a name");
+			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy"), TEXT("give a sniper rifle")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::GiveSniper) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -633,6 +641,12 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	}
 	case EStep::Reload:
 		Me->Reload();
+		break;
+	case EStep::GiveSniper:
+		if (UMetalWeaponData* Sniper = LoadObject<UMetalWeaponData>(nullptr, TEXT("/Game/Metalization/Data/WD_EnemySniper.WD_EnemySniper")))
+		{
+			Me->GiveWeapon(Sniper, true);
+		}
 		break;
 	case EStep::GoToPickup:
 	{

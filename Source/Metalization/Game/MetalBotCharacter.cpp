@@ -434,6 +434,8 @@ void AMetalBotCharacter::SetWeapons(const TArray<FMetalWeaponSlot>& NewWeapons, 
 	Weapons = NewWeapons;
 	CurrentWeapon = INDEX_NONE;
 	SwapStartTime = -1.f;
+	DrawStartTime = -1.f;
+	ReloadEndTime = 0.f;
 	CarriedGun->SetVisibility(false);
 	RackOrder.Reset();
 	EquipWeapon(EquipIndex);
@@ -522,6 +524,16 @@ void AMetalBotCharacter::EquipWeapon(int32 SlotIndex)
 	}
 	ReloadEndTime = 0.f;
 	const UWorld* World = GetWorld();
+	if (DrawStartTime >= 0.f)
+	{
+		// Picked another gun mid-draw: the draw carries on and brings that one up instead.
+		CurrentWeapon = SlotIndex;
+		if (bDrawSwapped)
+		{
+			RefreshWeaponVisual();
+		}
+		return;
+	}
 	// Players with an animated rig act the swap out; everything else (AI, respawn loadouts) swaps instantly.
 	const bool bActOut = World && World->IsGameWorld() && HasActorBegunPlay() && Archetype && Archetype->bAnimatedWeaponSwap
 		&& IsPlayerControlled() && !bDead && !bWeaponDisabled && Weapons.IsValidIndex(CurrentWeapon);
@@ -534,13 +546,55 @@ void AMetalBotCharacter::EquipWeapon(int32 SlotIndex)
 		PlaySound(TEXT("swap_servo"));
 		return;
 	}
+	// Everyone else in play does a quick draw: the gun arm drops out of view, the gun changes at the bottom and
+	// the new one comes back up (UMetalBotAnimInstance). Loadouts set before play just appear.
+	const bool bQuickDraw = World && World->IsGameWorld() && HasActorBegunPlay() && !bDead && !bWeaponDisabled
+		&& Weapons.IsValidIndex(CurrentWeapon);
 	CurrentWeapon = SlotIndex;
+	if (bQuickDraw)
+	{
+		DrawStartTime = World->GetTimeSeconds();
+		bDrawSwapped = false;
+		NextFireTime = FMath::Max(NextFireTime, DrawStartTime + DrawDuration);
+		PlaySound(TEXT("swap_servo"), 0.6f);
+		return;
+	}
 	if (World)
 	{
 		NextFireTime = World->GetTimeSeconds() + 0.2f;
 	}
 	RefreshWeaponVisual();
 	RefreshRack();
+}
+
+float AMetalBotCharacter::GetDrawProgress() const
+{
+	if (DrawStartTime < 0.f || GetWorld() == nullptr)
+	{
+		return -1.f;
+	}
+	return FMath::Clamp((GetWorld()->GetTimeSeconds() - DrawStartTime) / DrawDuration, 0.f, 1.f);
+}
+
+void AMetalBotCharacter::TickWeaponDraw(float Now)
+{
+	if (DrawStartTime < 0.f)
+	{
+		return;
+	}
+	const float T = GetDrawProgress();
+	if (!bDrawSwapped && (T >= 0.5f || bDead || bDormant))
+	{
+		// The arm is at the bottom of its drop, out of the way: change the gun.
+		bDrawSwapped = true;
+		RefreshWeaponVisual();
+		RefreshRack();
+		PlaySound(TEXT("swap_attach"), 0.6f);
+	}
+	if (T >= 1.f || bDead || bDormant)
+	{
+		DrawStartTime = -1.f;
+	}
 }
 
 float AMetalBotCharacter::GetSwapProgress() const
@@ -832,7 +886,7 @@ void AMetalBotCharacter::FireSecondaryOnce()
 void AMetalBotCharacter::Reload()
 {
 	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
-	if (Slot == nullptr || Slot->Data == nullptr || Slot->Data->bInfiniteAmmo || IsReloading())
+	if (Slot == nullptr || Slot->Data == nullptr || Slot->Data->bInfiniteAmmo || IsReloading() || IsSwappingWeapon() || DrawStartTime >= 0.f)
 	{
 		return;
 	}
@@ -840,8 +894,70 @@ void AMetalBotCharacter::Reload()
 	{
 		ReloadDuration = FMath::Max(0.01f, Slot->Data->ReloadTime);
 		ReloadEndTime = GetWorld()->GetTimeSeconds() + ReloadDuration;
+		// The sound and the eject / seat sparks follow the animation's beats (TickReload).
+		ReloadBeat = 0;
+		TickReload();
+	}
+}
+
+bool AMetalBotCharacter::GetReloadTimeline(float& OutElapsed, float& OutSoundTime) const
+{
+	if (!IsReloading() || GetWorld() == nullptr)
+	{
+		return false;
+	}
+	OutElapsed = FMath::Max(0.f, ReloadDuration - (ReloadEndTime - GetWorld()->GetTimeSeconds()));
+	// The sound ends with the reload. A reload shorter than the sound squeezes the beats to fit.
+	const float SoundStart = FMath::Max(0.f, ReloadDuration - ReloadSoundLength);
+	const float Squeeze = ReloadSoundLength / FMath::Min(ReloadSoundLength, ReloadDuration);
+	OutSoundTime = (OutElapsed - SoundStart) * Squeeze;
+	return true;
+}
+
+void AMetalBotCharacter::TickReload()
+{
+	float Elapsed = 0.f;
+	float SoundTime = 0.f;
+	if (!GetReloadTimeline(Elapsed, SoundTime))
+	{
+		return;
+	}
+	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
+	// Where the spent cell pops out: the gun on the arm (weapon bone), or the built-in guns' muzzles.
+	auto SparkAt = [this](float Radius, const FLinearColor& Color)
+	{
+		TArray<FName, TInlineAllocator<2>> Bones;
+		if (Archetype && Archetype->MuzzleBones.Num() > 0)
+		{
+			Bones.Append(Archetype->MuzzleBones);
+		}
+		else
+		{
+			Bones.Add(GetMesh()->GetBoneIndex(GetRig().WeaponBone) != INDEX_NONE ? GetRig().WeaponBone : GetRig().ForearmR);
+		}
+		for (const FName Bone : Bones)
+		{
+			if (GetMesh()->GetBoneIndex(Bone) != INDEX_NONE)
+			{
+				AMetalFX::SpawnBurst(GetWorld(), GetMesh()->GetBoneLocation(Bone), Color, Radius * GetMesh()->GetRelativeScale3D().X, 0.15f);
+			}
+		}
+	};
+	if (ReloadBeat == 0 && SoundTime >= 0.f)
+	{
+		ReloadBeat = 1;
 		// Positional, so a reloading enemy nearby is a cue to push; the player's own is full volume.
-		PlaySound(Slot->Data->ReloadSound, IsPlayerControlled() ? 1.f : 0.8f);
+		PlaySound(Slot && Slot->Data ? Slot->Data->ReloadSound : FName(TEXT("reload")), IsPlayerControlled() ? 1.f : 0.8f);
+	}
+	if (ReloadBeat == 1 && SoundTime >= 0.06f)
+	{
+		ReloadBeat = 2;
+		SparkAt(5.f, FLinearColor(0.35f, 0.3f, 0.25f)); // the spent cell, dull
+	}
+	if (ReloadBeat == 2 && SoundTime >= 0.48f)
+	{
+		ReloadBeat = 3;
+		SparkAt(7.f, Slot && Slot->Data ? Slot->Data->TracerColor : FLinearColor(1.f, 0.4f, 0.1f)); // fresh cell lights up
 	}
 }
 
@@ -2012,6 +2128,8 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 	// flip last because it sets the final mesh transform.
 	TickLocomotion(DeltaSeconds);
 	TickWeaponSwap(Now);
+	TickWeaponDraw(Now);
+	TickReload();
 	TickJetpack(Now);
 	TickActionCamera(DeltaSeconds);
 	TickFlip(Now);

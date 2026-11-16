@@ -64,6 +64,19 @@ struct FMetalBotAnimState
 	float SwapReach = 0.f;
 	float SwapStow = 0.f;
 	float SwapTwist = 0.f;
+	/**
+	 * Reload, in beats (see UMetalBotAnimInstance::NativeUpdateAnimation): the gun arm drops and rolls its cell port
+	 * up, the off hand fetches a fresh cell from the hip, the spent cell kicks out, the hand slaps the new one
+	 * home and racks the gun, and the arm comes back up to aim.
+	 */
+	float ReloadLower = 0.f;
+	float ReloadFetch = 0.f;
+	float ReloadEject = 0.f;
+	float ReloadReach = 0.f;
+	float ReloadSlap = 0.f;
+	float ReloadRack = 0.f;
+	/** Quick weapon draw: the gun arm drops out of view (1 at the bottom, where the gun changes) and comes back up. */
+	float DrawLower = 0.f;
 };
 
 /**

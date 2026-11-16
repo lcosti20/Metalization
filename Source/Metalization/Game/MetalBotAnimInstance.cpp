@@ -160,6 +160,28 @@ void UMetalBotAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		State.SwapStow = In(0.32f, 0.47f) * (1.f - In(0.53f, 0.68f));
 		State.SwapTwist = In(0.14f, 0.28f) * (1.f - In(0.30f, 0.36f)) + In(0.70f, 0.80f) * (1.f - In(0.80f, 0.90f));
 	}
+
+	// Reload beats (see AMetalBotCharacter::TickReload), in seconds so they stay on the sound's clicks whatever
+	// the weapon's ReloadTime: the arm drops at once (Elapsed); the rest follows the sound (S, seconds into it:
+	// latch + cell out at 0-0.2, new cell seated at 0.48, racked at 0.72 and 0.86, powered up by 1.12).
+	State.ReloadLower = State.ReloadFetch = State.ReloadEject = State.ReloadReach = State.ReloadSlap = State.ReloadRack = 0.f;
+	float Elapsed = 0.f;
+	float S = 0.f;
+	if (Bot->GetReloadTimeline(Elapsed, S))
+	{
+		auto InS = [S](float A, float B) { return FMath::SmoothStep(A, B, S); };
+		auto Pulse = [&InS](float Start, float Peak, float End) { return InS(Start, Peak) * (1.f - InS(Peak, End)); };
+		State.ReloadLower = FMath::SmoothStep(0.f, 0.18f, Elapsed) * (1.f - InS(0.9f, 1.12f));
+		// The hand goes to the hip as soon as the arm drops and comes away with the cell as the latch releases.
+		State.ReloadFetch = FMath::SmoothStep(0.05f, 0.3f, Elapsed) * (1.f - InS(0.12f, 0.34f));
+		State.ReloadEject = Pulse(0.f, 0.06f, 0.28f);
+		State.ReloadReach = InS(0.22f, 0.44f) * (1.f - InS(0.9f, 1.06f));
+		State.ReloadSlap = Pulse(0.43f, 0.49f, 0.64f);
+		State.ReloadRack = Pulse(0.68f, 0.73f, 0.8f) + Pulse(0.82f, 0.87f, 0.97f);
+	}
+	// Quick draw: down for the first half, up for the second.
+	const float Draw = Bot->GetDrawProgress();
+	State.DrawLower = Draw >= 0.f ? FMath::SmoothStep(0.f, 0.45f, Draw) * (1.f - FMath::SmoothStep(0.55f, 1.f, Draw)) : 0.f;
 }
 
 FAnimInstanceProxy* UMetalBotAnimInstance::CreateAnimInstanceProxy()
@@ -237,8 +259,11 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 	Add(ForearmL, FQuat::Slerp(FQuat::Identity, Rig.ForearmLReady.Quaternion(), Upright));
 	Add(ForearmR, FQuat::Slerp(FQuat::Identity, Rig.ForearmRReady.Quaternion(), Upright));
 
-	// The off hand is busy during a weapon swap: it skips the run/jump arm motion.
-	const float LeftArmFree = 1.f - FMath::Max(S.SwapReach, S.SwapStow);
+	// The off hand is busy during a weapon swap or reload: it skips the run/jump arm motion. Robots that shoot
+	// with both arms have no off hand; their reload works both guns at once instead.
+	const bool bOffHand = !Rig.bAimWithBothArms && Rig.FlyerArmUpperL.IsNone();
+	const float OffHandReload = bOffHand ? FMath::Max(S.ReloadFetch, S.ReloadReach) : 0.f;
+	const float LeftArmFree = 1.f - FMath::Max(FMath::Max(S.SwapReach, S.SwapStow), OffHandReload);
 
 	// Walk cycle: legs swing along the movement direction, knees fold while the leg travels forward.
 	// Sprinting swings them further.
@@ -352,10 +377,52 @@ bool FMetalBotAnimProxy::Evaluate(FPoseContext& Output)
 		Add(ForearmL, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-60.f * S.SwapTwist)));
 	}
 
-	// Aim: the weapon arm follows the camera (or AI) pitch.
-	const float Aim = (S.AimPitch * Rig.AimPitchWeight * S.CombatAlpha + 9.f * S.Recoil) * Upright;
+	// Aim: the weapon arm follows the camera (or AI) pitch, except while it is lowered to reload or draw.
+	const float Lowered = FMath::Max(S.ReloadLower, S.DrawLower);
+	const float Aim = (S.AimPitch * Rig.AimPitchWeight * S.CombatAlpha * (1.f - 0.75f * Lowered) + 9.f * S.Recoil) * Upright;
 	const int32 AimR = Rig.bAimFromShoulder ? UpperArmR : ForearmR;
 	const int32 AimL = Rig.bAimFromShoulder ? UpperArmL : ForearmL;
+
+	// Reload. The gun arm drops and rolls its cell port up towards the off hand; the spent cell kicks the gun as
+	// it pops out, the slap and the two racks jolt it, and it lifts back to aim at the end.
+	if (Rig.FlyerArmUpperL.IsNone() && (S.ReloadLower > KINDA_SMALL_NUMBER || S.DrawLower > KINDA_SMALL_NUMBER))
+	{
+		const float L = S.ReloadLower * Upright;
+		const float Jolt = (8.f * S.ReloadSlap + 6.f * S.ReloadRack) * Upright;
+		// Quick draw: the arm drops straight down, rolled away, out of the line of sight.
+		const float D = S.DrawLower * Upright;
+		const float GunDrop = -35.f * L - 10.f * S.ReloadEject * Upright + Jolt - 65.f * D;
+		const float GunRoll = 40.f * L + 20.f * S.ReloadEject * Upright + 30.f * D;
+		auto Roll = [](float Degrees) { return FQuat(FVector::ForwardVector, FMath::DegreesToRadians(Degrees)); };
+		Add(AimR, PitchUp(GunDrop));
+		Add(ForearmR, Roll(GunRoll));
+		if (Rig.bAimWithBothArms)
+		{
+			// Twin guns: both drop and roll outwards (mirrored), and the slap knocks them together.
+			Add(AimL, PitchUp(GunDrop));
+			Add(ForearmL, Roll(-GunRoll));
+			Add(ForearmR, Yaw(14.f * S.ReloadSlap * Upright));
+			Add(ForearmL, Yaw(-14.f * S.ReloadSlap * Upright));
+		}
+		// Eyes on the gun.
+		Add(Head, PitchUp(-14.f * L - 10.f * D) * Yaw(10.f * L * (bOffHand ? 1.f : 0.f)));
+		Add(Pelvis, Yaw(6.f * L) * PitchUp(-2.f * S.ReloadSlap * Upright));
+		PelvisOffset.Z -= 1.5f * S.ReloadSlap * Upright;
+	}
+	if (bOffHand && (S.ReloadFetch > KINDA_SMALL_NUMBER || S.ReloadReach > KINDA_SMALL_NUMBER))
+	{
+		// Off hand: down and back to the hip for a fresh cell...
+		const float F = S.ReloadFetch * Upright;
+		Add(UpperArmL, SwingToward(FVector(-0.6f, -0.4f, 0.f).GetSafeNormal(), 30.f * F));
+		Add(ForearmL, SwingToward(FVector::ForwardVector, 50.f * F));
+		// ...then across to the lowered gun (lower than the swap's reach, since the gun has dropped), shoving it
+		// home on the slap and pulling back along the gun on each rack.
+		const float R = S.ReloadReach * Upright;
+		const float Push = 12.f * S.ReloadSlap * Upright;
+		const float Pull = -22.f * S.ReloadRack * Upright;
+		Add(UpperArmL, Yaw(45.f * R) * SwingToward(FVector::RightVector, 20.f * R) * SwingToward(FVector::ForwardVector, 50.f * R + (Push + Pull) * R));
+		Add(ForearmL, Yaw(70.f * R) * SwingToward(FVector::ForwardVector, (25.f + Pull) * R));
+	}
 	Add(AimR, PitchUp(Aim));
 	if (Rig.bAimWithBothArms)
 	{
