@@ -43,7 +43,7 @@ namespace
 		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
 		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
 		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
-		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper, FxGallery };
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper, ClearAllButBoss, FxGallery };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -167,7 +167,11 @@ namespace
 			// Low-health warning: drop to 20% (red flash and double beep every second), then heal to stop it.
 			{TEXT("lowhealth"), {{0.5f, EStep::DropToLowHealth}, {3.6f, EStep::HealFully}}},
 			// Combat effects: every Niagara effect set off in a row in front of the camera, three times over.
-			{TEXT("fx"), {{1.0f, EStep::FxGallery}, {2.5f, EStep::FxGallery}, {4.0f, EStep::FxGallery}}},
+			// Report shots: the courtyard emptied so nothing shoots back (no damage tint), then hijack the Brute and
+			// fire its miniguns and shoulder rockets at nothing in particular. Filmed from fixed cameras after the hack.
+			{TEXT("fxboss"), {{0.1f, EStep::ClearAllButBoss}, {1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack},
+				{2.6f, EStep::Fire}, {2.7f, EStep::AimButton}, {8.0f, EStep::StopFire}, {8.1f, EStep::StopAimButton}}},
+			{TEXT("fx"), {{0.1f, EStep::ClearAllButBoss}, {1.0f, EStep::FxGallery}, {2.5f, EStep::FxGallery}, {4.0f, EStep::FxGallery}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
 			// Checkpoint snapshot: scrap a guard, step into the patrol yard checkpoint, scrap another, then get
@@ -285,7 +289,7 @@ void AMetalDevAutopilot::BeginPlay()
 		ShotTimes = ParseFloats(Value);
 	}
 	FParse::Value(Cmd, TEXT("MetalQuitAt="), QuitAt);
-	// -MetalCam=x,y,z,pitch,yaw;...: fixed cameras to view the level from; each screenshot switches to the next one.
+	// -MetalCam=x,y,z,pitch,yaw;...: fixed cameras to view the level from; each screenshot switches to the next one. "player" is the normal game camera.
 	if (FParse::Value(Cmd, TEXT("MetalCam="), Value, false))
 	{
 		TArray<FString> Entries;
@@ -296,6 +300,11 @@ void AMetalDevAutopilot::BeginPlay()
 			if (V.Num() >= 5)
 			{
 				Cameras.Add(FTransform(FRotator(V[3], V[4], 0.f), FVector(V[0], V[1], V[2])));
+			}
+			else if (Entry.TrimStartAndEnd() == TEXT("player"))
+			{
+				// The normal game camera (zero scale marks it), e.g. while the Hack Tether aims from the view.
+				Cameras.Add(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, FVector::ZeroVector));
 			}
 		}
 		ViewFromCamera(0);
@@ -329,6 +338,11 @@ void AMetalDevAutopilot::ViewFromCamera(int32 Index)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC && Cameras.IsValidIndex(Index))
 	{
+		if (Cameras[Index].GetScale3D().IsNearlyZero())
+		{
+			PC->SetViewTarget(PC->GetPawn());
+			return;
+		}
 		ACameraActor* Camera = GetWorld()->SpawnActor<ACameraActor>(Cameras[Index].GetLocation(), Cameras[Index].Rotator());
 		PC->SetViewTarget(Camera);
 	}
@@ -420,6 +434,7 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
 			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
 			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy"), TEXT("give a sniper rifle"),
+			TEXT("clear every enemy but the boss"),
 			TEXT("set off every combat effect")};
 	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::FxGallery) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
@@ -677,6 +692,15 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		break;
 	case EStep::SelfDestruct:
 		UGameplayStatics::ApplyDamage(Me, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
+		break;
+	case EStep::ClearAllButBoss:
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			if (*It != Me && It->IsAlive() && Me->IsHostileTo(*It) && !It->ActorHasTag(TEXT("Boss")))
+			{
+				UGameplayStatics::ApplyDamage(*It, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
+			}
+		}
 		break;
 	case EStep::FxGallery:
 	{
