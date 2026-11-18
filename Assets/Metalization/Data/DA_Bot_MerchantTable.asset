@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b060d6aeb9b2e041b9bc14cf6a0fd32, type: 3}
+  m_Name: DA_Bot_MerchantTable
+  m_EditorClassIdentifier: Metalization::Metalization.MetalBotArchetype
+  archetypeId: merchant_table
+  displayName: Merchant Table
+  team: 0
+  model: {fileID: 919132149155446097, guid: 157073b0a7420d049842c087b793cfb0, type: 3}
+  parts: []
+  unarmedPart: {fileID: 0}
+  meshScale: 1
+  meshOffset: {x: 0, y: 0, z: 0}
+  teamColors: []
+  rig:
+    pelvis: bip_pelvis
+    head: bip_head
+    thighL: bip_hip_L
+    thighR: bip_hip_R
+    kneeL: bip_knee_L
+    kneeR: bip_knee_R
+    upperArmL: bip_upperArm_L
+    upperArmR: bip_upperArm_R
+    forearmL: bip_lowerArm_L
+    forearmR: bip_lowerArm_R
+    weaponBone: weapon_bone
+    handL: bip_hand_L
+    backBone: 
+    rackOffset: {x: 0, y: 0.7, z: -0.24}
+    jetpackOffset: {x: 0, y: 0.84, z: -0.2}
+    jetpackSpread: 0.14
+    upperArmLReady: {x: 0, y: 0, z: 0, w: 1}
+    upperArmRReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmLReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmRReady: {x: 0, y: 0, z: 0, w: 1}
+    crouchDrop: 0.2
+    strideLength: 1.2
+    legSwingDegrees: 28
+    kneeBendDegrees: 35
+    bobHeight: 0.03
+    armSwingDegrees: 14
+    aimPitchWeight: 1
+    aimWithBothArms: 0
+    aimFromShoulder: 0
+    flyerArmUpperL: 
+    flyerArmUpperR: 
+    flyerArmLowerL: 
+    flyerArmLowerR: 
+    xSpreadDegrees: 28
+    boostSweepDegrees: 40
+    parkedFoldDegrees: 55
+  capsuleRadius: 0.34
+  capsuleHalfHeight: 0.40265
+  voicePitch: 1.22
+  maxHealth: 100
+  walkSpeed: 3.5
+  jumpVelocity: 6
+  maxJumps: 1
+  sprintSpeed: 0
+  crouchSpeed: 0
+  crouchHeightFraction: 0.65
+  hasJetpack: 0
+  hitZones: []
+  animatedWeaponSwap: 0
+  weaponSwapDuration: 0.8
+  startingWeapons: []
+  meleeWeapon: {fileID: 0}
+  grenadeWeapon: {fileID: 0}
+  startingGrenades: 0
+  muzzleBones: []
+  secondaryWeapon: {fileID: 0}
+  secondaryMuzzleBone: 
+  sightRange: 35
+  sightHalfAngle: 70
+  preferredRange: 9
+  aimErrorDegrees: 4
+  burstDuration: 1.2
+  burstPause: 1
+  retreatHealthFraction: 0
+  squadAlertRadius: 20
+  hackable: 0
+  possessionDuration: 30
+  allyHackable: 0
+  flight:
+    maxSpeed: 45
+    acceleration: 60
+    braking: 40
+    grip: 3
+    turnRate: 140
+    maxBank: 35
+    boostSpeed: 100
+    boostAcceleration: 140
+    boostDuration: 3
+    boostRechargeTime: 5
+    dodgeSpeed: 45
+    dodgeCost: 0.25
+  cameraDistance: 3
+  cameraOffset: {x: 0.55, y: 0.55, z: 0}

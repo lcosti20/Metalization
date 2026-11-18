@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7dcc9c542e3b694dba70751f0041e7b, type: 3}
+  m_Name: DA_Ship_Capital
+  m_EditorClassIdentifier: Metalization::Metalization.MetalCapitalShipData
+  displayName: Capital Ship
+  hullModel: {fileID: 9136342856321577237, guid: e8e06e0e11b3f9e4589fac7a92e97d2d, type: 3}
+  enginesModel: {fileID: 1728816180367824301, guid: 745c96662cd285146bbe71b88843cd1b, type: 3}
+  shieldGeneratorModel: {fileID: 4737294880110249131, guid: f88e3588882a1f24d88b0782d9f926c3, type: 3}
+  commsModel: {fileID: 3200335608469217546, guid: 2a14d8469eb46ad4c88274ff65584dcc, type: 3}
+  turretBaseModel: {fileID: 4302848399754453821, guid: 326530f48acab1b4ea43867a9dd9cfdb, type: 3}
+  turretGunModel: {fileID: 418651893498416474, guid: 320cd2da608004444a36e20616c7911f, type: 3}
+  turretWeapon: {fileID: 11400000, guid: ef4b675529420a541bdc54e66a711b16, type: 2}
+  turretRange: 1200
+  turretTurnRate: 70
+  turretAimError: 2.5
+  hullHealth: 20000
+  shieldGeneratorHealth: 2500
+  enginesHealth: 4000
+  commsHealth: 2000
+  lifeSupportHealth: 3000
+  shieldedHullDamageScale: 0.25
+  teamColors:
+  - team: 0
+    body: {r: 0.436627, g: 0.48452914, b: 0.6342527, a: 1}
+    accent: {r: 0.70141065, g: 0.748379, b: 0.865042, a: 1}
+  - team: 1
+    body: {r: 0.6342527, g: 0.44920385, b: 0.3958812, a: 1}
+    accent: {r: 0.865042, g: 0.7353569, b: 0.6799757, a: 1}
+  interiorScene: MZ_CapitalShip_Interior
+  hangarRobot: {fileID: 11400000, guid: 6247a2a2fb66ca84191dfcda5b632886, type: 2}
+  hangarRespawnDelay: 20
+  hangarMouthSize: {x: 80, y: 30}

@@ -1,0 +1,116 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b060d6aeb9b2e041b9bc14cf6a0fd32, type: 3}
+  m_Name: DA_Bot_Player
+  m_EditorClassIdentifier: Metalization::Metalization.MetalBotArchetype
+  archetypeId: player
+  displayName: Player
+  team: 0
+  model: {fileID: 919132149155446097, guid: 110974d011670f2449f0f98ad4349638, type: 3}
+  parts: []
+  unarmedPart: {fileID: 919132149155446097, guid: 70ca5e1153d421f4184df8d96062c8ab, type: 3}
+  meshScale: 1
+  meshOffset: {x: 0, y: 0, z: 0}
+  teamColors: []
+  rig:
+    pelvis: bip_pelvis
+    head: bip_head
+    thighL: bip_hip_L
+    thighR: bip_hip_R
+    kneeL: bip_knee_L
+    kneeR: bip_knee_R
+    upperArmL: bip_upperArm_L
+    upperArmR: bip_upperArm_R
+    forearmL: bip_lowerArm_L
+    forearmR: bip_lowerArm_R
+    weaponBone: weapon_bone
+    handL: bip_hand_L
+    backBone: 
+    rackOffset: {x: -0, y: 0.7, z: -0.24}
+    jetpackOffset: {x: 0, y: 0.84, z: -0.2}
+    jetpackSpread: 0.14
+    upperArmLReady: {x: 0, y: 0, z: 0, w: 1}
+    upperArmRReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmLReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmRReady: {x: 0, y: 0, z: 0, w: 1}
+    crouchDrop: 0.22
+    strideLength: 2
+    legSwingDegrees: 40
+    kneeBendDegrees: 50
+    bobHeight: 0.04
+    armSwingDegrees: 20
+    aimPitchWeight: 1
+    aimWithBothArms: 0
+    aimFromShoulder: 0
+    flyerArmUpperL: 
+    flyerArmUpperR: 
+    flyerArmLowerL: 
+    flyerArmLowerR: 
+    xSpreadDegrees: 28
+    boostSweepDegrees: 40
+    parkedFoldDegrees: 55
+  capsuleRadius: 0.3
+  capsuleHalfHeight: 0.66
+  voicePitch: 0.99
+  maxHealth: 150
+  walkSpeed: 6
+  jumpVelocity: 7
+  maxJumps: 2
+  sprintSpeed: 10
+  crouchSpeed: 2.6
+  crouchHeightFraction: 0.65
+  hasJetpack: 1
+  hitZones:
+  - zoneName: Head
+    bone: bip_head
+    radius: 0.17999999
+    damageMultiplier: 1.5
+    durability: 0
+    disablesWeaponWhenBroken: 0
+    disablesMuzzleBone: 
+  animatedWeaponSwap: 1
+  weaponSwapDuration: 0.8
+  startingWeapons:
+  - {fileID: 11400000, guid: 8b49c71a36d5f844d906c69c81c747c2, type: 2}
+  - {fileID: 11400000, guid: 5564adad502592143b5a166a06e3df92, type: 2}
+  meleeWeapon: {fileID: 11400000, guid: c21576b43e06fa74e99b29650d29e6e9, type: 2}
+  grenadeWeapon: {fileID: 11400000, guid: f53f7ba89bcb8fc41873c23ac861af1e, type: 2}
+  startingGrenades: 3
+  muzzleBones: []
+  secondaryWeapon: {fileID: 0}
+  secondaryMuzzleBone: 
+  sightRange: 35
+  sightHalfAngle: 70
+  preferredRange: 9
+  aimErrorDegrees: 4
+  burstDuration: 1.2
+  burstPause: 1
+  retreatHealthFraction: 0
+  squadAlertRadius: 20
+  hackable: 0
+  possessionDuration: 30
+  allyHackable: 0
+  flight:
+    maxSpeed: 45
+    acceleration: 60
+    braking: 40
+    grip: 3
+    turnRate: 140
+    maxBank: 35
+    boostSpeed: 100
+    boostAcceleration: 140
+    boostDuration: 3
+    boostRechargeTime: 5
+    dodgeSpeed: 45
+    dodgeCost: 0.25
+  cameraDistance: 2.6
+  cameraOffset: {x: 0.5, y: 0.59999996, z: 0}

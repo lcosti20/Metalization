@@ -1,0 +1,146 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b060d6aeb9b2e041b9bc14cf6a0fd32, type: 3}
+  m_Name: DA_Bot_Stalker
+  m_EditorClassIdentifier: Metalization::Metalization.MetalBotArchetype
+  archetypeId: stalker
+  displayName: Stalker
+  team: 1
+  model: {fileID: 919132149155446097, guid: 960b0a31482db2e4db46e3573ed3d52b, type: 3}
+  parts: []
+  unarmedPart: {fileID: 0}
+  meshScale: 1
+  meshOffset: {x: 0, y: 0.57, z: 0.85999995}
+  teamColors:
+  - team: 0
+    body: {r: 0.4334116, g: 0.47114652, b: 0.70141065, a: 1}
+    accent: {r: 0.7270632, g: 0.74528074, b: 0.880825, a: 1}
+  - team: 1
+    body: {r: 0.70141065, g: 0.5088244, b: 0.4334116, a: 1}
+    accent: {r: 0.880825, g: 0.76462793, b: 0.7270632, a: 1}
+  rig:
+    pelvis: body
+    head: 
+    thighL: bip_hip_L
+    thighR: bip_hip_R
+    kneeL: bip_knee_L
+    kneeR: bip_knee_R
+    upperArmL: bip_upperArm_L
+    upperArmR: bip_upperArm_R
+    forearmL: bip_lowerArm_L
+    forearmR: bip_lowerArm_R
+    weaponBone: weapon_bone
+    handL: bip_hand_L
+    backBone: 
+    rackOffset: {x: 0, y: 0.7, z: -0.24}
+    jetpackOffset: {x: 0, y: 0.84, z: -0.2}
+    jetpackSpread: 0.14
+    upperArmLReady: {x: 0, y: 0, z: 0, w: 1}
+    upperArmRReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmLReady: {x: 0, y: 0, z: 0, w: 1}
+    forearmRReady: {x: 0, y: 0, z: 0, w: 1}
+    crouchDrop: 0.2
+    strideLength: 1.2
+    legSwingDegrees: 28
+    kneeBendDegrees: 35
+    bobHeight: 0.03
+    armSwingDegrees: 0
+    aimPitchWeight: 0
+    aimWithBothArms: 0
+    aimFromShoulder: 0
+    flyerArmUpperL: arm_upper_0_L
+    flyerArmUpperR: arm_upper_0_R
+    flyerArmLowerL: arm_lower_0_L
+    flyerArmLowerR: arm_lower_0_R
+    xSpreadDegrees: 28
+    boostSweepDegrees: 40
+    parkedFoldDegrees: 55
+  capsuleRadius: 1.4
+  capsuleHalfHeight: 1.7
+  voicePitch: 0.6
+  maxHealth: 400
+  walkSpeed: 6
+  jumpVelocity: 6
+  maxJumps: 1
+  sprintSpeed: 0
+  crouchSpeed: 0
+  crouchHeightFraction: 0.65
+  hasJetpack: 0
+  hitZones:
+  - zoneName: GunUpperL
+    bone: arm_upper_0_L
+    radius: 0.59999996
+    damageMultiplier: 1
+    durability: 90
+    disablesWeaponWhenBroken: 0
+    disablesMuzzleBone: gun_upper_L
+  - zoneName: GunUpperR
+    bone: arm_upper_0_R
+    radius: 0.59999996
+    damageMultiplier: 1
+    durability: 90
+    disablesWeaponWhenBroken: 0
+    disablesMuzzleBone: gun_upper_R
+  - zoneName: GunLowerL
+    bone: arm_lower_0_L
+    radius: 0.59999996
+    damageMultiplier: 1
+    durability: 90
+    disablesWeaponWhenBroken: 0
+    disablesMuzzleBone: gun_lower_L
+  - zoneName: GunLowerR
+    bone: arm_lower_0_R
+    radius: 0.59999996
+    damageMultiplier: 1
+    durability: 90
+    disablesWeaponWhenBroken: 0
+    disablesMuzzleBone: gun_lower_R
+  animatedWeaponSwap: 0
+  weaponSwapDuration: 0.8
+  startingWeapons:
+  - {fileID: 11400000, guid: 95d2c0b8f5e387945a7afb3fba440d17, type: 2}
+  meleeWeapon: {fileID: 0}
+  grenadeWeapon: {fileID: 0}
+  startingGrenades: 0
+  muzzleBones:
+  - gun_upper_L
+  - gun_lower_R
+  - gun_upper_R
+  - gun_lower_L
+  secondaryWeapon: {fileID: 0}
+  secondaryMuzzleBone: 
+  sightRange: 80
+  sightHalfAngle: 70
+  preferredRange: 40
+  aimErrorDegrees: 1.5
+  burstDuration: 1.2
+  burstPause: 1
+  retreatHealthFraction: 0
+  squadAlertRadius: 20
+  hackable: 1
+  possessionDuration: 20
+  allyHackable: 1
+  flight:
+    maxSpeed: 45
+    acceleration: 60
+    braking: 40
+    grip: 3
+    turnRate: 140
+    maxBank: 35
+    boostSpeed: 100
+    boostAcceleration: 140
+    boostDuration: 3
+    boostRechargeTime: 5
+    dodgeSpeed: 45
+    dodgeCost: 0.25
+  cameraDistance: 15
+  cameraOffset: {x: 0, y: 3.3, z: 0}

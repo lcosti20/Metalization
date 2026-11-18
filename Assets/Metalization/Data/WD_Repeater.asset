@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1358c37e2dfdd24bbea966427945d4d, type: 3}
+  m_Name: WD_Repeater
+  m_EditorClassIdentifier: Metalization::Metalization.MetalWeaponData
+  displayName: Repeater
+  fireMode: 1
+  automatic: 1
+  infiniteAmmo: 0
+  reloadTime: 1.3
+  pellets: 1
+  spreadDegrees: 1.2
+  hipSpreadDegrees: -1
+  range: 60
+  projectileSpeed: 65
+  projectileGravityScale: 0
+  explosionRadius: 0
+  stunDuration: 0
+  muzzleOffset: 0.45
+  projectileScale: 1
+  tracerColor: {r: 1, g: 0.93092453, b: 0.5838314, a: 1}
+  propModel: {fileID: 919132149155446097, guid: 32068c38607cf4a45b3c73a10f5ed1fe, type: 3}
+  aimFOV: 60
+  aimArmLengthScale: 0.55
+  scopeOverlay: 0
+  aimSensitivity: 1
+  laserSight: 0
+  noiseRadius: 22
+  fireSound: repeater_fire
+  reloadSound: reload
+  impactSound: impact
+  levels:
+  - heldModels:
+    - archetypeId: player
+      model: {fileID: 919132149155446097, guid: 30dca46018f45e9468ad67b626857c1e, type: 3}
+    - archetypeId: shooter
+      model: {fileID: 919132149155446097, guid: edf08f35ec901ff4596b2664b8f50860, type: 3}
+    damage: 13
+    fireInterval: 0.1
+    clipSize: 30
+    maxReserveAmmo: 240
+  - heldModels:
+    - archetypeId: player
+      model: {fileID: 919132149155446097, guid: 532b3c2de689b1b4f87411009d756236, type: 3}
+    damage: 19
+    fireInterval: 0.085
+    clipSize: 40
+    maxReserveAmmo: 320

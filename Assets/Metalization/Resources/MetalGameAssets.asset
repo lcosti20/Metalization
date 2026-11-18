@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60156e34433556f4eab7195e4efe42e3, type: 3}
+  m_Name: MetalGameAssets
+  m_EditorClassIdentifier: Metalization::Metalization.MetalGameAssets
+  glowMaterial: {fileID: 2100000, guid: e3028eeeb92c3e243aa65be5ef80f550, type: 2}
+  particleMaterial: {fileID: 2100000, guid: 4151921a91168ad49bca37220a2bb824, type: 2}
+  smokeMaterial: {fileID: 2100000, guid: 66a227c226014c54187c4ae067137eb5, type: 2}
+  beamMaterial: {fileID: 2100000, guid: 02b668bb76d3fc74683ce840150aef77, type: 2}
+  energyFieldMaterial: {fileID: 2100000, guid: 06dd522d5a0d6864790c265e1e081799, type: 2}
+  portalMaterial: {fileID: 2100000, guid: 80906863cab23de44bae36a115542a1b, type: 2}
+  environment:
+  - name: Floor
+    material: {fileID: 2100000, guid: d7952d88b2a6e4b4bbd320216d010812, type: 2}
+  - name: Wall
+    material: {fileID: 2100000, guid: d25b6274d6287bd49a0fa99065afddfa, type: 2}
+  - name: Dark
+    material: {fileID: 2100000, guid: c878ac1411a349a4992d7593f78b956c, type: 2}
+  - name: Hazard
+    material: {fileID: 2100000, guid: 7ce2afda716a57f42a82caeb56dcc7aa, type: 2}
+  - name: Glow
+    material: {fileID: 2100000, guid: 4c634757bd7e6f4419620207e6270956, type: 2}
+  - name: Metal
+    material: {fileID: 2100000, guid: 13f7eeba8353dfe45aa3985837f29d12, type: 2}
+  sounds: {fileID: 11400000, guid: 00a2e54ded17c2b40b9396d8748826f5, type: 2}
+  playerArchetype: {fileID: 11400000, guid: d1b72cc2a81d4014594dc4e03627637c, type: 2}
+  wrenchModel: {fileID: 919132149155446097, guid: a3f37610dbac7b246842f852048500db, type: 3}
+  ammoCrateModel: {fileID: 919132149155446097, guid: 2f2e7842ce8583e49984281852cec4cb, type: 3}
+  levels: {fileID: 11400000, guid: 26e1b1820ef504e4fbd0798549daabf9, type: 2}
+  uiFont: {fileID: 0}

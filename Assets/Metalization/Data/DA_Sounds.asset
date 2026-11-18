@@ -1,0 +1,391 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eebf30982ec773646aa0eece8036bb01, type: 3}
+  m_Name: DA_Sounds
+  m_EditorClassIdentifier: Metalization::Metalization.MetalSoundLibrary
+  sounds:
+  - name: alert
+    clip: {fileID: 8300000, guid: e9f121b16765b724ca3a75e56aaf1671, type: 3}
+    volume: 1
+    group: 1
+  - name: ambience_loop
+    clip: {fileID: 8300000, guid: ca886d187dfc08b4a9c37d9f71d1e14e, type: 3}
+    volume: 0.5
+    group: 0
+  - name: battle_loop
+    clip: {fileID: 8300000, guid: a1303648d8041fc49a15289ec78c0de9, type: 3}
+    volume: 0.6
+    group: 0
+  - name: blaster_fire
+    clip: {fileID: 8300000, guid: 3cd73e5944bba5f4db1f0899069a495f, type: 3}
+    volume: 1
+    group: 1
+  - name: checkpoint
+    clip: {fileID: 8300000, guid: 54c2e2de47063f44a8fb09f8e7417dd4, type: 3}
+    volume: 1
+    group: 1
+  - name: console_beep
+    clip: {fileID: 8300000, guid: 6f6f2babc53deb24cb0728fe1e5f4910, type: 3}
+    volume: 1
+    group: 1
+  - name: console_denied
+    clip: {fileID: 8300000, guid: 9684880abdf1b064e8664910a8d5edbe, type: 3}
+    volume: 1
+    group: 1
+  - name: console_granted
+    clip: {fileID: 8300000, guid: 60a430e7b57cb7048ba60603e2408cf6, type: 3}
+    volume: 1
+    group: 1
+  - name: dispenser_drill
+    clip: {fileID: 8300000, guid: a1de845518df43c4faf82490692205f8, type: 3}
+    volume: 1
+    group: 1
+  - name: dispenser_hammer
+    clip: {fileID: 8300000, guid: f3bf6657542d1e145be15d5f70b8c7d3, type: 3}
+    volume: 1
+    group: 1
+  - name: dispenser_shutdown
+    clip: {fileID: 8300000, guid: d2f0732676df3e54294d89e0c47cfe70, type: 3}
+    volume: 1
+    group: 1
+  - name: double_jump
+    clip: {fileID: 8300000, guid: 2fe75114d3e56594e898ded9e7d4cec8, type: 3}
+    volume: 1
+    group: 1
+  - name: emp_blast
+    clip: {fileID: 8300000, guid: b063884bc70044e4b95925a438064837, type: 3}
+    volume: 1
+    group: 1
+  - name: enemy_laser_fire
+    clip: {fileID: 8300000, guid: 5916e815594f4094b9524cefa5ceef82, type: 3}
+    volume: 0.7
+    group: 1
+  - name: explosion
+    clip: {fileID: 8300000, guid: f92ba6ef587c90a4987dd27af679e32c, type: 3}
+    volume: 1
+    group: 1
+  - name: footstep
+    clip: {fileID: 8300000, guid: 5b426e6382ef3b9479109d6ef70e99bd, type: 3}
+    volume: 0.6
+    group: 1
+  - name: footstep_heavy
+    clip: {fileID: 8300000, guid: 399263e2590cc63489780324fd602d1e, type: 3}
+    volume: 1
+    group: 1
+  - name: footstep_sprint
+    clip: {fileID: 8300000, guid: b02bf17edffb36442be462fd3d675183, type: 3}
+    volume: 0.7
+    group: 1
+  - name: gate_open
+    clip: {fileID: 8300000, guid: 1cbcaa01f21209e4a853545addb2de1e, type: 3}
+    volume: 1
+    group: 1
+  - name: grenade_throw
+    clip: {fileID: 8300000, guid: fceef6bd8e8a2db498a9385a8a49d23d, type: 3}
+    volume: 1
+    group: 1
+  - name: impact
+    clip: {fileID: 8300000, guid: acd4115fa6095544d9db8c854c4d95f0, type: 3}
+    volume: 1
+    group: 1
+  - name: jump
+    clip: {fileID: 8300000, guid: e523e0b9d05441b45a91e4691e356022, type: 3}
+    volume: 1
+    group: 1
+  - name: land
+    clip: {fileID: 8300000, guid: f6df18056b450f54d80cd5b9bfe46aa4, type: 3}
+    volume: 1
+    group: 1
+  - name: laser_fire
+    clip: {fileID: 8300000, guid: 10e81d884aec1bc46a6704dc2edfae0a, type: 3}
+    volume: 1
+    group: 1
+  - name: lift_enter
+    clip: {fileID: 8300000, guid: 747aa187e3a8f22449b8168fecf0a1ae, type: 3}
+    volume: 1
+    group: 1
+  - name: lift_exit
+    clip: {fileID: 8300000, guid: d6284458f38dc094faa5f5d2d51d7a3a, type: 3}
+    volume: 1
+    group: 1
+  - name: lift_hum_loop
+    clip: {fileID: 8300000, guid: 90e74a23bbf82424a8c34ed5484f28cf, type: 3}
+    volume: 1
+    group: 1
+  - name: low_health
+    clip: {fileID: 8300000, guid: f7f92c002a342f3498077d73e4c9347d, type: 3}
+    volume: 1
+    group: 1
+  - name: minigun_fire
+    clip: {fileID: 8300000, guid: cbfd3171b90216e44a3eea3221743ded, type: 3}
+    volume: 0.5
+    group: 1
+  - name: mission_complete
+    clip: {fileID: 8300000, guid: 56f1bd64e3099e24181672aa201b2463, type: 3}
+    volume: 1
+    group: 1
+  - name: music_background_loop
+    clip: {fileID: 8300000, guid: 772f48acd81104e4f827c78e7d290908, type: 3}
+    volume: 0.8
+    group: 0
+  - name: objective_complete
+    clip: {fileID: 8300000, guid: 06b167cfefd58c846bfdd1071b1b4dae, type: 3}
+    volume: 1
+    group: 1
+  - name: pickup
+    clip: {fileID: 8300000, guid: e912a8389257f7c4682b61c3b10ab8d5, type: 3}
+    volume: 1
+    group: 1
+  - name: player_down
+    clip: {fileID: 8300000, guid: 35e18826aeeee0348be8c1945df5b47d, type: 3}
+    volume: 1
+    group: 1
+  - name: player_hit
+    clip: {fileID: 8300000, guid: 3585c753218fbbb4aaac395939d52eca, type: 3}
+    volume: 1
+    group: 1
+  - name: radio_blip
+    clip: {fileID: 8300000, guid: 158ebccf1d4ee074492b32c50ea0c022, type: 3}
+    volume: 1
+    group: 1
+  - name: radio_whistle_loop
+    clip: {fileID: 8300000, guid: 6211b98050f3a4b488ca331c71e28ab1, type: 3}
+    volume: 1
+    group: 1
+  - name: reload
+    clip: {fileID: 8300000, guid: 31c5b2ad1a7e2414bb93d5c46653340f, type: 3}
+    volume: 1
+    group: 1
+  - name: repeater_fire
+    clip: {fileID: 8300000, guid: 60ed9f9fbaf751f4590f6884b9623799, type: 3}
+    volume: 1
+    group: 1
+  - name: robot_explode
+    clip: {fileID: 8300000, guid: cbe30a5290fb28c47805dcbad1a2735d, type: 3}
+    volume: 1
+    group: 1
+  - name: robot_hit
+    clip: {fileID: 8300000, guid: bc9cea598c63aa44f9f785c712813df9, type: 3}
+    volume: 1
+    group: 1
+  - name: rocket_fire
+    clip: {fileID: 8300000, guid: 1e24dfebc81091e42891369567cb1207, type: 3}
+    volume: 1
+    group: 1
+  - name: shotgun_fire
+    clip: {fileID: 8300000, guid: 622d5e533e4b4ed409f200c3ad631854, type: 3}
+    volume: 1
+    group: 1
+  - name: sniper_fire
+    clip: {fileID: 8300000, guid: 62cfa68d41109884289d71b62d3b8823, type: 3}
+    volume: 1
+    group: 1
+  - name: suspicion
+    clip: {fileID: 8300000, guid: 94b20ab5bbf1ebb41a16c6a61a284409, type: 3}
+    volume: 0.8
+    group: 1
+  - name: swap_attach
+    clip: {fileID: 8300000, guid: 82931855134a2954da63270b3a4893a5, type: 3}
+    volume: 1
+    group: 1
+  - name: swap_detach
+    clip: {fileID: 8300000, guid: 0db36e7b0de9c424bae23d53ecd6cbfa, type: 3}
+    volume: 1
+    group: 1
+  - name: swap_rack
+    clip: {fileID: 8300000, guid: 91168787b71ad8042bf873aabba18752, type: 3}
+    volume: 1
+    group: 1
+  - name: swap_servo
+    clip: {fileID: 8300000, guid: 575a75cb5e49584499f58642311eb8a5, type: 3}
+    volume: 0.6
+    group: 1
+  - name: tether_fail
+    clip: {fileID: 8300000, guid: ecdf1e16a29902042be1ff9f9c6f0cbf, type: 3}
+    volume: 1
+    group: 1
+  - name: tether_link
+    clip: {fileID: 8300000, guid: a83ebf49ffc1aab43b8b74d465036626, type: 3}
+    volume: 1
+    group: 1
+  - name: tether_release
+    clip: {fileID: 8300000, guid: 5ec7a95189a28e348877ebf99a65761e, type: 3}
+    volume: 1
+    group: 1
+  - name: ui_move
+    clip: {fileID: 8300000, guid: 0f4787fcc755e7a4583c22994c658b8c, type: 3}
+    volume: 0.6
+    group: 1
+  - name: ui_select
+    clip: {fileID: 8300000, guid: 52529e7b1cb425244bb166b68007f6c3, type: 3}
+    volume: 1
+    group: 1
+  - name: voice_alert1
+    clip: {fileID: 8300000, guid: fa005bdf5062d3a44b0b832f6a760051, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_alert2
+    clip: {fileID: 8300000, guid: ce302f88c84cf5340b4d35c0dc5fadfa, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_alert3
+    clip: {fileID: 8300000, guid: 85fb37b7cf422644d808bdd64193938d, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_alert4
+    clip: {fileID: 8300000, guid: f2516f65b09a21e43b02c7be26dff829, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_alert5
+    clip: {fileID: 8300000, guid: 3de166b912d7413479469e03b69d694c, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter1
+    clip: {fileID: 8300000, guid: 8d79ba5ce85fc154a9e3f30d535c63a7, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter2
+    clip: {fileID: 8300000, guid: d093ed652c891d040860404c06881869, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter3
+    clip: {fileID: 8300000, guid: cbdace269b02426448d72a797b19a2a1, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter4
+    clip: {fileID: 8300000, guid: 2754611491ef42748b3d0a8267c06b90, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter5
+    clip: {fileID: 8300000, guid: d72d580e8ad73d14ba167d5887720357, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter6
+    clip: {fileID: 8300000, guid: e8316eab72e6b774b85dd94dca53f26a, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter7
+    clip: {fileID: 8300000, guid: 03560e7c9e78eb64f9a8fe3d12d7d4ee, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_chatter8
+    clip: {fileID: 8300000, guid: de9fcdc6d134ec94fb9edea1d8f863cc, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_confused1
+    clip: {fileID: 8300000, guid: 83fa3eb2f1d217c47b49b1b7959e68fd, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_confused2
+    clip: {fileID: 8300000, guid: 1829dac94023fce4587ea2e06d7ef071, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_confused3
+    clip: {fileID: 8300000, guid: dd5acdfe885f7c44b83082647641b6a6, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_confused4
+    clip: {fileID: 8300000, guid: 8bc26fd2f86bf4b48b8dcc997e16be2c, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_confused5
+    clip: {fileID: 8300000, guid: f742091b959116244937f3e971e5711d, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_death1
+    clip: {fileID: 8300000, guid: 5c12129a3d5dbac4395762740ac5377d, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_death2
+    clip: {fileID: 8300000, guid: cffe124c9d3da7745b39cc06987fba21, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_death3
+    clip: {fileID: 8300000, guid: 1c79533dcc7cd1d4da8a28b0a4524ca1, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_death4
+    clip: {fileID: 8300000, guid: e43ed5cde0b42394a9109bca8569a522, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_death5
+    clip: {fileID: 8300000, guid: 31e88524ec9e4124db8e28168ad74a5a, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_laugh1
+    clip: {fileID: 8300000, guid: 9791bcfade6adda47af2820dd51aef9e, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_laugh2
+    clip: {fileID: 8300000, guid: 223298d39f9327748b5a55ad667572bc, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_laugh3
+    clip: {fileID: 8300000, guid: 8a5a5702de8a1cb44a35b3d122068f52, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_laugh4
+    clip: {fileID: 8300000, guid: e1752a853ba80c84abe8781dc458521b, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_laugh5
+    clip: {fileID: 8300000, guid: 8ed956107cc25504595d41eaf32da1e2, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders1
+    clip: {fileID: 8300000, guid: 43f98b2a3ba93094b84de0315c11a340, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders2
+    clip: {fileID: 8300000, guid: 776f6e49078e95c419df9ee6a275111e, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders3
+    clip: {fileID: 8300000, guid: 2d8763753310c9443a74d2d50fc4b507, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders4
+    clip: {fileID: 8300000, guid: f7dc135454fd3724aabe8cc6c94a32e4, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders5
+    clip: {fileID: 8300000, guid: 6b5fda5daffd9d2459887c45ac659774, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_orders6
+    clip: {fileID: 8300000, guid: cd27ac48e5a450445a24293fb54d1ed2, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain1
+    clip: {fileID: 8300000, guid: 7230234337d6f77459b5bd45a64382ca, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain2
+    clip: {fileID: 8300000, guid: e4d2392ef9d0ac845acf16a62dd76ce7, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain3
+    clip: {fileID: 8300000, guid: 320d0478fe150fb4d85b4feeca524797, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain4
+    clip: {fileID: 8300000, guid: 7cdb1d40cfdded34c9b2bf10b76a5ac6, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain5
+    clip: {fileID: 8300000, guid: 92625df2662fbc0478c4ee477d3f425d, type: 3}
+    volume: 1
+    group: 2
+  - name: voice_pain6
+    clip: {fileID: 8300000, guid: e4ec80dadba90c643988b016e530d07f, type: 3}
+    volume: 1
+    group: 2
