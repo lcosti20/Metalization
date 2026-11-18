@@ -1,5 +1,7 @@
 <#
-Launches the demo in standalone game mode with the dev autopilot and collects screenshots.
+Runs the Windows player build with the dev autopilot (MetalDevAutopilot) and collects screenshots.
+
+    powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Build        # build the player first
 
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1                 # combat loop
     powershell -ExecutionPolicy Bypass -File Tools\AssetPipeline\smoke_test.ps1 -Scenario gate  # possession puzzle
@@ -30,7 +32,7 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
     -Scenario jetpack double jump in the Outpost hangar, filmed from behind (jetpack flames, back rack)
     -Scenario pickups  by the gate: grab the Rocket Launcher, fire + reload (reload bar), take grenades and ammo
     -Scenario lowhealth  drop to 20% health in the Outpost hangar: red flash + double beep each second, then heal
-    -Scenario fx         every Niagara combat effect (muzzle flash, impact, explosion, burst, tracer, beam) set off in a row
+    -Scenario fx         every combat effect (muzzle flash, impact, explosion, burst, tracer, beam) set off in a row
     -Scenario fxboss     report shots: courtyard cleared, hijack the Brute, side camera on the Hack Tether beam
   Robot dispensers (MZ_DispenserTest):
     -Scenario dispenser  scrap an assigned guard and watch it be rebuilt; open the gate to start the timed
@@ -40,19 +42,18 @@ Launches the demo in standalone game mode with the dev autopilot and collects sc
   -Scenario endgame   Production Alpha final area out of order: yard before Brute, die after the dispenser checkpoint (their robots come back), finish the Brute
   -Scenario yardcheckpoint  Production Alpha patrol yard: a rebuilt patrol saved at the checkpoint comes back once, not twice
 
-Screenshots land in Saved\Screenshots\WindowsEditor, the log in Saved\smoke_<scenario>.log.
-Requires the editor target to be built. See AMetalDevAutopilot for all command-line switches.
-
--Packaged runs the same scenario in the packaged Development build (Windows\Metalization.exe, made with
-BuildCookRun -archivedirectory=<project>) instead of the editor. Its screenshots land in
-Windows\Metalization\Saved\Screenshots\Windows; the log is Saved\smoke_<scenario>_packaged.log.
+Positions in the setups below are the Unreal version's (cm, X forward / Y right / Z up); the autopilot converts them.
+Screenshots land in %USERPROFILE%\AppData\LocalLow\<company>\Metalization\Screenshots, the log in Logs\smoke_<scenario>.log.
+-Build first makes the Development player (Builds\Windows\Metalization.exe) in batch mode (close the editor first,
+or use Metalization > Build Windows Player). In the editor, the same options can be given to Play Mode through the
+METALIZATION_ARGS environment variable, or with MetalDevAutopilot.Run("<options>") from a script.
 #>
 param(
     [ValidateSet("combat", "gate", "boss", "arena", "flight", "hangar", "battle", "dogfight", "menu", "ships",
                  "sound", "alpha", "swap", "reload", "draw", "lift", "liftai", "drop", "hop", "ditch", "sneak", "sniper", "hack", "hackfail", "field", "title", "bridge", "bunker", "jetpack", "checkpoint", "lowhealth", "pickups", "dispenser", "yard", "command", "endgame", "yardcheckpoint", "fx", "fxboss")]
     [string]$Scenario = "combat",
-    [string]$Editor = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe",
-    [switch]$Packaged
+    [string]$Unity = "C:\Program Files\Unity\Hub\Editor\6000.6.1f1\Editor\Unity.exe",
+    [switch]$Build
 )
 $Project = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $setups = @{
@@ -109,26 +110,23 @@ $setups = @{
 }
 $maps = @{ "alpha" = "MZ_ProductionAlpha"; "sound" = "MZ_ProductionAlpha"; "swap" = "MZ_ProductionAlpha"; "reload" = "MZ_ProductionAlpha"; "draw" = "MZ_ProductionAlpha"; "lift" = "MZ_ProductionAlpha"; "liftai" = "MZ_ProductionAlpha"; "drop" = "MZ_ProductionAlpha"; "hop" = "MZ_ProductionAlpha"; "ditch" = "MZ_ProductionAlpha"; "sneak" = "MZ_ProductionAlpha";
            "sniper" = "MZ_ProductionAlpha"; "hack" = "MZ_ProductionAlpha"; "hackfail" = "MZ_ProductionAlpha"; "field" = "MZ_ProductionAlpha"; "bridge" = "MZ_ProductionAlpha"; "bunker" = "MZ_ProductionAlpha"; "checkpoint" = "MZ_ProductionAlpha"; "yard" = "MZ_ProductionAlpha"; "command" = "MZ_ProductionAlpha"; "endgame" = "MZ_ProductionAlpha"; "yardcheckpoint" = "MZ_ProductionAlpha"; "pickups" = "MZ_ProductionAlpha"; "title" = "MZ_Title"; "dispenser" = "MZ_DispenserTest"; "arena" = "MZ_Arena"; "flight" = "MZ_FlightTest"; "hangar" = "MZ_SpaceBattle"; "battle" = "MZ_SpaceBattle"; "dogfight" = "MZ_SpaceBattle"; "ships" = "MZ_SpaceBattle" }
-$map = "/Game/Metalization/Maps/" + $(if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" })
-$suffix = if ($Packaged) { "_packaged" } else { "" }
-$log = "$Project\Saved\smoke_$Scenario$suffix.log".Replace("\", "/")
-$shots = if ($Packaged) { "$Project\Windows\Metalization\Saved\Screenshots" } else { "$Project\Saved\Screenshots" }
-Remove-Item -Recurse -Force $shots -ErrorAction SilentlyContinue
-[string[]]$options = @("-windowed", "-ResX=1600", "-ResY=900", "-nosplash", "-unattended", "-log", "-abslog=$log", "-MetalAutopilot=$Scenario")
-$options += $setups[$Scenario]
-if ($Packaged) {
-    $game = "$Project\Windows\Metalization.exe"
-    if (-not (Test-Path $game)) { throw "No packaged build at $game" }
-    # The root exe is a launcher that starts Windows\Metalization\Binaries\Win64\Metalization.exe: wait for both.
-    # Start-Process joins arguments with spaces and no quoting: quote the ones with spaces (the log path).
-    $quoted = (@($map) + $options) | ForEach-Object { if ($_ -match " ") { '"' + $_ + '"' } else { $_ } }
-    Start-Process -FilePath $game -ArgumentList $quoted -Wait
-    while (Get-Process -Name "Metalization" -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 500 }
-} else {
-    $uproject = $Project.Replace("\", "/") + "/Metalization.uproject"
-    & $Editor (@($uproject, $map, "-game") + $options) | Out-Null
+$map = if ($maps.ContainsKey($Scenario)) { $maps[$Scenario] } else { "MZ_Outpost_Demo" }
+$game = Join-Path $Project "Builds\Windows\Metalization.exe"
+if ($Build) {
+    Write-Host "== building $game" -ForegroundColor Cyan
+    & $Unity -batchmode -quit -projectPath $Project -executeMethod Metalization.Editor.MetalBuild.BuildWindowsBatch -logFile (Join-Path $Project "Logs\build.log") | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Player build failed. See Logs\build.log" }
 }
-Select-String -Path $log -Pattern "\[Autopilot\] (step|t=[0-9.]+ pawn)|\[Hack\]|\[Checkpoint\]|\[Dispenser\]|Objective|LogMetal: (Warning|Error)" |
-    ForEach-Object { $_.Line -replace '^\[[^\]]*\]\[[^\]]*\]', '' }
+if (-not (Test-Path $game)) { throw "No player build at $game (run with -Build)" }
+$company = (Select-String -Path (Join-Path $Project "ProjectSettings\ProjectSettings.asset") -Pattern "^\s*companyName:\s*(.+)$").Matches[0].Groups[1].Value.Trim()
+$shots = Join-Path $env:USERPROFILE "AppData\LocalLow\$company\Metalization\Screenshots"
+$log = Join-Path $Project "Logs\smoke_$Scenario.log"
+Remove-Item -Recurse -Force $shots -ErrorAction SilentlyContinue
+[string[]]$options = @("-screen-fullscreen", "0", "-screen-width", "1600", "-screen-height", "900", "-logFile", $log,
+                       "-MetalLevel=$map", "-MetalAutopilot=$Scenario")
+$options += $setups[$Scenario]
+# Start-Process joins arguments with spaces and no quoting: quote the ones with spaces (the log path).
+$quoted = $options | ForEach-Object { if ($_ -match " ") { '"' + $_ + '"' } else { $_ } }
+Start-Process -FilePath $game -ArgumentList $quoted -Wait
+Select-String -Path $log -Pattern "\[Autopilot\]|\[Hack\]|\[Checkpoint\]|\[Dispenser\]|Objective|Exception|\[Metal\]" | ForEach-Object { $_.Line }
 Get-ChildItem $shots -Recurse -Filter *.png -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
-

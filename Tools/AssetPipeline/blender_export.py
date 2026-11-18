@@ -1,5 +1,8 @@
 """
-Stage 1 of the Metalization asset pipeline: Blender -> FBX/PNG + manifest.json
+Stage 1 of the Metalization asset pipeline: Blender -> FBX/PNG + manifest.json, written straight into the Unity
+project (Assets/Metalization/Models by default), where Unity imports the FBX files and the editor pipeline
+(Assets/Metalization/Scripts/Editor/MetalAssetPipeline.cs) builds prefabs, materials and data assets from the
+manifest.
 
 Run headless (see run_pipeline.ps1), with no .blend open:
     blender.exe -b --factory-startup --python blender_export.py -- <output_dir> [<source_dir>]
@@ -20,13 +23,18 @@ What it produces in <output_dir>:
     Characters/<id>.fbx            body skeletal mesh (armature + first sub-collection's meshes)
     Characters/<id>__<part>.fbx    optional parts (hand, backpack, visor...) skinned to the same armature
     Weapons/<weapon>__on__<char>.fbx  weapon skinned 100% to <char>'s weapon_bone (Source "bonemerge"),
-                                   imported in UE onto <char>'s skeleton and driven as a leader-pose follower
+                                   in Unity its SkinnedMeshRenderer bones are remapped onto the body's
     Props/<weapon>.fbx             weapon/grenade as a static mesh, pivot at its attachment bone (pickups)
     Ships/<part>.fbx               ship/hangar piece as one static mesh with its UCX_ collision, pivot at the
-                                   part's PIVOT_* empty; its SOCKET_* empties go to the manifest (UE space)
+                                   part's PIVOT_* empty; its SOCKET_* empties go to the manifest (Unreal-style
+                                   space: cm, X forward / Y right / Z up; the Unity pipeline converts them)
     Textures/<image>.png           every image referenced by an exported material (none for the graybox)
     manifest.json                  materials, textures, characters, bones, parts, weapons, and a content
-                                   fingerprint per FBX (see fingerprint()) for import_plan.py
+                                   fingerprint per FBX (see fingerprint())
+
+An FBX whose fingerprint matches the previous manifest and still exists is not written again, so a run
+only touches the models that changed (FBX files embed the export time, so rewriting an unchanged model
+would still show up as a change in git).
 
 Nothing is saved back to the .blend files; all edits happen in memory.
 """
@@ -42,12 +50,19 @@ from mathutils import Matrix, Vector
 
 BLEND_ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-OUT_DIR = os.path.abspath(BLEND_ARGS[0] if BLEND_ARGS else os.path.join(PROJECT_DIR, "Saved", "AssetPipeline"))
+OUT_DIR = os.path.abspath(BLEND_ARGS[0] if BLEND_ARGS else os.path.join(PROJECT_DIR, "Assets", "Metalization", "Models"))
 SOURCE_DIR = os.path.abspath(BLEND_ARGS[1] if len(BLEND_ARGS) > 1 else os.path.join(PROJECT_DIR, "Art", "Graybox"))
 # Any change to this script may change every export, so it is part of every fingerprint.
 with open(os.path.abspath(__file__), "rb") as _script:
     SCRIPT_HASH = hashlib.sha256(_script.read()).hexdigest()
 FINGERPRINTS = {}  # FBX path relative to OUT_DIR -> fingerprint
+# Fingerprints of the previous run, to skip rewriting models that haven't changed.
+try:
+    with open(os.path.join(OUT_DIR, "manifest.json")) as _old:
+        OLD_FINGERPRINTS = json.load(_old).get("fingerprints", {})
+except (OSError, ValueError):
+    OLD_FINGERPRINTS = {}
+SKIPPED = []
 # Top-level folders of SOURCE_DIR that hold models; each becomes a collection of the same name.
 MODEL_FOLDERS = ("Characters", "Weapons", "Grenades", "Pickups", "Ships")
 
@@ -241,7 +256,11 @@ def fingerprint(objects, armature):
 
 
 def export_fbx(path, objects, armature=True):
-    FINGERPRINTS[os.path.relpath(path, OUT_DIR).replace("\\", "/")] = fingerprint(objects, armature)
+    rel = os.path.relpath(path, OUT_DIR).replace("\\", "/")
+    FINGERPRINTS[rel] = fingerprint(objects, armature)
+    if OLD_FINGERPRINTS.get(rel) == FINGERPRINTS[rel] and os.path.exists(path):
+        SKIPPED.append(rel)
+        return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:
@@ -583,9 +602,9 @@ def main():
     export_ships(manifest)
     with open(os.path.join(OUT_DIR, "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=1, sort_keys=True)
-    log("DONE characters=%d weapons=%d props=%d ships=%d materials=%d textures=%d" % (
+    log("DONE characters=%d weapons=%d props=%d ships=%d materials=%d textures=%d (unchanged, not rewritten: %d)" % (
         len(manifest["characters"]), len(manifest["weapons"]), len(manifest["props"]), len(manifest["ships"]),
-        len(materials), len(textures)))
+        len(materials), len(textures), len(SKIPPED)))
 
 
 main()
