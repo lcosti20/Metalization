@@ -1,0 +1,581 @@
+fileFormatVersion: 2
+guid: d5ec67a0878d6c741b2956cf50079548
+ModelImporter:
+  serializedVersion: 24600
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Eye
+    second: {fileID: 2100000, guid: 97cf66ee78ef3ae4596a3a85ad459691, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Pickup_AmmoGlow
+    second: {fileID: 2100000, guid: 39971ab1fa62c314597f7eb339213029, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Pickup_CrateDark
+    second: {fileID: 2100000, guid: 5ce8ee1a754cd604bb1b2e9420dcb120, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Pickup_CrateOlive
+    second: {fileID: 2100000, guid: a1ddd059304f3e74fb970ed3de2291bb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Pickup_RepairGlow
+    second: {fileID: 2100000, guid: 2266395b004c2684798850f729474a3d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_Pickup_Steel
+    second: {fileID: 2100000, guid: 55412483d7f50ea46bdf51c9c946eee8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Disclauncher
+    second: {fileID: 2100000, guid: 8e522c768e45a9245a6ce4977594112a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Drillcharge
+    second: {fileID: 2100000, guid: f8c1c0fc3838f914b9d12f7665180097, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Flamethrower
+    second: {fileID: 2100000, guid: 6a559cafc30d963408db4a9a5dab8ec0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_GrenadeCluster
+    second: {fileID: 2100000, guid: 5115494ae36c49f4f83338284fa574a4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_GrenadeConvert
+    second: {fileID: 2100000, guid: 6f4b0de1bc2d7624f85200fbc8561b05, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_GrenadeEmp
+    second: {fileID: 2100000, guid: 8f2765a026efef347b9794db2fc0d011, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_GrenadeFire
+    second: {fileID: 2100000, guid: 581314ecba05f3744b0bfd546e347d61, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Hacktether
+    second: {fileID: 2100000, guid: 323c693ceabeace4e8fe01d9e9936f69, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_LaserEnemy
+    second: {fileID: 2100000, guid: 4abb3469f9562ed4b85c9bbc6e4d37a2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_LaserL1
+    second: {fileID: 2100000, guid: c6dfed1bdfd82d24e98bae916d3412e7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_LaserL2
+    second: {fileID: 2100000, guid: 26fa98e112cf77649acae1fbfbd7bf4d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_LaserL3
+    second: {fileID: 2100000, guid: 87e3df74811b0cd48ad1318b816584d4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_RepeaterL1
+    second: {fileID: 2100000, guid: 04b0ca2c95978ad41bd7c11baf56e906, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_RepeaterL3
+    second: {fileID: 2100000, guid: 959166b676d74764da84b36b8c777021, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_RocketlauncherL1
+    second: {fileID: 2100000, guid: a3d84fedccbbad1408211a6815af5ad0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_RocketlauncherL3
+    second: {fileID: 2100000, guid: 7f3531a700cd6fc499f35fc0596dfdd7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_ShotgunL1
+    second: {fileID: 2100000, guid: 3f6ab921b78c67d4e84f98c02bfb12e5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_ShotgunL3
+    second: {fileID: 2100000, guid: ca51ea73dd57ea540acd6fe5b9a2e53e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Slingshot
+    second: {fileID: 2100000, guid: f6e79d153a7b76b46b6ca8d89259cede, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_Sniper
+    second: {fileID: 2100000, guid: 55b525bda4ffe3b4db3831674a069494, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_SprayerL1
+    second: {fileID: 2100000, guid: 8b7f3b1ba9fb7954e9ad04b35bc63deb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_W_SprayerL3
+    second: {fileID: 2100000, guid: cfc618c6b0fad134cb16cf935824adb7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_WeaponDark
+    second: {fileID: 2100000, guid: 97f3ccf12217e69499aeb72fda81d8e7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_disp_Band
+    second: {fileID: 2100000, guid: bce8f36c5e74048419e6f055886732f5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_disp_Glow
+    second: {fileID: 2100000, guid: a6f86e8b81ae0f74889a9893e19f96c5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_disp_Tank
+    second: {fileID: 2100000, guid: 7b97c4e1a6b171646b33c752d37a833c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hangar_Floor
+    second: {fileID: 2100000, guid: bbf64f8150052c74b915bb67daf7c3aa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hangar_Hazard
+    second: {fileID: 2100000, guid: 188d6c5cf4829884ca9b5864d1028936, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hangar_Wall
+    second: {fileID: 2100000, guid: 1f389b58856ab874f80fd4236816fd7b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_boombox_Accent
+    second: {fileID: 2100000, guid: 9afd63dadd8f45848b4bd6c8eb9bdd49, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_boombox_Body
+    second: {fileID: 2100000, guid: 365d81cf6d98fd0408f20436e3b08634, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_citizen_Accent
+    second: {fileID: 2100000, guid: bb500ea3c713fe04ba9486c3cac03131, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_citizen_Body
+    second: {fileID: 2100000, guid: ad0b21d1000daaf41a5b4637271c4b0d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_commander_Accent
+    second: {fileID: 2100000, guid: df95f0d055597c24c88283681f371eb4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_commander_Body
+    second: {fileID: 2100000, guid: 196ca7258b9745f4784418baf59ee372, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_dealer_Accent
+    second: {fileID: 2100000, guid: 37ae461311abb104ea8e34febdeaf426, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_dealer_Body
+    second: {fileID: 2100000, guid: 3225870ac19f6194daaa1daade73f751, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_drifter_Accent
+    second: {fileID: 2100000, guid: aee0b6117e489b348957f580ef0d0fd1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_drifter_Body
+    second: {fileID: 2100000, guid: 3e689d15540dcd24abf2efd0febb36e1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_guide_Accent
+    second: {fileID: 2100000, guid: d9f0b35763e1f76499688731cebf55f8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_guide_Body
+    second: {fileID: 2100000, guid: c77867cf69b252e4d95a25d27d38c811, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_helper_Accent
+    second: {fileID: 2100000, guid: d5bdd10d181a65e4e89f4991d8240339, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_helper_Body
+    second: {fileID: 2100000, guid: aabb82b472d086643a42aa86edbed2ac, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_mechanic_Accent
+    second: {fileID: 2100000, guid: 6f879e6a13771b145974d0dbed71e9a5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_mechanic_Body
+    second: {fileID: 2100000, guid: 124c09a63af6e504f8c609e66ebf6e86, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_merchant_Accent
+    second: {fileID: 2100000, guid: e9dad31ae095fd646b399bbc26adaaba, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_merchant_Body
+    second: {fileID: 2100000, guid: 39871850f97231b4399319aa6f9d3585, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_merchant_table_Accent
+    second: {fileID: 2100000, guid: 4343d3a9d61ad754d8f81998a7cbde14, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_merchant_table_Body
+    second: {fileID: 2100000, guid: 755f2c05f56534e44ac3daba50f0f2cb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_miner_Accent
+    second: {fileID: 2100000, guid: 18d3f9c1998610145b70cdedefe83bbe, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_miner_Body
+    second: {fileID: 2100000, guid: bce33070719b02641a3e471df86063f9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_player_Accent
+    second: {fileID: 2100000, guid: 6724ec0e6ac3cc943be47e163564d081, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_player_Body
+    second: {fileID: 2100000, guid: 6cdf6211992d00248b0762b5dac110b7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_scout_Accent
+    second: {fileID: 2100000, guid: c52ed228a917ce949879076d2eeeb49e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_scout_Body
+    second: {fileID: 2100000, guid: ca4497947fbca754aa956c22c2565b46, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_veteran_Accent
+    second: {fileID: 2100000, guid: b9e3062140e159043b44ec86ef104568, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_veteran_Body
+    second: {fileID: 2100000, guid: a603e678401d8d442a579b0bc2da4a9c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_welder_Accent
+    second: {fileID: 2100000, guid: 1c3ff26aa75e6f3458ba10fb538f6a27, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_welder_Body
+    second: {fileID: 2100000, guid: b79f3e9307ff0c34c813379ad81b33b1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_worker_Accent
+    second: {fileID: 2100000, guid: 9c3436e9110a52d42a1866791168e346, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_hero_worker_Body
+    second: {fileID: 2100000, guid: 2ab542e5d3b97774e9ceab1b7461312e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_ship_Accent
+    second: {fileID: 2100000, guid: f0803b24823b6c54588c96daa1eb3671, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_ship_Dark
+    second: {fileID: 2100000, guid: 486d58382470fd543ab1c253a0dea282, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_ship_Glow
+    second: {fileID: 2100000, guid: 44227f14fd65d5843aca0d9419f3a3f5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_ship_Hull
+    second: {fileID: 2100000, guid: 38b94175f8641f04d8acba3ff7f409a9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_beast_Accent
+    second: {fileID: 2100000, guid: da3237bf754f33c40bfef5df6a7092a9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_beast_Body
+    second: {fileID: 2100000, guid: 43a28deb1275b7f42b5a5b9f9fa8a03c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_brute_Accent
+    second: {fileID: 2100000, guid: ac17dd0b37382c6408acbf4c2c54cb99, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_brute_Body
+    second: {fileID: 2100000, guid: ac5d02df5ef285b4eb8202e9db13377e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_parasite_Accent
+    second: {fileID: 2100000, guid: 57dd6dc3e2306464eba9f3ed793e1494, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_parasite_Body
+    second: {fileID: 2100000, guid: 69a839b776c381e44a81d1dee72b5314, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_professor_Accent
+    second: {fileID: 2100000, guid: 77a86680850fb734ba8bb6b82cb2bc0e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_professor_Body
+    second: {fileID: 2100000, guid: c27c1f15bdaad97409caefe59efa84e6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_scientist_Accent
+    second: {fileID: 2100000, guid: a64164a463d46bc4f91930b8873e6103, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_scientist_Body
+    second: {fileID: 2100000, guid: 5a1f6fea538ab0644873dcee4cedb2c0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_sentry_Accent
+    second: {fileID: 2100000, guid: d3a58a3986d90fc49836709bf674d97c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_sentry_Body
+    second: {fileID: 2100000, guid: da502902c488bd940bef5709a1725192, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_shooter_Accent
+    second: {fileID: 2100000, guid: 07b17bab5f2035e4287ddfd5180fa1f8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_shooter_Body
+    second: {fileID: 2100000, guid: dbba82a4356e5754aaa0141f7ed6c13d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_soldier_Accent
+    second: {fileID: 2100000, guid: b21f90b85a548a740bc592d7c228d7d5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_soldier_Body
+    second: {fileID: 2100000, guid: 0056665b70395414f8dd51d8a6b64e6b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_stalker_Accent
+    second: {fileID: 2100000, guid: 074f2a6503d62174296ec71a8bab8bbb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_stalker_Body
+    second: {fileID: 2100000, guid: 7551b998431765546a225a0f4df0155c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_warlord_Accent
+    second: {fileID: 2100000, guid: fa62137fc65b1de4997d40691ea76b1e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_warlord_Body
+    second: {fileID: 2100000, guid: a0b59eef68ea8324ea8cb881294a082b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_warlord_damaged_Accent
+    second: {fileID: 2100000, guid: 11b70accdea92ee4484210197a830789, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GB_villain_warlord_damaged_Body
+    second: {fileID: 2100000, guid: 945c3ec3a74fc9a48a8b96aff19b4803, type: 2}
+  materials:
+    materialImportMode: 1
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+    searchTexturesGlobally: 0
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    removeConstantScaleCurves: 0
+    motionNodeName: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations: []
+    isReadable: 1
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    sortHierarchyByName: 1
+    preBakeConvexCollisionMesh: 0
+    preBakeTriangleCollisionMesh: 0
+    importPhysicalCameras: 1
+    importVisibility: 0
+    importBlendShapes: 0
+    importCameras: 0
+    importLights: 0
+    nodeNameCollisionStrategy: 1
+    fileIdsGeneration: 2
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    keepQuads: 0
+    weldVertices: 1
+    bakeAxisConversion: 1
+    preserveHierarchy: 0
+    skinWeightsMode: 0
+    maxBonesPerVertex: 4
+    minBoneWeight: 0.001
+    optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
+    importUVs: -1
+    importVertexColors: 1
+    meshOptimizationFlags: -1
+    indexFormat: 0
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVMarginMethod: 1
+    secondaryUVMinLightmapResolution: 40
+    secondaryUVMinObjectScale: 1
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+    strictVertexDataChecks: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+    normalCalculationMode: 4
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+    calculateBlendshapeNormalsDeltaFromImportedNormals: 0
+  referencedClips: []
+  importAnimation: 0
+  humanDescription:
+    serializedVersion: 3
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    globalScale: 1
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+    hasExtraRoot: 0
+    skeletonHasParents: 1
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  autoGenerateAvatarMappingIfUnspecified: 1
+  animationType: 2
+  humanoidOversampling: 1
+  avatarSetup: 0
+  addHumanoidExtraRootOnlyWhenUsingAvatar: 1
+  importBlendShapeDeformPercent: 1
+  remapMaterialsIfMaterialImportModeIsNone: 0
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

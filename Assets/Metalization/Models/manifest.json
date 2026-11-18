@@ -1,0 +1,7570 @@
+{
+ "characters": {
+  "beast": {
+   "armature": "villain_beast_ARM",
+   "bones": {
+    "body": {
+     "head": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "parent": null
+    }
+   },
+   "bounds_max_m": [
+    1.2329,
+    1.3382,
+    0.6927
+   ],
+   "bounds_min_m": [
+    -1.2329,
+    -0.8954,
+    -0.6013
+   ],
+   "display_name": "Beast",
+   "faction": "Villains",
+   "file": "Characters/beast.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_beast_Accent",
+    "GB_villain_beast_Body"
+   ],
+   "parts": {}
+  },
+  "boombox": {
+   "armature": "hero_boombox_ARM",
+   "bones": {
+    "blender_implicit": {
+     "head": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "parent": null
+    }
+   },
+   "bounds_max_m": [
+    0.4084,
+    0.2445,
+    0.3328
+   ],
+   "bounds_min_m": [
+    -0.4042,
+    -0.2552,
+    -0.0
+   ],
+   "display_name": "Boombox",
+   "faction": "Heroes",
+   "file": "Characters/boombox.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_boombox_Accent",
+    "GB_hero_boombox_Body"
+   ],
+   "parts": {}
+  },
+  "brute": {
+   "armature": "villain_brute_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.3544,
+      -0.047,
+      0.2159
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.3544,
+      -0.047,
+      0.2159
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.2267,
+      2.1649
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.3544,
+      0.1763,
+      0.7675
+     ],
+     "parent": "hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.3544,
+      0.1763,
+      0.7675
+     ],
+     "parent": "hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.8353,
+      -0.0017,
+      1.3931
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.8353,
+      -0.0017,
+      1.3931
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      -0.0077,
+      1.2373
+     ],
+     "parent": null
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      -0.0077,
+      1.4207
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.6059,
+      0.036,
+      1.9044
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.6059,
+      0.036,
+      1.9044
+     ],
+     "parent": "bip_spine_0"
+    },
+    "hip_L": {
+     "head": [
+      0.1395,
+      -0.0077,
+      1.237
+     ],
+     "parent": "bip_pelvis"
+    },
+    "hip_R": {
+     "head": [
+      -0.1395,
+      -0.0077,
+      1.237
+     ],
+     "parent": "bip_pelvis"
+    },
+    "minigun_L": {
+     "head": [
+      0.8579,
+      -0.4937,
+      1.339
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "minigun_R": {
+     "head": [
+      -0.8579,
+      -0.4937,
+      1.339
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "rocketlauncher": {
+     "head": [
+      -0.4433,
+      -0.1074,
+      2.3194
+     ],
+     "parent": "bip_spine_0"
+    }
+   },
+   "bounds_max_m": [
+    1.132,
+    0.6605,
+    2.5423
+   ],
+   "bounds_min_m": [
+    -1.132,
+    -0.9278,
+    -0.2386
+   ],
+   "display_name": "Brute",
+   "faction": "Villains",
+   "file": "Characters/brute.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_brute_Accent",
+    "GB_villain_brute_Body"
+   ],
+   "parts": {}
+  },
+  "citizen": {
+   "armature": "hero_citizen_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.2289,
+      -0.1154,
+      0.0891
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.2289,
+      -0.1154,
+      0.0891
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      1.2091,
+      -0.2513,
+      1.3206
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -1.2091,
+      -0.2513,
+      1.3206
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.4092,
+      1.3373
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.2289,
+      0.0513,
+      0.8251
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.2289,
+      0.0513,
+      0.8251
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      1.2939,
+      -0.3316,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -1.2939,
+      -0.3316,
+      1.3293
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      1.3808,
+      -0.3517,
+      1.2982
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -1.3808,
+      -0.3517,
+      1.2982
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.2289,
+      -0.1605,
+      0.5191
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.2289,
+      -0.1605,
+      0.5191
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.7539,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.7539,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      1.307,
+      -0.2787,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -1.307,
+      -0.2787,
+      1.3293
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      1.3938,
+      -0.2988,
+      1.2983
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -1.3938,
+      -0.2988,
+      1.2982
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0512,
+      0.8253
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      1.3193,
+      -0.2259,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -1.3193,
+      -0.2259,
+      1.3293
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      1.4062,
+      -0.246,
+      1.2982
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -1.4062,
+      -0.246,
+      1.2982
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      1.2541,
+      -0.3432,
+      1.3279
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -1.2541,
+      -0.3432,
+      1.3279
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      1.2524,
+      -0.3946,
+      1.2873
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -1.2524,
+      -0.3946,
+      1.2873
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2803,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2803,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    1.4832,
+    0.2759,
+    1.6749
+   ],
+   "bounds_min_m": [
+    -1.4831,
+    -0.8753,
+    -0.0176
+   ],
+   "display_name": "Citizen",
+   "faction": "Heroes",
+   "file": "Characters/citizen.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_citizen_Accent",
+    "GB_hero_citizen_Body"
+   ],
+   "parts": {
+    "backpack": {
+     "file": "Characters/citizen__backpack.fbx",
+     "materials": [
+      "GB_hero_citizen_Accent",
+      "GB_hero_citizen_Body"
+     ]
+    }
+   }
+  },
+  "commander": {
+   "armature": "hero_commander_ARM",
+   "bones": {
+    "bip_hand_L": {
+     "head": [
+      1.1457,
+      -0.0532,
+      1.105
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -1.1457,
+      -0.0532,
+      1.105
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -0.0243,
+      1.2454
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_index_0_L": {
+     "head": [
+      1.2271,
+      -0.1131,
+      1.1187
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -1.2271,
+      -0.1131,
+      1.1187
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      1.29,
+      -0.1496,
+      1.0999
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -1.29,
+      -0.1496,
+      1.0999
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.7272,
+      0.063,
+      1.1049
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.7272,
+      0.063,
+      1.1049
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      1.238,
+      -0.0723,
+      1.1172
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -1.238,
+      -0.0723,
+      1.1172
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      1.3067,
+      -0.09,
+      1.0977
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -1.3067,
+      -0.09,
+      1.0977
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0191,
+      0.4099
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      1.2477,
+      -0.0307,
+      1.1158
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -1.2477,
+      -0.0307,
+      1.1158
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      1.3187,
+      -0.0339,
+      1.0957
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -1.3187,
+      -0.0339,
+      1.0957
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      0.0074,
+      0.6987
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      1.1769,
+      -0.1181,
+      1.118
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -1.1769,
+      -0.1181,
+      1.118
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      1.1593,
+      -0.1491,
+      1.0874
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -1.1593,
+      -0.1491,
+      1.0874
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2977,
+      0.078,
+      1.1049
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2977,
+      0.078,
+      1.105
+     ],
+     "parent": "bip_spine_0"
+    },
+    "wheel": {
+     "head": [
+      0.0,
+      0.0001,
+      0.1931
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    1.3968,
+    0.4947,
+    1.7982
+   ],
+   "bounds_min_m": [
+    -1.3968,
+    -0.2829,
+    -0.0028
+   ],
+   "display_name": "Commander",
+   "faction": "Heroes",
+   "file": "Characters/commander.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_commander_Accent",
+    "GB_hero_commander_Body"
+   ],
+   "parts": {}
+  },
+  "dealer": {
+   "armature": "hero_dealer_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.1227,
+      -0.0231,
+      0.1179
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.1227,
+      -0.0231,
+      0.1179
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.6899,
+      -0.034,
+      0.8995
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.6899,
+      -0.034,
+      0.8995
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.1278,
+      0.8529
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1227,
+      0.0095,
+      0.4174
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1227,
+      0.0095,
+      0.4174
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.7868,
+      -0.0893,
+      0.8863
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.7868,
+      -0.0893,
+      0.8863
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.8335,
+      -0.1048,
+      0.8831
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.8335,
+      -0.1048,
+      0.8831
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1227,
+      -0.0185,
+      0.2585
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1227,
+      -0.0185,
+      0.2585
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.496,
+      0.0002,
+      0.8995
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.496,
+      0.0002,
+      0.8995
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.7964,
+      -0.0572,
+      0.8863
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -0.7964,
+      -0.0572,
+      0.8863
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      0.8449,
+      -0.0658,
+      0.8831
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -0.8449,
+      -0.0658,
+      0.8831
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.021,
+      0.5012
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.7977,
+      -0.0232,
+      0.8863
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.7977,
+      -0.0232,
+      0.8863
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.8469,
+      -0.024,
+      0.8831
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.8469,
+      -0.024,
+      0.8831
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.7099,
+      -0.0813,
+      0.8863
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.7099,
+      -0.0813,
+      0.8863
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.7139,
+      -0.1308,
+      0.8922
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -0.7139,
+      -0.1308,
+      0.8922
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.1457,
+      0.0002,
+      0.8995
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.1457,
+      0.0002,
+      0.8995
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    0.9044,
+    0.2689,
+    1.0597
+   ],
+   "bounds_min_m": [
+    -0.9044,
+    -0.3138,
+    -0.0019
+   ],
+   "display_name": "Dealer",
+   "faction": "Heroes",
+   "file": "Characters/dealer.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_dealer_Accent",
+    "GB_hero_dealer_Body"
+   ],
+   "parts": {}
+  },
+  "drifter": {
+   "armature": "hero_drifter_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.2289,
+      -0.1154,
+      0.0891
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.2289,
+      -0.1154,
+      0.0891
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      1.2091,
+      -0.2513,
+      1.3206
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -0.4092,
+      1.3373
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.2289,
+      0.0513,
+      0.8251
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.2289,
+      0.0513,
+      0.8251
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      1.2939,
+      -0.3316,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_1_L": {
+     "head": [
+      1.3808,
+      -0.3517,
+      1.2982
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.2289,
+      -0.1605,
+      0.5191
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.2289,
+      -0.1605,
+      0.5191
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.7539,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.7539,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      1.307,
+      -0.2787,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      1.3938,
+      -0.2987,
+      1.2982
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0512,
+      0.8253
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      1.3193,
+      -0.2259,
+      1.3293
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      1.4062,
+      -0.246,
+      1.2982
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      -0.0305,
+      1.0825
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      1.2541,
+      -0.3432,
+      1.3279
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      1.2524,
+      -0.3946,
+      1.2873
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2803,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2803,
+      -0.1637,
+      1.3206
+     ],
+     "parent": "bip_spine_0"
+    },
+    "visor": {
+     "head": [
+      -0.0,
+      -0.4642,
+      1.3192
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    1.4828,
+    0.3793,
+    1.8271
+   ],
+   "bounds_min_m": [
+    -1.5158,
+    -0.6882,
+    -0.0176
+   ],
+   "display_name": "Drifter",
+   "faction": "Heroes",
+   "file": "Characters/drifter.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_drifter_Accent",
+    "GB_hero_drifter_Body"
+   ],
+   "parts": {
+    "Visor": {
+     "file": "Characters/drifter__Visor.fbx",
+     "materials": [
+      "GB_hero_drifter_Accent",
+      "GB_hero_drifter_Body"
+     ]
+    }
+   }
+  },
+  "guide": {
+   "armature": "hero_guide_ARM",
+   "bones": {
+    "arm_lower_0_L": {
+     "head": [
+      0.3138,
+      -0.0,
+      0.5957
+     ],
+     "parent": "bip_pelvis"
+    },
+    "arm_lower_0_R": {
+     "head": [
+      -0.3138,
+      -0.0,
+      0.5957
+     ],
+     "parent": "bip_pelvis"
+    },
+    "arm_lower_1_L": {
+     "head": [
+      0.6783,
+      -0.0,
+      0.5957
+     ],
+     "parent": "arm_lower_0_L"
+    },
+    "arm_lower_1_R": {
+     "head": [
+      -0.6783,
+      -0.0,
+      0.5957
+     ],
+     "parent": "arm_lower_0_R"
+    },
+    "arm_upper_0_L": {
+     "head": [
+      0.2368,
+      0.0,
+      0.7403
+     ],
+     "parent": "bip_pelvis"
+    },
+    "arm_upper_0_R": {
+     "head": [
+      -0.2368,
+      0.0,
+      0.7403
+     ],
+     "parent": "bip_pelvis"
+    },
+    "arm_upper_1_L": {
+     "head": [
+      0.6013,
+      0.0,
+      0.7403
+     ],
+     "parent": "arm_upper_0_L"
+    },
+    "arm_upper_1_R": {
+     "head": [
+      -0.6013,
+      0.0,
+      0.7403
+     ],
+     "parent": "arm_upper_0_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.9236,
+      -0.0566,
+      0.5957
+     ],
+     "parent": "arm_lower_1_L"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.0079,
+      0.8403
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.2121,
+      -0.0,
+      0.3968
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.2108,
+      -0.0,
+      0.3968
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      1.0274,
+      -0.1082,
+      0.5861
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_1_L": {
+     "head": [
+      1.0726,
+      -0.1187,
+      0.5646
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.2788,
+      -0.0277,
+      0.2317
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.2775,
+      -0.0277,
+      0.2317
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      1.0334,
+      -0.0791,
+      0.5861
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      1.0786,
+      -0.0895,
+      0.5646
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      -0.0079,
+      0.4223
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      1.0364,
+      -0.0467,
+      0.5861
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      1.0816,
+      -0.0571,
+      0.5646
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.9537,
+      -0.1053,
+      0.5829
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.9435,
+      -0.1497,
+      0.5793
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "tether": {
+     "head": [
+      -1.0385,
+      -0.1009,
+      0.7372
+     ],
+     "parent": "weapon_bone"
+    },
+    "weapon_bone": {
+     "head": [
+      -0.6395,
+      -0.0088,
+      0.7403
+     ],
+     "parent": "arm_upper_1_R"
+    }
+   },
+   "bounds_max_m": [
+    1.1223,
+    0.236,
+    0.954
+   ],
+   "bounds_min_m": [
+    -1.1583,
+    -0.2712,
+    -0.0193
+   ],
+   "display_name": "Guide",
+   "faction": "Heroes",
+   "file": "Characters/guide.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_guide_Accent",
+    "GB_hero_guide_Body"
+   ],
+   "parts": {
+    "weapon_11": {
+     "file": "Characters/guide__weapon_11.fbx",
+     "materials": [
+      "GB_hero_guide_Accent",
+      "GB_hero_guide_Body"
+     ]
+    }
+   }
+  },
+  "helper": {
+   "armature": "hero_helper_ARM",
+   "bones": {
+    "body": {
+     "head": [
+      0.0,
+      -0.0451,
+      0.1042
+     ],
+     "parent": null
+    },
+    "leg_0_L": {
+     "head": [
+      0.1001,
+      -0.1877,
+      0.0479
+     ],
+     "parent": "body"
+    },
+    "leg_0_R": {
+     "head": [
+      -0.1001,
+      -0.1877,
+      0.0479
+     ],
+     "parent": "body"
+    },
+    "leg_1_L": {
+     "head": [
+      0.1001,
+      0.1307,
+      0.0479
+     ],
+     "parent": "body"
+    },
+    "leg_1_R": {
+     "head": [
+      -0.1001,
+      0.1307,
+      0.0479
+     ],
+     "parent": "body"
+    }
+   },
+   "bounds_max_m": [
+    0.1247,
+    0.1791,
+    0.1888
+   ],
+   "bounds_min_m": [
+    -0.1246,
+    -0.2603,
+    0.0008
+   ],
+   "display_name": "Helper",
+   "faction": "Heroes",
+   "file": "Characters/helper.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_helper_Accent",
+    "GB_hero_helper_Body"
+   ],
+   "parts": {}
+  },
+  "mechanic": {
+   "armature": "hero_mechanic_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.5965,
+      -0.5287,
+      0.2156
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.5965,
+      -0.5287,
+      0.2156
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      2.6974,
+      -0.6429,
+      2.7117
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -1.3772,
+      2.7182
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.5965,
+      0.0,
+      1.5286
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.5965,
+      -0.0,
+      1.5286
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.5965,
+      -0.65,
+      0.8704
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.5965,
+      -0.65,
+      0.8704
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      1.8562,
+      -0.4487,
+      2.7117
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -1.8562,
+      -0.4487,
+      2.7117
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0,
+      1.528
+     ],
+     "parent": null
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      -0.3227,
+      1.6918
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.6246,
+      -0.4024,
+      2.7117
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.6246,
+      -0.4024,
+      2.7117
+     ],
+     "parent": "bip_spine_0"
+    },
+    "flappyflap_0_L": {
+     "head": [
+      0.4946,
+      -0.7712,
+      2.6001
+     ],
+     "parent": "bip_spine_0"
+    },
+    "flappyflap_0_R": {
+     "head": [
+      -0.4946,
+      -0.7712,
+      2.6001
+     ],
+     "parent": "bip_spine_0"
+    },
+    "flappyflap_1_L": {
+     "head": [
+      0.4781,
+      -0.9444,
+      2.5657
+     ],
+     "parent": "bip_spine_0"
+    },
+    "flappyflap_1_R": {
+     "head": [
+      -0.4781,
+      -0.9444,
+      2.5657
+     ],
+     "parent": "bip_spine_0"
+    },
+    "weapon_bone": {
+     "head": [
+      -2.0162,
+      -0.489,
+      2.7117
+     ],
+     "parent": "bip_lowerArm_R"
+    }
+   },
+   "bounds_max_m": [
+    3.2891,
+    0.489,
+    3.4207
+   ],
+   "bounds_min_m": [
+    -2.0593,
+    -2.4975,
+    -0.2557
+   ],
+   "display_name": "Mechanic",
+   "faction": "Heroes",
+   "file": "Characters/mechanic.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_mechanic_Accent",
+    "GB_hero_mechanic_Body"
+   ],
+   "parts": {
+    "weapon_12": {
+     "file": "Characters/mechanic__weapon_12.fbx",
+     "materials": [
+      "GB_hero_mechanic_Accent",
+      "GB_hero_mechanic_Body"
+     ]
+    }
+   }
+  },
+  "merchant": {
+   "armature": "hero_merchant_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.3141,
+      -0.0278,
+      0.2175
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.3141,
+      -0.0278,
+      0.2175
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.5535,
+      -0.0622,
+      1.1408
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.5535,
+      -0.0622,
+      1.1408
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.2735,
+      1.8818
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.3141,
+      -0.0,
+      0.7886
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.3141,
+      -0.0,
+      0.7886
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.6004,
+      -0.1771,
+      0.9978
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.6004,
+      -0.1771,
+      0.9978
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.5784,
+      -0.2284,
+      0.8278
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.5784,
+      -0.2284,
+      0.8278
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.3141,
+      -0.0278,
+      0.4714
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.3141,
+      -0.0278,
+      0.4714
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5535,
+      0.0002,
+      1.4942
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5535,
+      0.0002,
+      1.4942
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.6014,
+      -0.0881,
+      0.9817
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -0.6014,
+      -0.0881,
+      0.9817
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      0.5794,
+      -0.1189,
+      0.8068
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -0.5794,
+      -0.1189,
+      0.8068
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0,
+      0.876
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.6004,
+      0.013,
+      0.9668
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.6004,
+      0.013,
+      0.9668
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.5784,
+      -0.0038,
+      0.79
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.5784,
+      -0.0038,
+      0.79
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.5694,
+      -0.1949,
+      1.0935
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.5694,
+      -0.1949,
+      1.0935
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.4951,
+      -0.2839,
+      1.1098
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -0.4951,
+      -0.2839,
+      1.1098
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.5535,
+      0.0002,
+      1.9007
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.5535,
+      0.0002,
+      1.9007
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    0.6849,
+    0.3484,
+    2.1105
+   ],
+   "bounds_min_m": [
+    -0.6881,
+    -0.5218,
+    0.0015
+   ],
+   "display_name": "Merchant",
+   "faction": "Heroes",
+   "file": "Characters/merchant.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_merchant_Accent",
+    "GB_hero_merchant_Body"
+   ],
+   "parts": {}
+  },
+  "merchant_table": {
+   "armature": "hero_merchant_table_ARM",
+   "bones": {
+    "table_root": {
+     "head": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "parent": null
+    }
+   },
+   "bounds_max_m": [
+    0.9991,
+    0.3172,
+    0.8051
+   ],
+   "bounds_min_m": [
+    -1.0005,
+    -0.3478,
+    -0.0002
+   ],
+   "display_name": "Merchant Table",
+   "faction": "Heroes",
+   "file": "Characters/merchant_table.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_merchant_table_Accent",
+    "GB_hero_merchant_table_Body"
+   ],
+   "parts": {}
+  },
+  "miner": {
+   "armature": "hero_miner_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.1253,
+      -0.0079,
+      0.071
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.1253,
+      -0.0079,
+      0.071
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.6724,
+      -0.094,
+      0.7584
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.6724,
+      -0.094,
+      0.7584
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.025,
+      0.8901
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1253,
+      0.0206,
+      0.4942
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1253,
+      0.0206,
+      0.4942
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.7346,
+      -0.1249,
+      0.7511
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.7346,
+      -0.1249,
+      0.7511
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1253,
+      0.0061,
+      0.3344
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1253,
+      0.0061,
+      0.3344
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5164,
+      -0.0578,
+      0.7769
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5164,
+      -0.0578,
+      0.7769
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.7394,
+      -0.104,
+      0.7505
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -0.7394,
+      -0.104,
+      0.7505
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0207,
+      0.4945
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.7447,
+      -0.0806,
+      0.7498
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.7447,
+      -0.0806,
+      0.7498
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.6925,
+      -0.1253,
+      0.761
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.6925,
+      -0.1253,
+      0.761
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2581,
+      -0.0578,
+      0.8096
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2581,
+      -0.0578,
+      0.8096
+     ],
+     "parent": "bip_pelvis"
+    },
+    "weapon_bone": {
+     "head": [
+      -0.5416,
+      -0.0642,
+      0.7735
+     ],
+     "parent": "bip_lowerArm_R"
+    }
+   },
+   "bounds_max_m": [
+    0.7865,
+    0.3068,
+    1.3625
+   ],
+   "bounds_min_m": [
+    -0.5645,
+    -0.2536,
+    -0.085
+   ],
+   "display_name": "Miner",
+   "faction": "Heroes",
+   "file": "Characters/miner.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_miner_Accent",
+    "GB_hero_miner_Body"
+   ],
+   "parts": {
+    "hand_1": {
+     "file": "Characters/miner__hand_1.fbx",
+     "materials": [
+      "GB_hero_miner_Accent",
+      "GB_hero_miner_Body"
+     ]
+    }
+   }
+  },
+  "parasite": {
+   "armature": "villain_parasite_ARM",
+   "bones": {
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0243,
+      2.6415
+     ],
+     "parent": null
+    },
+    "leg_0_L": {
+     "head": [
+      0.2301,
+      0.1699,
+      2.3434
+     ],
+     "parent": "leg_base"
+    },
+    "leg_0_M": {
+     "head": [
+      -0.0,
+      -0.3236,
+      2.3434
+     ],
+     "parent": "leg_base"
+    },
+    "leg_0_R": {
+     "head": [
+      -0.2301,
+      0.1699,
+      2.3434
+     ],
+     "parent": "leg_base"
+    },
+    "leg_1_L": {
+     "head": [
+      0.2432,
+      0.1809,
+      1.5798
+     ],
+     "parent": "leg_0_L"
+    },
+    "leg_1_M": {
+     "head": [
+      -0.0,
+      -0.3406,
+      1.5798
+     ],
+     "parent": "leg_0_M"
+    },
+    "leg_1_R": {
+     "head": [
+      -0.2432,
+      0.1809,
+      1.5798
+     ],
+     "parent": "leg_0_R"
+    },
+    "leg_2_L": {
+     "head": [
+      0.5236,
+      0.4162,
+      2.1429
+     ],
+     "parent": "leg_1_L"
+    },
+    "leg_2_M": {
+     "head": [
+      -0.0,
+      -0.7067,
+      2.1429
+     ],
+     "parent": "leg_1_M"
+    },
+    "leg_2_R": {
+     "head": [
+      -0.5236,
+      0.4162,
+      2.1429
+     ],
+     "parent": "leg_1_R"
+    },
+    "leg_3_L": {
+     "head": [
+      0.5842,
+      0.4671,
+      1.1058
+     ],
+     "parent": "leg_2_L"
+    },
+    "leg_3_M": {
+     "head": [
+      -0.0,
+      -0.7858,
+      1.1058
+     ],
+     "parent": "leg_2_M"
+    },
+    "leg_3_R": {
+     "head": [
+      -0.5842,
+      0.4671,
+      1.1058
+     ],
+     "parent": "leg_2_R"
+    },
+    "leg_base": {
+     "head": [
+      -0.0,
+      -0.0232,
+      2.4816
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    0.751,
+    0.8425,
+    3.4047
+   ],
+   "bounds_min_m": [
+    -0.7501,
+    -0.9683,
+    0.0087
+   ],
+   "display_name": "Parasite",
+   "faction": "Villains",
+   "file": "Characters/parasite.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_parasite_Accent",
+    "GB_villain_parasite_Body"
+   ],
+   "parts": {}
+  },
+  "player": {
+   "armature": "hero_player_ARM",
+   "bones": {
+    "backpack_lid": {
+     "head": [
+      0.0592,
+      0.1302,
+      0.7642
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_foot_L": {
+     "head": [
+      0.074,
+      0.0024,
+      0.1089
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.074,
+      0.0024,
+      0.1089
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.2094,
+      -0.1293,
+      0.466
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.2094,
+      -0.1293,
+      0.466
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      0.0281,
+      0.8459
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.074,
+      0.0252,
+      0.4361
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.074,
+      0.0252,
+      0.4361
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.2174,
+      -0.2086,
+      0.4855
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.2174,
+      -0.2086,
+      0.4855
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.2169,
+      -0.2366,
+      0.4894
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.2169,
+      -0.2366,
+      0.4894
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.074,
+      0.0076,
+      0.3075
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.074,
+      0.0076,
+      0.3075
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.2094,
+      0.0279,
+      0.4765
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.2093,
+      0.0329,
+      0.4728
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0273,
+      0.4518
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.2174,
+      -0.2061,
+      0.4425
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.2174,
+      -0.2061,
+      0.4425
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.2169,
+      -0.2333,
+      0.4347
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.2169,
+      -0.2333,
+      0.4347
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.2131,
+      -0.1663,
+      0.5116
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.2131,
+      -0.1663,
+      0.5116
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.201,
+      -0.1639,
+      0.5388
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -0.201,
+      -0.1639,
+      0.5388
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2004,
+      0.03,
+      0.7153
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2004,
+      0.03,
+      0.7153
+     ],
+     "parent": "bip_pelvis"
+    },
+    "weapon_bone": {
+     "head": [
+      -0.2093,
+      -0.0551,
+      0.4662
+     ],
+     "parent": "bip_lowerArm_R"
+    }
+   },
+   "bounds_max_m": [
+    0.2689,
+    0.233,
+    1.0933
+   ],
+   "bounds_min_m": [
+    -0.2851,
+    -0.2993,
+    -0.1374
+   ],
+   "display_name": "Player",
+   "faction": "Heroes",
+   "file": "Characters/player.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_player_Accent",
+    "GB_hero_player_Body"
+   ],
+   "parts": {
+    "hand": {
+     "file": "Characters/player__hand.fbx",
+     "materials": [
+      "GB_hero_player_Accent",
+      "GB_hero_player_Body"
+     ]
+    }
+   }
+  },
+  "professor": {
+   "armature": "villain_professor_ARM",
+   "bones": {
+    "bip_hand_L": {
+     "head": [
+      0.8191,
+      -0.2246,
+      0.7245
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.8191,
+      -0.2246,
+      0.7245
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -0.0991,
+      1.0301
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.8795,
+      -0.2892,
+      0.7405
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.8795,
+      -0.2892,
+      0.7405
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.9329,
+      -0.3827,
+      0.7506
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.9329,
+      -0.3827,
+      0.7506
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5846,
+      -0.0037,
+      0.7245
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5846,
+      -0.0037,
+      0.7245
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.004,
+      0.3063
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.8778,
+      -0.2891,
+      0.7097
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.8778,
+      -0.2891,
+      0.7097
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.9312,
+      -0.3843,
+      0.6999
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.9312,
+      -0.3843,
+      0.6999
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      0.004,
+      0.5031
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.841,
+      -0.2595,
+      0.7606
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.841,
+      -0.2595,
+      0.7606
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.8298,
+      -0.2963,
+      0.8277
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -0.8298,
+      -0.2963,
+      0.8277
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.1417,
+      0.0003,
+      0.7245
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.1417,
+      0.0003,
+      0.7245
+     ],
+     "parent": "bip_spine_0"
+    },
+    "ear_L": {
+     "head": [
+      0.0327,
+      -0.1367,
+      1.2069
+     ],
+     "parent": "bip_head"
+    },
+    "ear_R": {
+     "head": [
+      -0.0327,
+      -0.1367,
+      1.2069
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    0.9662,
+    0.3006,
+    1.3126
+   ],
+   "bounds_min_m": [
+    -0.9662,
+    -0.4851,
+    -0.0016
+   ],
+   "display_name": "Professor",
+   "faction": "Villains",
+   "file": "Characters/professor.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_professor_Accent",
+    "GB_villain_professor_Body"
+   ],
+   "parts": {}
+  },
+  "scientist": {
+   "armature": "villain_scientist_ARM",
+   "bones": {
+    "bip_hand_L": {
+     "head": [
+      0.6062,
+      -0.1038,
+      0.6308
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.6063,
+      -0.1038,
+      0.6309
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.6171,
+      -0.1171,
+      0.6126
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.6171,
+      -0.1171,
+      0.6126
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.6671,
+      -0.1373,
+      0.5409
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.6671,
+      -0.1373,
+      0.5409
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_index_2_L": {
+     "head": [
+      0.719,
+      -0.1584,
+      0.4657
+     ],
+     "parent": "bip_index_1_L"
+    },
+    "bip_index_2_R": {
+     "head": [
+      -0.719,
+      -0.1584,
+      0.4657
+     ],
+     "parent": "bip_index_1_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.4133,
+      -0.0267,
+      0.9037
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.4133,
+      -0.0267,
+      0.9037
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      -0.0229,
+      0.5228
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.6193,
+      -0.1011,
+      0.6096
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.6193,
+      -0.1011,
+      0.6096
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.6693,
+      -0.1213,
+      0.5379
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.6693,
+      -0.1213,
+      0.5379
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_pinky_2_L": {
+     "head": [
+      0.7212,
+      -0.1423,
+      0.4627
+     ],
+     "parent": "bip_pinky_1_L"
+    },
+    "bip_pinky_2_R": {
+     "head": [
+      -0.7212,
+      -0.1423,
+      0.4627
+     ],
+     "parent": "bip_pinky_1_R"
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      -0.0229,
+      0.9746
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.1431,
+      -0.0267,
+      1.2857
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.1431,
+      -0.0267,
+      1.2857
+     ],
+     "parent": "bip_spine_0"
+    }
+   },
+   "bounds_max_m": [
+    0.7773,
+    0.4158,
+    1.5775
+   ],
+   "bounds_min_m": [
+    -0.7775,
+    -0.3045,
+    0.0026
+   ],
+   "display_name": "Scientist",
+   "faction": "Villains",
+   "file": "Characters/scientist.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_scientist_Accent",
+    "GB_villain_scientist_Body"
+   ],
+   "parts": {}
+  },
+  "scout": {
+   "armature": "hero_scout_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.1538,
+      0.5023,
+      0.0465
+     ],
+     "parent": "bip_knee_2_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.1538,
+      0.5023,
+      0.0465
+     ],
+     "parent": "bip_knee_2_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.4091,
+      -0.0963,
+      0.0746
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.4091,
+      -0.0963,
+      0.0746
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.2154,
+      0.6139
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1538,
+      0.3276,
+      0.4274
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1538,
+      0.3276,
+      0.4274
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_knee_2_L": {
+     "head": [
+      0.1538,
+      0.5184,
+      0.2623
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_knee_2_R": {
+     "head": [
+      -0.1538,
+      0.5184,
+      0.2623
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1538,
+      0.3234,
+      0.1991
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1538,
+      0.3234,
+      0.1991
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.4091,
+      -0.0885,
+      0.3321
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.4091,
+      -0.0885,
+      0.3321
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.3272,
+      0.4271
+     ],
+     "parent": null
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2916,
+      -0.0885,
+      0.538
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2916,
+      -0.0885,
+      0.538
+     ],
+     "parent": "bip_pelvis"
+    },
+    "jaw": {
+     "head": [
+      0.0,
+      -0.3236,
+      0.6136
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    0.5188,
+    0.6175,
+    0.7875
+   ],
+   "bounds_min_m": [
+    -0.5188,
+    -0.6208,
+    -0.0613
+   ],
+   "display_name": "Scout",
+   "faction": "Heroes",
+   "file": "Characters/scout.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_scout_Accent",
+    "GB_hero_scout_Body"
+   ],
+   "parts": {}
+  },
+  "sentry": {
+   "armature": "villain_sentry_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.2303,
+      0.0397,
+      0.2085
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.2303,
+      0.0397,
+      0.2085
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.4768,
+      -0.4718,
+      1.3946
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.4768,
+      -0.4718,
+      1.3946
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.097,
+      2.0815
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.2031,
+      0.009,
+      1.1162
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.2031,
+      0.009,
+      1.1162
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.4662,
+      -0.5918,
+      1.4338
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.4662,
+      -0.5918,
+      1.4338
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.4423,
+      -0.675,
+      1.4338
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -0.4423,
+      -0.675,
+      1.4338
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_0_L": {
+     "head": [
+      0.2303,
+      -0.1448,
+      0.8458
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_0_R": {
+     "head": [
+      -0.2303,
+      -0.1448,
+      0.8458
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.2303,
+      0.1894,
+      0.5235
+     ],
+     "parent": "bip_knee_0_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.2303,
+      0.1894,
+      0.5235
+     ],
+     "parent": "bip_knee_0_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.4768,
+      -0.0073,
+      1.4525
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.4768,
+      -0.0073,
+      1.4525
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.4654,
+      -0.5694,
+      1.3823
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -0.4654,
+      -0.5694,
+      1.3823
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      0.4415,
+      -0.6526,
+      1.3823
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -0.4415,
+      -0.6526,
+      1.3823
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0007,
+      1.1535
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.4646,
+      -0.5479,
+      1.3271
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.4646,
+      -0.5479,
+      1.3271
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.4406,
+      -0.6311,
+      1.3271
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -0.4406,
+      -0.6311,
+      1.3271
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_spine_0": {
+     "head": [
+      0.0,
+      0.0007,
+      1.2581
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.4363,
+      -0.5124,
+      1.4805
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.4363,
+      -0.5124,
+      1.4805
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.4111,
+      -0.5465,
+      1.5306
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -0.4111,
+      -0.5465,
+      1.5306
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.4768,
+      0.0183,
+      1.8534
+     ],
+     "parent": "bip_spine_0"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.4768,
+      0.0183,
+      1.8534
+     ],
+     "parent": "bip_spine_0"
+    },
+    "weapon_bone": {
+     "head": [
+      -0.421,
+      -0.5648,
+      1.3959
+     ],
+     "parent": "bip_hand_R"
+    }
+   },
+   "bounds_max_m": [
+    0.6096,
+    0.3899,
+    2.4543
+   ],
+   "bounds_min_m": [
+    -0.6096,
+    -0.7503,
+    -0.3724
+   ],
+   "display_name": "Sentry",
+   "faction": "Villains",
+   "file": "Characters/sentry.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_sentry_Accent",
+    "GB_villain_sentry_Body"
+   ],
+   "parts": {
+    "weapon_10": {
+     "file": "Characters/sentry__weapon_10.fbx",
+     "materials": [
+      "GB_villain_sentry_Accent",
+      "GB_villain_sentry_Body"
+     ]
+    }
+   }
+  },
+  "shooter": {
+   "armature": "villain_shooter_ARM",
+   "bones": {
+    "ankle_1_L": {
+     "head": [
+      0.1294,
+      -0.0688,
+      0.2514
+     ],
+     "parent": "bip_hip_L"
+    },
+    "ankle_1_R": {
+     "head": [
+      -0.1294,
+      -0.0688,
+      0.2514
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_foot_L": {
+     "head": [
+      0.1294,
+      0.0882,
+      0.1605
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.1294,
+      0.0882,
+      0.1605
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.8462,
+      -0.0386,
+      0.9218
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.8462,
+      -0.0386,
+      0.9218
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -0.1088,
+      0.9117
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.0897,
+      0.0832,
+      0.5008
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.0897,
+      0.0832,
+      0.5008
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.9157,
+      -0.0957,
+      0.9089
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -0.9157,
+      -0.0957,
+      0.9089
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1294,
+      0.1186,
+      0.302
+     ],
+     "parent": "ankle_1_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1294,
+      0.1186,
+      0.3021
+     ],
+     "parent": "ankle_1_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5501,
+      0.0286,
+      0.9218
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5501,
+      0.0286,
+      0.9218
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.9243,
+      -0.0583,
+      0.9089
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -0.9243,
+      -0.0583,
+      0.9089
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      -0.0,
+      0.0983,
+      0.526
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.9329,
+      -0.0216,
+      0.9089
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -0.9329,
+      -0.0216,
+      0.9089
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.8603,
+      -0.0931,
+      0.9043
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -0.8603,
+      -0.0931,
+      0.9043
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2175,
+      0.0286,
+      0.9218
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2175,
+      0.0286,
+      0.9218
+     ],
+     "parent": "bip_pelvis"
+    },
+    "weapon_bone": {
+     "head": [
+      -0.6506,
+      0.0058,
+      0.9218
+     ],
+     "parent": "bip_lowerArm_R"
+    }
+   },
+   "bounds_max_m": [
+    1.0146,
+    0.309,
+    1.1479
+   ],
+   "bounds_min_m": [
+    -0.657,
+    -0.3287,
+    -0.0
+   ],
+   "display_name": "Shooter",
+   "faction": "Villains",
+   "file": "Characters/shooter.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_shooter_Accent",
+    "GB_villain_shooter_Body"
+   ],
+   "parts": {
+    "arm_2": {
+     "file": "Characters/shooter__arm_2.fbx",
+     "materials": [
+      "GB_villain_shooter_Accent",
+      "GB_villain_shooter_Body"
+     ]
+    }
+   }
+  },
+  "soldier": {
+   "armature": "villain_soldier_ARM",
+   "bones": {
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.2959,
+      1.1115
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1852,
+      0.0431,
+      0.6861
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1852,
+      0.0431,
+      0.6861
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1852,
+      -0.2868,
+      0.5355
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1852,
+      -0.2868,
+      0.5355
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.6761,
+      -0.152,
+      1.062
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.6761,
+      -0.152,
+      1.062
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0432,
+      0.6861
+     ],
+     "parent": null
+    },
+    "bip_toe_L": {
+     "head": [
+      0.1852,
+      0.0173,
+      0.0884
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_toe_R": {
+     "head": [
+      -0.1852,
+      0.0173,
+      0.0884
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2659,
+      -0.152,
+      1.062
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2659,
+      -0.152,
+      1.062
+     ],
+     "parent": "bip_pelvis"
+    },
+    "wing_L": {
+     "head": [
+      0.1994,
+      -0.011,
+      1.3242
+     ],
+     "parent": "bip_pelvis"
+    },
+    "wing_R": {
+     "head": [
+      -0.1994,
+      -0.011,
+      1.3242
+     ],
+     "parent": "bip_pelvis"
+    }
+   },
+   "bounds_max_m": [
+    0.8694,
+    0.5613,
+    1.4139
+   ],
+   "bounds_min_m": [
+    -0.8694,
+    -0.8084,
+    -0.1019
+   ],
+   "display_name": "Soldier",
+   "faction": "Villains",
+   "file": "Characters/soldier.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_soldier_Accent",
+    "GB_villain_soldier_Body"
+   ],
+   "parts": {}
+  },
+  "stalker": {
+   "armature": "villain_stalker_ARM",
+   "bones": {
+    "arm_lower_0_L": {
+     "head": [
+      0.6368,
+      -0.4218,
+      -0.1605
+     ],
+     "parent": "body"
+    },
+    "arm_lower_0_R": {
+     "head": [
+      -0.6368,
+      -0.4218,
+      -0.1605
+     ],
+     "parent": "body"
+    },
+    "arm_lower_1_L": {
+     "head": [
+      1.6668,
+      -0.3984,
+      -0.1605
+     ],
+     "parent": "arm_lower_0_L"
+    },
+    "arm_lower_1_R": {
+     "head": [
+      -1.6668,
+      -0.3984,
+      -0.1605
+     ],
+     "parent": "arm_lower_0_R"
+    },
+    "arm_upper_0_L": {
+     "head": [
+      0.8293,
+      0.8777,
+      1.3265
+     ],
+     "parent": "body"
+    },
+    "arm_upper_0_R": {
+     "head": [
+      -0.8293,
+      0.8777,
+      1.3265
+     ],
+     "parent": "body"
+    },
+    "arm_upper_1_L": {
+     "head": [
+      1.8592,
+      0.901,
+      1.3265
+     ],
+     "parent": "arm_upper_0_L"
+    },
+    "arm_upper_1_R": {
+     "head": [
+      -1.8592,
+      0.901,
+      1.3265
+     ],
+     "parent": "arm_upper_0_R"
+    },
+    "body": {
+     "head": [
+      0.0,
+      -0.0379,
+      0.7821
+     ],
+     "parent": null
+    },
+    "gun_lower_L": {
+     "head": [
+      2.5357,
+      -0.3984,
+      -0.1605
+     ],
+     "parent": "arm_lower_1_L"
+    },
+    "gun_lower_R": {
+     "head": [
+      -2.5357,
+      -0.3984,
+      -0.1605
+     ],
+     "parent": "arm_lower_1_R"
+    },
+    "gun_upper_L": {
+     "head": [
+      2.7281,
+      0.901,
+      1.3265
+     ],
+     "parent": "arm_upper_1_L"
+    },
+    "gun_upper_R": {
+     "head": [
+      -2.7281,
+      0.901,
+      1.3265
+     ],
+     "parent": "arm_upper_1_R"
+    }
+   },
+   "bounds_max_m": [
+    5.6194,
+    3.3483,
+    2.8048
+   ],
+   "bounds_min_m": [
+    -5.6194,
+    -1.637,
+    -0.5407
+   ],
+   "display_name": "Stalker",
+   "faction": "Villains",
+   "file": "Characters/stalker.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_stalker_Accent",
+    "GB_villain_stalker_Body"
+   ],
+   "parts": {}
+  },
+  "veteran": {
+   "armature": "hero_veteran_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.1483,
+      -0.022,
+      0.0522
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.2539,
+      -0.0703,
+      0.4167
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.0332,
+      0.9301
+     ],
+     "parent": "torso"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1483,
+      0.0157,
+      0.5147
+     ],
+     "parent": "torso"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1278,
+      0.0137,
+      0.4834
+     ],
+     "parent": "torso"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.2502,
+      -0.1062,
+      0.3507
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.1483,
+      -0.022,
+      0.3517
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.1278,
+      -0.022,
+      0.3539
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.2539,
+      -0.0326,
+      0.5803
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.2502,
+      -0.0814,
+      0.345
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.2571,
+      -0.1091,
+      0.3948
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.2539,
+      -0.0144,
+      0.8438
+     ],
+     "parent": "torso"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.2393,
+      -0.0144,
+      0.8468
+     ],
+     "parent": "torso"
+    },
+    "torso": {
+     "head": [
+      0.0,
+      0.0137,
+      0.5169
+     ],
+     "parent": null
+    }
+   },
+   "bounds_max_m": [
+    0.3268,
+    0.1783,
+    1.1197
+   ],
+   "bounds_min_m": [
+    -0.3341,
+    -0.2551,
+    -0.0521
+   ],
+   "display_name": "Veteran",
+   "faction": "Heroes",
+   "file": "Characters/veteran.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_veteran_Accent",
+    "GB_hero_veteran_Body"
+   ],
+   "parts": {}
+  },
+  "warlord": {
+   "armature": "villain_warlord_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      1.5419,
+      0.1324,
+      1.2676
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -1.5419,
+      0.1324,
+      1.2676
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      2.7523,
+      -0.3584,
+      3.2245
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -2.7523,
+      -0.3584,
+      3.2245
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -1.2395,
+      8.8337
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.7209,
+      0.1277,
+      4.5199
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.7209,
+      0.1277,
+      4.5199
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      2.7532,
+      -1.2457,
+      2.0037
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_0_R": {
+     "head": [
+      -2.7532,
+      -1.2457,
+      2.0037
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      2.6567,
+      -1.4964,
+      1.2452
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_index_1_R": {
+     "head": [
+      -2.6567,
+      -1.4964,
+      1.2452
+     ],
+     "parent": "bip_index_0_R"
+    },
+    "bip_knee_0_L": {
+     "head": [
+      1.5419,
+      -0.9108,
+      3.361
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_0_R": {
+     "head": [
+      -1.5419,
+      -0.9108,
+      3.361
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      1.5419,
+      0.9777,
+      2.5375
+     ],
+     "parent": "bip_knee_0_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -1.5419,
+      0.9777,
+      2.5375
+     ],
+     "parent": "bip_knee_0_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      2.7523,
+      0.1793,
+      5.5533
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -2.7523,
+      0.1793,
+      5.5533
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      2.7532,
+      -0.6606,
+      1.8381
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_0_R": {
+     "head": [
+      -2.7532,
+      -0.6606,
+      1.8381
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      2.6552,
+      -0.8484,
+      1.058
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_middle_1_R": {
+     "head": [
+      -2.6552,
+      -0.8484,
+      1.058
+     ],
+     "parent": "bip_middle_0_R"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.1799,
+      4.6714
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      2.7532,
+      -0.0635,
+      1.7153
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_0_R": {
+     "head": [
+      -2.7532,
+      -0.0635,
+      1.7153
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      2.6569,
+      -0.1951,
+      0.9341
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_pinky_1_R": {
+     "head": [
+      -2.6569,
+      -0.1951,
+      0.9341
+     ],
+     "parent": "bip_pinky_0_R"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      2.5329,
+      -0.8237,
+      3.0364
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_0_R": {
+     "head": [
+      -2.5329,
+      -0.8237,
+      3.0364
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      2.3495,
+      -1.7304,
+      3.2327
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_thumb_1_R": {
+     "head": [
+      -2.3495,
+      -1.7304,
+      3.2327
+     ],
+     "parent": "bip_thumb_0_R"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      2.7523,
+      0.1793,
+      8.5535
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -2.7523,
+      0.1793,
+      8.5535
+     ],
+     "parent": "bip_pelvis"
+    },
+    "jaw": {
+     "head": [
+      -0.0,
+      -1.2809,
+      8.7507
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    3.4194,
+    2.0945,
+    10.0967
+   ],
+   "bounds_min_m": [
+    -3.5344,
+    -2.7107,
+    -1.9388
+   ],
+   "display_name": "Warlord",
+   "faction": "Villains",
+   "file": "Characters/warlord.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_warlord_Accent",
+    "GB_villain_warlord_Body"
+   ],
+   "parts": {}
+  },
+  "warlord_damaged": {
+   "armature": "villain_warlord_damaged_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      1.5474,
+      0.1315,
+      1.2687
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -1.5454,
+      0.1315,
+      1.2687
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      2.7523,
+      -0.3584,
+      3.2245
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -1.2395,
+      8.8337
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.6807,
+      0.1277,
+      4.5199
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.6872,
+      0.1277,
+      4.5199
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      2.7532,
+      -1.2457,
+      2.0037
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_1_L": {
+     "head": [
+      2.6567,
+      -1.4964,
+      1.2452
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_knee_0_L": {
+     "head": [
+      1.5474,
+      -0.9254,
+      3.3196
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_0_R": {
+     "head": [
+      -1.5454,
+      -0.9254,
+      3.3196
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_knee_L": {
+     "head": [
+      1.5474,
+      1.061,
+      2.5262
+     ],
+     "parent": "bip_knee_0_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -1.5454,
+      1.061,
+      2.5262
+     ],
+     "parent": "bip_knee_0_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      2.7523,
+      0.1793,
+      5.5533
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -2.7523,
+      0.1793,
+      5.5533
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      2.7532,
+      -0.6606,
+      1.8381
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      2.6552,
+      -0.8484,
+      1.058
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.1799,
+      4.6714
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      2.7532,
+      -0.0635,
+      1.7153
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      2.6569,
+      -0.1951,
+      0.9341
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      2.5329,
+      -0.8237,
+      3.0364
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      2.3495,
+      -1.7304,
+      3.2327
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      2.7523,
+      0.1793,
+      8.5535
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -2.7523,
+      0.1793,
+      8.5535
+     ],
+     "parent": "bip_pelvis"
+    },
+    "jaw": {
+     "head": [
+      -0.0,
+      -1.2809,
+      8.7507
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    3.5869,
+    2.0917,
+    9.9465
+   ],
+   "bounds_min_m": [
+    -3.3158,
+    -2.7108,
+    -1.9352
+   ],
+   "display_name": "Warlord Damaged",
+   "faction": "Villains",
+   "file": "Characters/warlord_damaged.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_villain_warlord_damaged_Accent",
+    "GB_villain_warlord_damaged_Body"
+   ],
+   "parts": {}
+  },
+  "welder": {
+   "armature": "hero_welder_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.3095,
+      -0.0295,
+      0.2394
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.3095,
+      -0.0295,
+      0.2394
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_L": {
+     "head": [
+      0.5492,
+      -0.0616,
+      1.1391
+     ],
+     "parent": "bip_lowerArm_L"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.5492,
+      -0.0616,
+      1.1391
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      -0.0,
+      -0.2889,
+      1.9319
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.3095,
+      -0.0,
+      0.8128
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.3095,
+      -0.0,
+      0.8128
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      0.5975,
+      -0.1818,
+      0.9769
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_index_1_L": {
+     "head": [
+      0.5805,
+      -0.2295,
+      0.8244
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.3095,
+      -0.0295,
+      0.4753
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.3095,
+      -0.0295,
+      0.4753
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5492,
+      -0.0,
+      1.4886
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5492,
+      0.0,
+      1.4886
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      0.5975,
+      -0.0887,
+      0.957
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      0.5805,
+      -0.1179,
+      0.8018
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      0.0,
+      0.9271
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      0.5975,
+      0.01,
+      0.9439
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      0.5805,
+      -0.0046,
+      0.7866
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      0.574,
+      -0.2055,
+      1.0995
+     ],
+     "parent": "bip_hand_L"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      0.5056,
+      -0.2873,
+      1.1122
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.5492,
+      0.0,
+      1.9176
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.5492,
+      0.0,
+      1.9176
+     ],
+     "parent": "bip_pelvis"
+    },
+    "mask": {
+     "head": [
+      -0.0,
+      -0.3224,
+      1.9286
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    0.6863,
+    0.3637,
+    2.1897
+   ],
+   "bounds_min_m": [
+    -0.673,
+    -0.6492,
+    0.0014
+   ],
+   "display_name": "Welder",
+   "faction": "Heroes",
+   "file": "Characters/welder.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_welder_Accent",
+    "GB_hero_welder_Body"
+   ],
+   "parts": {
+    "torchflame": {
+     "file": "Characters/welder__torchflame.fbx",
+     "materials": [
+      "GB_hero_welder_Accent",
+      "GB_hero_welder_Body"
+     ]
+    }
+   }
+  },
+  "worker": {
+   "armature": "hero_worker_ARM",
+   "bones": {
+    "bip_foot_L": {
+     "head": [
+      0.2771,
+      -0.0766,
+      0.0373
+     ],
+     "parent": "bip_knee_L"
+    },
+    "bip_foot_R": {
+     "head": [
+      -0.2771,
+      -0.0766,
+      0.0373
+     ],
+     "parent": "bip_knee_R"
+    },
+    "bip_hand_R": {
+     "head": [
+      -0.8426,
+      -0.0048,
+      0.7253
+     ],
+     "parent": "bip_lowerArm_R"
+    },
+    "bip_head": {
+     "head": [
+      0.0,
+      -0.0342,
+      0.883
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_L": {
+     "head": [
+      0.1959,
+      -0.0191,
+      0.4045
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_hip_R": {
+     "head": [
+      -0.1959,
+      -0.0191,
+      0.4045
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_index_0_L": {
+     "head": [
+      -0.9525,
+      -0.015,
+      0.7528
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_index_1_L": {
+     "head": [
+      -1.0022,
+      -0.0377,
+      0.7528
+     ],
+     "parent": "bip_index_0_L"
+    },
+    "bip_knee_L": {
+     "head": [
+      0.2771,
+      -0.0569,
+      0.2408
+     ],
+     "parent": "bip_hip_L"
+    },
+    "bip_knee_R": {
+     "head": [
+      -0.2771,
+      -0.0569,
+      0.2408
+     ],
+     "parent": "bip_hip_R"
+    },
+    "bip_lowerArm_L": {
+     "head": [
+      0.5978,
+      -0.0048,
+      0.7253
+     ],
+     "parent": "bip_upperArm_L"
+    },
+    "bip_lowerArm_R": {
+     "head": [
+      -0.5978,
+      -0.0048,
+      0.7253
+     ],
+     "parent": "bip_upperArm_R"
+    },
+    "bip_middle_0_L": {
+     "head": [
+      -0.9525,
+      -0.015,
+      0.7223
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_middle_1_L": {
+     "head": [
+      -1.0022,
+      -0.0377,
+      0.7223
+     ],
+     "parent": "bip_middle_0_L"
+    },
+    "bip_pelvis": {
+     "head": [
+      0.0,
+      -0.0342,
+      0.4318
+     ],
+     "parent": null
+    },
+    "bip_pinky_0_L": {
+     "head": [
+      -0.9501,
+      -0.0157,
+      0.6892
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_pinky_1_L": {
+     "head": [
+      -0.9992,
+      -0.0384,
+      0.6892
+     ],
+     "parent": "bip_pinky_0_L"
+    },
+    "bip_thumb_0_L": {
+     "head": [
+      -0.884,
+      -0.0123,
+      0.769
+     ],
+     "parent": "bip_hand_R"
+    },
+    "bip_thumb_1_L": {
+     "head": [
+      -0.8918,
+      -0.0133,
+      0.8139
+     ],
+     "parent": "bip_thumb_0_L"
+    },
+    "bip_upperArm_L": {
+     "head": [
+      0.1784,
+      -0.0207,
+      0.7253
+     ],
+     "parent": "bip_pelvis"
+    },
+    "bip_upperArm_R": {
+     "head": [
+      -0.1784,
+      -0.0207,
+      0.7253
+     ],
+     "parent": "bip_pelvis"
+    },
+    "jaw": {
+     "head": [
+      -0.0,
+      -0.0301,
+      0.9329
+     ],
+     "parent": "bip_head"
+    }
+   },
+   "bounds_max_m": [
+    0.9995,
+    0.1327,
+    1.1927
+   ],
+   "bounds_min_m": [
+    -1.0525,
+    -0.3448,
+    -0.0076
+   ],
+   "display_name": "Worker",
+   "faction": "Heroes",
+   "file": "Characters/worker.fbx",
+   "materials": [
+    "GB_Eye",
+    "GB_hero_worker_Accent",
+    "GB_hero_worker_Body"
+   ],
+   "parts": {
+    "backpack_2": {
+     "file": "Characters/worker__backpack_2.fbx",
+     "materials": [
+      "GB_hero_worker_Accent",
+      "GB_hero_worker_Body"
+     ]
+    }
+   }
+  }
+ },
+ "fingerprints": {
+  "Characters/beast.fbx": "0d26025092229ff8ffb4d148170d3a76d4ec3f2ec5c49b538daccc734d46be95",
+  "Characters/boombox.fbx": "80ff28c8d99bdfa3db1e432d2523a94f8bd0b00bcfbd38a2e0a565bed69ed731",
+  "Characters/brute.fbx": "8952ae34f14055fa54d98825d493995c786aa607eefd248b11e65d5596f9b142",
+  "Characters/citizen.fbx": "757935e33b19fa456bbfb66cedf7657b52a20288b7c87db7e49efc293bdb46b2",
+  "Characters/citizen__backpack.fbx": "2ff2c8e44150479333f1d2609bce11828416375447be4a965f35eac6fe5f9d43",
+  "Characters/commander.fbx": "e87af87ad93e6ce09772d9368f7f7bec58b9a9d872d73bac8c6c49ad4c9bb61f",
+  "Characters/dealer.fbx": "36a7e611b301b4f3ef160b851575fe5317786cb50187feabd159331207dbe5a0",
+  "Characters/drifter.fbx": "2424f67eae4381afe1a4fd32626ab0c1b8f42cd80e05c6c374dc025bf0e30d7f",
+  "Characters/drifter__Visor.fbx": "be8ddf0053f0833e62d3cc1517ee7a2264f434f81e40149eb353434d2e49b930",
+  "Characters/guide.fbx": "f9c4f6197d689f0dfcfc9bea3e168b44767d2d23e04842d23af8f6e2811c660d",
+  "Characters/guide__weapon_11.fbx": "48e87b47e916e54c8fb4b77973468c9ca66d7fcf88c720623f7e73db1698a285",
+  "Characters/helper.fbx": "1cf514fdd6c060116f6fa1bd6e8b08fee55ed89a499e0f2086055b75632f57db",
+  "Characters/mechanic.fbx": "3ff24a9328ffd8b1082f8fca6544f59895074d8c891a3ecb3cb7c813243d3e77",
+  "Characters/mechanic__weapon_12.fbx": "8cba03621e3fc8851821d299fd44e774479fa12762c80ab8015c6c0cf0a3aa66",
+  "Characters/merchant.fbx": "e6dc6306391451974106d1b8a27eaa7e0e3adb5b9033dbe744e3ffe282ce45fc",
+  "Characters/merchant_table.fbx": "f4a68a5bbcb76085e83127b79e82ffe91b68f76ad9c47d0701e4d94b021c9979",
+  "Characters/miner.fbx": "147ca8ee95809715590eb763a5ea393c3034ceb2293cbc705dce1a938bfd3c8a",
+  "Characters/miner__hand_1.fbx": "a17d422624ea97bd90a86927f02fa5d84b68b8eb99fa11ffc72654a53af36b84",
+  "Characters/parasite.fbx": "0b0873d077360973afb8cb4e93968b0d9b1190a22c3c9964c99856549590ed33",
+  "Characters/player.fbx": "f3a0dde3d2436b2f7a6760816b98544652669fc330138c48532dc76b9f437ea9",
+  "Characters/player__hand.fbx": "3bb5ea201e8ff40aa3ee48db49a267518c4337be794fd99c7fdabcd86f208569",
+  "Characters/professor.fbx": "39e9557d3d6ae8bc77c6b26634dbff5db5f34eccfc8b1b58efd54c6be2c695f8",
+  "Characters/scientist.fbx": "ab7a0077723af33aa6e98c68db65784bb914db08b91e24986d9fd5835f0c405e",
+  "Characters/scout.fbx": "bfc5b39f0c21ff1bc77c5d294d94eddb29bc9356872c2a85d66ccb08ceb8c42d",
+  "Characters/sentry.fbx": "06fc49816a7cdc0832d1568b7f102f5ffb197362add5363e03e779c274abf454",
+  "Characters/sentry__weapon_10.fbx": "6276674f78448f110065471a3beecb7e94b9b663cf04c71f8a038f9fddc76952",
+  "Characters/shooter.fbx": "f07badda2195a0a87fcef8dd55a5ff364c7e73531816eea382e629db1883db0e",
+  "Characters/shooter__arm_2.fbx": "9323fb472387ef4513a8c353dc6ac4490c0232f9af1c2f2a483421a880dca587",
+  "Characters/soldier.fbx": "d6248041813869be8a3dee09342581cc54a1bc80f5917379c85578188b437c11",
+  "Characters/stalker.fbx": "c4ce23299e18c7ecf117ba304d2a1190aff1e56139ef263ebef16e8927fd0ad9",
+  "Characters/veteran.fbx": "b885dbbcdde2d1524e18a02b2d233367a18335d7d6e34445c9255c1b5161130d",
+  "Characters/warlord.fbx": "4088c936e1a4331d3434f77766b02ce365145dbdad0dbd535f76d17e0a5e964a",
+  "Characters/warlord_damaged.fbx": "e1dbbd5423d224f4787185b61b63b9ed9b5d3803c27463fec1ee9e74bdef5c72",
+  "Characters/welder.fbx": "bdeeb0b8b308266c0d64060bc759e89c4bc750623016d0d7517dc9d14297b952",
+  "Characters/welder__torchflame.fbx": "2e7d028b496fecab6f1d964640014c6761b304c4ed3a3303706dec248e52ce59",
+  "Characters/worker.fbx": "2581968ab70cf51348b1610a8611cd5bb16159834462a834eb6f668b6cfa354e",
+  "Characters/worker__backpack_2.fbx": "db842e5c51a31d5b29d471ec604d56c7b48413b6a1b030b5e8a7792b035f2791",
+  "Props/ammo_crate.fbx": "52a26e971a38e0569f258fca29f098c4a55f4cfd4d0056fd8f664c78aa683c27",
+  "Props/disclauncher.fbx": "d1f2398f2c311e34b12160de54f8010a38645ecd66d8757b62e869d2f4bc6646",
+  "Props/drillcharge.fbx": "8ee35aa4018dda01d214c4eb822c3b5d973a332fd54f224f004983dcd5265965",
+  "Props/flamethrower.fbx": "0202dda7362b2b396566d3dbcfe5031c8b52075b918ad56295fe982f7c7c08f4",
+  "Props/grenade_cluster.fbx": "8f7c640030062a7b93788700cc0f0315ac891c63dd94407a18d68a92f82681a5",
+  "Props/grenade_convert.fbx": "45d0d7b788e3f1b56dc151806b6d178294d781e84afb81cde8729dffb8c50026",
+  "Props/grenade_emp.fbx": "b11077b925a86e1f72003a227a8ff3183f8c3c537f72d6e594c57dc29a080784",
+  "Props/grenade_fire.fbx": "ade712e0c5baa2b4d230e81e24f1f714a02d29abe736f8d752cec7984ba423d4",
+  "Props/hacktether.fbx": "2cddca8566424a225c97adf05b0eb371e769de7b589d8838d4889cb151008e15",
+  "Props/laser_enemy.fbx": "c17d5848241762a9a63ed30b8212e38e8be4f29df73b4f12ef7b62dfd411316b",
+  "Props/laser_l1.fbx": "6c1445a513d933562318411f973ac197f56bde0ee7a723287728b3fe6a4ff239",
+  "Props/laser_l2.fbx": "cec2f438b223ea4fada78cd51d5dbfcd331ecb6f416bc40f25f3fda2e949f616",
+  "Props/laser_l3.fbx": "4f904c93875c736e8ff0e45c197876cfd4ffcd3668b3fc2ac3ff705b214487d7",
+  "Props/repeater_l1.fbx": "50fa36b479965824692ca0975ba4270a09daa2531ddfb79e9ba1cbe0163337f5",
+  "Props/repeater_l3.fbx": "60aea55ec27cdc81527884b80868e5a8f30b9da05366cfa19267c3150138a8b2",
+  "Props/rocketlauncher_l1.fbx": "636c7bf73a0cb1039239213d056e7541940bbfed666f029735ea10fb3db47772",
+  "Props/rocketlauncher_l3.fbx": "7d1c9d7eada31c5a4f0126653c3f989d3250d2d52f2754f6f75454530fb758d5",
+  "Props/shotgun_l1.fbx": "2e3589fa10c08b67e9a2d7e8182730a7965e72cca9fe9f1821da1f87060436b3",
+  "Props/shotgun_l3.fbx": "5760cf437f1df842a3026ba78e71b178cdc5915da2f014c53a7b5c8d839e33ab",
+  "Props/slingshot.fbx": "0acdf363970fb3d7d652d005ebea7dc425ba1532ec106a912ae3ace9cfa37c01",
+  "Props/sniper.fbx": "ef298eb0aef16964663badb67d51c28f5fb91e9c66b9a8828b2a775616517bde",
+  "Props/sprayer_l1.fbx": "d44b5500e89b2b9cb7293cacf63f15f380be4d6899061916083ab72f5c392669",
+  "Props/sprayer_l3.fbx": "ed098bfb1e91607617c949c7b9ddf995ab124b2c0ba8af825dc8c4cd5eb3b24e",
+  "Props/wrench.fbx": "9cbf0fcdf8a9cc9cc8ad1155ac1325482483d21f0d0ba9f30c0be95afb52facc",
+  "Ships/CapShip_Comms.fbx": "fcaeb777be664d97e258c72c97995e9720a9114eb1cf2ca4ec4aac9e1b8a9418",
+  "Ships/CapShip_Engines.fbx": "42c0dab61c03276d2dc809f7516ffaae0a73b839f6d399adc985be666506a6fd",
+  "Ships/CapShip_Hull.fbx": "a502b9fefbbeed59970ba927b6fbf9e5b2b8a88498295b570471b20186f1a815",
+  "Ships/CapShip_ShieldGen.fbx": "3c1412c68c544c1e6361f16bf03505133e4e6b5045f4b522a5f8c8c873e6f327",
+  "Ships/CapShip_TurretBase.fbx": "908163b933e65057bba134936f5d1c64550583a4fe83c2db5ee86ff55859e77c",
+  "Ships/CapShip_TurretGun.fbx": "4f33275f3771afa1a71fd81e2305535e1aa8f5e22d110309a4842c4c0ce487b4",
+  "Ships/Hangar_BlastDoor.fbx": "b366427696d9f44b4b13a5f7f207491775e0b0b38fad568aa78ce5a86317860f",
+  "Ships/Hangar_Pad.fbx": "9544209702873ef420a79182ed83df6fe403f6c3c63c3a449549781d2276cc86",
+  "Ships/Hangar_Shell.fbx": "6c0bce23cc34fe95af10f63f38eac713091efa11796e858e1b4cd9533d6565d7",
+  "Ships/RobotDispenser.fbx": "2f783d14c8637f5123ccef17538e25f6b4b437297f3712d0ed909a4dc4e57ddb",
+  "Weapons/disclauncher__on__player.fbx": "ab3c9a53065a5eb58cd25f88b8cc9f55403d3d1b65b5598d29358054c1dbe131",
+  "Weapons/flamethrower__on__player.fbx": "ed18f8a27f57d9cce944c5b1d7675ae307759e599d673ad42e5f68c101ee0fd7",
+  "Weapons/hacktether__on__player.fbx": "1661cbb7f29291ca8be0b7eeed1d457b53773a60b8749115f8f0144aca4d82a7",
+  "Weapons/laser_enemy__on__shooter.fbx": "1132f14733ee6575b21d2955dc72f2d2cb7fc37b69fa825d66eef8be7211b5ee",
+  "Weapons/laser_l1__on__player.fbx": "965a8e2b6863bd623fb0cc18608adf478d779f6689083cb3cda3cd9d23c2f6b6",
+  "Weapons/laser_l2__on__player.fbx": "2bbd1e921a5a1a38f45ed2011b22a4c77fe239bcfba3db0aba3087479f9c5587",
+  "Weapons/laser_l3__on__player.fbx": "3cda2c9f208ea4040615829218d43ea7ce089ae188bac30ba3f2326c0b1657f6",
+  "Weapons/repeater_l1__on__player.fbx": "7ebf4a78776a8dfdbe279b61a0d54371b8b72a1d0f6240142d35617a968c9656",
+  "Weapons/repeater_l1__on__shooter.fbx": "3475412fe43f1e5f824ae8024e274d25917efe4b18e4d315d4f7978c33d90b3d",
+  "Weapons/repeater_l3__on__player.fbx": "d3b9ce6cffff5cb29abafc18efac16dd23914068afee6a9e05bc774ea4574961",
+  "Weapons/rocketlauncher_l1__on__player.fbx": "43edb99278638e7d6eb741309826acd3964f7ca9192d9881e13e1afa23615443",
+  "Weapons/rocketlauncher_l3__on__player.fbx": "0afa0c8482a8d5cfac6871ab93c2f8d371f4e8716e134ee459b363ac9937809d",
+  "Weapons/shotgun_l1__on__player.fbx": "5a4e43f021f954013babfbfc86cc4e744031e636b62806ca9620aee0582c0f1e",
+  "Weapons/shotgun_l1__on__shooter.fbx": "76056a9b87d5e229f5646b7818a98f25cb37855a65421b5a7cd2e0a52aef0ccf",
+  "Weapons/shotgun_l3__on__player.fbx": "ca005716f6b496f08e7b9cdbd127fd409570c9977ad153c095516b6e67d97092",
+  "Weapons/sniper__on__player.fbx": "edf0a88fa81ab0a7146c29b4b13a22ef360dc73d70828eda845414115f057d63",
+  "Weapons/sniper__on__shooter.fbx": "ba996b89545f635cb18516b96c28479f2a412cd57adeda2010ce33b849dc838c",
+  "Weapons/sprayer_l1__on__player.fbx": "fd1efc085b0a6234772def06c4ea9bde04e76a694259fa0bff5c7ac88b583d8a",
+  "Weapons/sprayer_l3__on__player.fbx": "7ecbe6326423a935b0410265bd48016497b65addfb54c6529ddc455bd96a7e02"
+ },
+ "materials": {
+  "GB_Eye": {
+   "base": null,
+   "color": [
+    0.4,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "light",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_Pickup_AmmoGlow": {
+   "base": null,
+   "color": [
+    1.0,
+    0.7,
+    0.08,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "light",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_Pickup_CrateDark": {
+   "base": null,
+   "color": [
+    0.08,
+    0.08,
+    0.09,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_Pickup_CrateOlive": {
+   "base": null,
+   "color": [
+    0.24,
+    0.29,
+    0.16,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_Pickup_RepairGlow": {
+   "base": null,
+   "color": [
+    0.15,
+    1.0,
+    0.35,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "light",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_Pickup_Steel": {
+   "base": null,
+   "color": [
+    0.62,
+    0.64,
+    0.68,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Disclauncher": {
+   "base": null,
+   "color": [
+    0.75,
+    0.75,
+    0.8,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Drillcharge": {
+   "base": null,
+   "color": [
+    0.6,
+    0.6,
+    0.62,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Flamethrower": {
+   "base": null,
+   "color": [
+    0.9,
+    0.35,
+    0.1,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_GrenadeCluster": {
+   "base": null,
+   "color": [
+    0.9,
+    0.9,
+    0.3,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_GrenadeConvert": {
+   "base": null,
+   "color": [
+    0.6,
+    0.3,
+    0.9,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_GrenadeEmp": {
+   "base": null,
+   "color": [
+    0.25,
+    0.5,
+    1.0,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_GrenadeFire": {
+   "base": null,
+   "color": [
+    1.0,
+    0.35,
+    0.05,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Hacktether": {
+   "base": null,
+   "color": [
+    0.2,
+    0.8,
+    1.0,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_LaserEnemy": {
+   "base": null,
+   "color": [
+    0.6,
+    0.1,
+    0.25,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_LaserL1": {
+   "base": null,
+   "color": [
+    0.85,
+    0.2,
+    0.15,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_LaserL2": {
+   "base": null,
+   "color": [
+    0.85,
+    0.2,
+    0.15,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_LaserL3": {
+   "base": null,
+   "color": [
+    0.85,
+    0.2,
+    0.15,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_RepeaterL1": {
+   "base": null,
+   "color": [
+    0.9,
+    0.75,
+    0.2,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_RepeaterL3": {
+   "base": null,
+   "color": [
+    0.9,
+    0.75,
+    0.2,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_RocketlauncherL1": {
+   "base": null,
+   "color": [
+    0.3,
+    0.7,
+    0.25,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_RocketlauncherL3": {
+   "base": null,
+   "color": [
+    0.3,
+    0.7,
+    0.25,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_ShotgunL1": {
+   "base": null,
+   "color": [
+    0.95,
+    0.5,
+    0.15,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_ShotgunL3": {
+   "base": null,
+   "color": [
+    0.95,
+    0.5,
+    0.15,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Slingshot": {
+   "base": null,
+   "color": [
+    0.6,
+    0.6,
+    0.62,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_Sniper": {
+   "base": null,
+   "color": [
+    0.08,
+    0.36,
+    0.42,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_SprayerL1": {
+   "base": null,
+   "color": [
+    0.3,
+    0.75,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_W_SprayerL3": {
+   "base": null,
+   "color": [
+    0.3,
+    0.75,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_WeaponDark": {
+   "base": null,
+   "color": [
+    0.12,
+    0.12,
+    0.13,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_disp_Band": {
+   "base": null,
+   "color": [
+    0.75,
+    0.2,
+    0.08,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_disp_Glow": {
+   "base": null,
+   "color": [
+    1.0,
+    0.18,
+    0.05,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "light",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_disp_Tank": {
+   "base": null,
+   "color": [
+    0.22,
+    0.42,
+    0.24,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hangar_Floor": {
+   "base": null,
+   "color": [
+    0.22,
+    0.23,
+    0.25,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hangar_Hazard": {
+   "base": null,
+   "color": [
+    0.9,
+    0.6,
+    0.08,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hangar_Wall": {
+   "base": null,
+   "color": [
+    0.4,
+    0.41,
+    0.44,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_boombox_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5761,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_boombox_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.2562,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_citizen_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6217,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_citizen_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3071,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_commander_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6782,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_commander_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.37,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_dealer_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6789,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_dealer_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3708,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_drifter_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.7113,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_drifter_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.4068,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_guide_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6264,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_guide_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3123,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_helper_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6957,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_helper_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3895,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_mechanic_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.6576,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_mechanic_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3471,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_merchant_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5267,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_merchant_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.2012,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_merchant_table_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.724,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_merchant_table_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.421,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_miner_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5858,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_miner_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.267,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_player_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5152,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_player_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.1883,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_scout_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5983,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_scout_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.281,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_veteran_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.595,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_veteran_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.2773,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_welder_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.672,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_welder_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.3631,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_worker_Accent": {
+   "base": null,
+   "color": [
+    0.4875,
+    0.5747,
+    0.75,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_hero_worker_Body": {
+   "base": null,
+   "color": [
+    0.1575,
+    0.2547,
+    0.45,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_ship_Accent": {
+   "base": null,
+   "color": [
+    0.55,
+    0.57,
+    0.62,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_ship_Dark": {
+   "base": null,
+   "color": [
+    0.06,
+    0.07,
+    0.08,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_ship_Glow": {
+   "base": null,
+   "color": [
+    0.35,
+    0.8,
+    1.0,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "light",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_ship_Hull": {
+   "base": null,
+   "color": [
+    0.3,
+    0.32,
+    0.36,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_beast_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5568,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_beast_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.2347,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_brute_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.4875,
+    0.5018,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_brute_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1575,
+    0.1735,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_parasite_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.6119,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_parasite_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.2961,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_professor_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5151,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_professor_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1882,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_scientist_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.4875,
+    0.5055,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_scientist_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1575,
+    0.1775,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_sentry_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5239,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_sentry_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.198,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_shooter_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5044,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_shooter_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1763,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_soldier_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.6063,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_soldier_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.2898,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_stalker_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5456,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_stalker_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.2223,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_warlord_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.5138,
+    0.4875,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_warlord_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1868,
+    0.1575,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_warlord_damaged_Accent": {
+   "base": null,
+   "color": [
+    0.75,
+    0.4875,
+    0.4888,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  },
+  "GB_villain_warlord_damaged_Body": {
+   "base": null,
+   "color": [
+    0.45,
+    0.1575,
+    0.1589,
+    1.0
+   ],
+   "emissive_strength": 0.0,
+   "kind": "lit",
+   "masked": false,
+   "normal": null,
+   "selfillum": null
+  }
+ },
+ "props": {
+  "ammo_crate": {
+   "followers": {},
+   "materials": [
+    "GB_Pickup_AmmoGlow",
+    "GB_Pickup_CrateDark",
+    "GB_Pickup_CrateOlive"
+   ],
+   "prop": "Props/ammo_crate.fbx",
+   "prop_bounds_m": [
+    [
+     -0.26,
+     -0.168,
+     -0.13
+    ],
+    [
+     0.26,
+     0.158,
+     0.16
+    ]
+   ]
+  },
+  "drillcharge": {
+   "followers": {},
+   "materials": [
+    "GB_W_Drillcharge",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/drillcharge.fbx",
+   "prop_bounds_m": [
+    [
+     0.469,
+     -0.0716,
+     -0.0272
+    ],
+    [
+     0.5232,
+     0.0735,
+     0.0272
+    ]
+   ]
+  },
+  "grenade_cluster": {
+   "followers": {},
+   "materials": [
+    "GB_W_GrenadeCluster",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/grenade_cluster.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0846,
+     -0.0999,
+     -0.0871
+    ],
+    [
+     0.0865,
+     0.0957,
+     0.089
+    ]
+   ]
+  },
+  "grenade_convert": {
+   "followers": {},
+   "materials": [
+    "GB_W_GrenadeConvert",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/grenade_convert.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0904,
+     -0.0726,
+     -0.095
+    ],
+    [
+     0.0902,
+     0.0715,
+     0.0949
+    ]
+   ]
+  },
+  "grenade_emp": {
+   "followers": {},
+   "materials": [
+    "GB_W_GrenadeEmp",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/grenade_emp.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0626,
+     -0.0748,
+     -0.0658
+    ],
+    [
+     0.0626,
+     0.0761,
+     0.0658
+    ]
+   ]
+  },
+  "grenade_fire": {
+   "followers": {},
+   "materials": [
+    "GB_W_GrenadeFire",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/grenade_fire.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0548,
+     -0.0589,
+     -0.0544
+    ],
+    [
+     0.0538,
+     0.1795,
+     0.0544
+    ]
+   ]
+  },
+  "slingshot": {
+   "followers": {},
+   "materials": [
+    "GB_W_Slingshot",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/slingshot.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1277,
+     -0.0668,
+     -0.0853
+    ],
+    [
+     0.1238,
+     0.2698,
+     0.0269
+    ]
+   ]
+  },
+  "wrench": {
+   "followers": {},
+   "materials": [
+    "GB_Pickup_RepairGlow",
+    "GB_Pickup_Steel"
+   ],
+   "prop": "Props/wrench.fbx",
+   "prop_bounds_m": [
+    [
+     -0.225,
+     -0.055,
+     -0.015
+    ],
+    [
+     0.2235,
+     0.055,
+     0.015
+    ]
+   ]
+  }
+ },
+ "ships": {
+  "CapShip_Comms": {
+   "bounds_max_cm": [
+    800.0,
+    1200.0,
+    3260.001
+   ],
+   "bounds_min_cm": [
+    -800.0,
+    -1200.0,
+    0.0
+   ],
+   "collision_hulls": 2,
+   "file": "Ships/CapShip_Comms.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Accent",
+    "GB_ship_Glow",
+    "GB_ship_Hull"
+   ],
+   "sockets": {}
+  },
+  "CapShip_Engines": {
+   "bounds_max_cm": [
+    0.0,
+    7000.0,
+    2400.0
+   ],
+   "bounds_min_cm": [
+    -3259.998,
+    -7000.0,
+    -2400.0
+   ],
+   "collision_hulls": 4,
+   "file": "Ships/CapShip_Engines.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Dark",
+    "GB_ship_Glow",
+    "GB_ship_Hull"
+   ],
+   "sockets": {}
+  },
+  "CapShip_Hull": {
+   "bounds_max_cm": [
+    30000.0,
+    8100.0,
+    7400.0
+   ],
+   "bounds_min_cm": [
+    -30000.0,
+    -8100.0,
+    -4500.0
+   ],
+   "collision_hulls": 9,
+   "file": "Ships/CapShip_Hull.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Accent",
+    "GB_ship_Dark",
+    "GB_ship_Glow",
+    "GB_ship_Hull"
+   ],
+   "sockets": {
+    "comms": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -24500.0,
+      -0.0,
+      7400.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "engines": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -30000.0,
+      -0.0,
+      0.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "hangar_portal": {
+     "forward": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "height": 30.0,
+     "location": [
+      -18000.0,
+      8000.0,
+      -500.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     "width": 80.0
+    },
+    "shieldgen_L": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -13000.0,
+      -4500.0,
+      3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "shieldgen_R": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -13000.0,
+      4500.0,
+      3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_01": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -9000.0,
+      -6000.0,
+      3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_02": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -9000.0,
+      6000.0,
+      3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_03": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      4000.0,
+      -3000.0,
+      2333.333
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_04": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      4000.0,
+      3000.0,
+      2333.333
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_05": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      16000.0,
+      -0.0,
+      1533.333
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "turret_06": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -20000.0,
+      -5000.0,
+      -3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      -1.0
+     ]
+    },
+    "turret_07": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -20000.0,
+      5000.0,
+      -3000.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      -1.0
+     ]
+    },
+    "turret_08": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      6000.0,
+      -2200.0,
+      -2200.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      -1.0
+     ]
+    },
+    "turret_09": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      6000.0,
+      2200.0,
+      -2200.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      -1.0
+     ]
+    }
+   }
+  },
+  "CapShip_ShieldGen": {
+   "bounds_max_cm": [
+    1240.0,
+    1240.0,
+    1600.0
+   ],
+   "bounds_min_cm": [
+    -1239.999,
+    -1240.0,
+    0.0
+   ],
+   "collision_hulls": 2,
+   "file": "Ships/CapShip_ShieldGen.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Accent",
+    "GB_ship_Glow",
+    "GB_ship_Hull"
+   ],
+   "sockets": {}
+  },
+  "CapShip_TurretBase": {
+   "bounds_max_cm": [
+    800.0,
+    800.0,
+    400.0
+   ],
+   "bounds_min_cm": [
+    -800.0,
+    -800.0,
+    0.0
+   ],
+   "collision_hulls": 1,
+   "file": "Ships/CapShip_TurretBase.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Accent"
+   ],
+   "sockets": {
+    "gun": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      0.0,
+      -0.0,
+      700.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    }
+   }
+  },
+  "CapShip_TurretGun": {
+   "bounds_max_cm": [
+    2200.0,
+    500.0,
+    300.0
+   ],
+   "bounds_min_cm": [
+    -600.0,
+    -500.0,
+    -300.0
+   ],
+   "collision_hulls": 2,
+   "file": "Ships/CapShip_TurretGun.fbx",
+   "group": "Capital Ship",
+   "materials": [
+    "GB_ship_Dark",
+    "GB_ship_Glow",
+    "GB_ship_Hull"
+   ],
+   "sockets": {}
+  },
+  "Hangar_BlastDoor": {
+   "bounds_max_cm": [
+    150.0,
+    550.0,
+    750.0
+   ],
+   "bounds_min_cm": [
+    -159.998,
+    -550.0,
+    0.0
+   ],
+   "collision_hulls": 3,
+   "file": "Ships/Hangar_BlastDoor.fbx",
+   "group": "Hangar",
+   "materials": [
+    "GB_ship_Accent",
+    "GB_ship_Glow"
+   ],
+   "sockets": {}
+  },
+  "Hangar_Pad": {
+   "bounds_max_cm": [
+    800.0,
+    700.0,
+    45.0
+   ],
+   "bounds_min_cm": [
+    -800.0,
+    -700.0,
+    0.0
+   ],
+   "collision_hulls": 1,
+   "file": "Ships/Hangar_Pad.fbx",
+   "group": "Hangar",
+   "materials": [
+    "GB_hangar_Hazard",
+    "GB_ship_Dark",
+    "GB_ship_Glow"
+   ],
+   "sockets": {}
+  },
+  "Hangar_Shell": {
+   "bounds_max_cm": [
+    6200.0,
+    240.002,
+    4200.0
+   ],
+   "bounds_min_cm": [
+    -6200.0,
+    -10200.0,
+    -200.0
+   ],
+   "collision_hulls": 11,
+   "file": "Ships/Hangar_Shell.fbx",
+   "group": "Hangar",
+   "materials": [
+    "GB_hangar_Floor",
+    "GB_hangar_Hazard",
+    "GB_hangar_Wall",
+    "GB_ship_Glow"
+   ],
+   "sockets": {
+    "corridor_door": {
+     "forward": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "location": [
+      0.0,
+      -10200.0,
+      0.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "hangar_portal": {
+     "forward": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "height": 30.0,
+     "location": [
+      0.0,
+      200.0,
+      1900.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ],
+     "width": 80.0
+    },
+    "pad_1": {
+     "forward": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "location": [
+      -3000.0,
+      -5500.0,
+      0.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "pad_2": {
+     "forward": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "location": [
+      0.0,
+      -5500.0,
+      0.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "pad_3": {
+     "forward": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "location": [
+      3000.0,
+      -5500.0,
+      0.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    }
+   }
+  },
+  "RobotDispenser": {
+   "bounds_max_cm": [
+    224.0,
+    224.0,
+    472.9
+   ],
+   "bounds_min_cm": [
+    -224.0,
+    -224.0,
+    0.0
+   ],
+   "collision_hulls": 5,
+   "file": "Ships/RobotDispenser.fbx",
+   "group": "Dispenser",
+   "materials": [
+    "GB_disp_Band",
+    "GB_disp_Glow",
+    "GB_disp_Tank",
+    "GB_hangar_Hazard",
+    "GB_ship_Accent",
+    "GB_ship_Dark",
+    "GB_ship_Hull"
+   ],
+   "sockets": {
+    "assembly": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      25.0,
+      -0.0,
+      30.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "light": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      90.0,
+      -0.0,
+      290.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "nozzle": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      15.0,
+      -0.0,
+      263.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "torch_L": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -35.0,
+      -64.0,
+      150.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    },
+    "torch_R": {
+     "forward": [
+      1.0,
+      -0.0,
+      0.0
+     ],
+     "location": [
+      -35.0,
+      64.0,
+      150.0
+     ],
+     "up": [
+      0.0,
+      -0.0,
+      1.0
+     ]
+    }
+   }
+  }
+ },
+ "source": "Art/Graybox",
+ "textures": {},
+ "weapons": {
+  "disclauncher": {
+   "followers": {
+    "player": "Weapons/disclauncher__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_Disclauncher",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/disclauncher.fbx",
+   "prop_bounds_m": [
+    [
+     -0.134,
+     0.002,
+     -0.0524
+    ],
+    [
+     0.0021,
+     0.4056,
+     0.0547
+    ]
+   ]
+  },
+  "flamethrower": {
+   "followers": {
+    "player": "Weapons/flamethrower__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_Flamethrower",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/flamethrower.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0833,
+     -0.022,
+     -0.0635
+    ],
+    [
+     0.0407,
+     0.4964,
+     0.0248
+    ]
+   ]
+  },
+  "hacktether": {
+   "followers": {
+    "player": "Weapons/hacktether__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_Hacktether",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/hacktether.fbx",
+   "prop_bounds_m": [
+    [
+     -0.076,
+     -0.0534,
+     -0.0896
+    ],
+    [
+     0.0431,
+     0.4774,
+     0.0648
+    ]
+   ]
+  },
+  "laser_enemy": {
+   "followers": {
+    "shooter": "Weapons/laser_enemy__on__shooter.fbx"
+   },
+   "materials": [
+    "GB_W_LaserEnemy",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/laser_enemy.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1284,
+     -0.1499,
+     -0.1176
+    ],
+    [
+     0.0369,
+     0.4743,
+     0.0437
+    ]
+   ]
+  },
+  "laser_l1": {
+   "followers": {
+    "player": "Weapons/laser_l1__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_LaserL1",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/laser_l1.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1,
+     -0.0502,
+     -0.0347
+    ],
+    [
+     0.0929,
+     0.3802,
+     0.0368
+    ]
+   ]
+  },
+  "laser_l2": {
+   "followers": {
+    "player": "Weapons/laser_l2__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_LaserL2",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/laser_l2.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0848,
+     -0.0592,
+     -0.0647
+    ],
+    [
+     0.1195,
+     0.4942,
+     0.0676
+    ]
+   ]
+  },
+  "laser_l3": {
+   "followers": {
+    "player": "Weapons/laser_l3__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_LaserL3",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/laser_l3.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1,
+     -0.0611,
+     -0.0641
+    ],
+    [
+     0.1084,
+     0.4226,
+     0.0694
+    ]
+   ]
+  },
+  "repeater_l1": {
+   "followers": {
+    "player": "Weapons/repeater_l1__on__player.fbx",
+    "shooter": "Weapons/repeater_l1__on__shooter.fbx"
+   },
+   "materials": [
+    "GB_W_RepeaterL1",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/repeater_l1.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1,
+     -0.0274,
+     -0.0651
+    ],
+    [
+     0.1379,
+     0.5084,
+     0.0592
+    ]
+   ]
+  },
+  "repeater_l3": {
+   "followers": {
+    "player": "Weapons/repeater_l3__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_RepeaterL3",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/repeater_l3.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1219,
+     -0.0296,
+     -0.1495
+    ],
+    [
+     0.1352,
+     0.6127,
+     0.0323
+    ]
+   ]
+  },
+  "rocketlauncher_l1": {
+   "followers": {
+    "player": "Weapons/rocketlauncher_l1__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_RocketlauncherL1",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/rocketlauncher_l1.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0942,
+     -0.0735,
+     -0.065
+    ],
+    [
+     0.172,
+     0.7081,
+     0.065
+    ]
+   ]
+  },
+  "rocketlauncher_l3": {
+   "followers": {
+    "player": "Weapons/rocketlauncher_l3__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_RocketlauncherL3",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/rocketlauncher_l3.fbx",
+   "prop_bounds_m": [
+    [
+     -0.3554,
+     -0.111,
+     -0.0792
+    ],
+    [
+     0.5531,
+     0.5145,
+     0.158
+    ]
+   ]
+  },
+  "shotgun_l1": {
+   "followers": {
+    "player": "Weapons/shotgun_l1__on__player.fbx",
+    "shooter": "Weapons/shotgun_l1__on__shooter.fbx"
+   },
+   "materials": [
+    "GB_W_ShotgunL1",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/shotgun_l1.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1,
+     -0.0749,
+     -0.1813
+    ],
+    [
+     0.0399,
+     0.3947,
+     0.022
+    ]
+   ]
+  },
+  "shotgun_l3": {
+   "followers": {
+    "player": "Weapons/shotgun_l3__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_ShotgunL3",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/shotgun_l3.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1,
+     -0.0818,
+     -0.1677
+    ],
+    [
+     0.0413,
+     0.4147,
+     0.025
+    ]
+   ]
+  },
+  "sniper": {
+   "followers": {
+    "player": "Weapons/sniper__on__player.fbx",
+    "shooter": "Weapons/sniper__on__shooter.fbx"
+   },
+   "materials": [
+    "GB_W_Sniper",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/sniper.fbx",
+   "prop_bounds_m": [
+    [
+     -0.0425,
+     -0.0602,
+     -0.0685
+    ],
+    [
+     0.0425,
+     0.8548,
+     0.1115
+    ]
+   ]
+  },
+  "sprayer_l1": {
+   "followers": {
+    "player": "Weapons/sprayer_l1__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_SprayerL1",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/sprayer_l1.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1463,
+     0.0011,
+     -0.0263
+    ],
+    [
+     0.0176,
+     0.4297,
+     0.0294
+    ]
+   ]
+  },
+  "sprayer_l3": {
+   "followers": {
+    "player": "Weapons/sprayer_l3__on__player.fbx"
+   },
+   "materials": [
+    "GB_W_SprayerL3",
+    "GB_WeaponDark"
+   ],
+   "prop": "Props/sprayer_l3.fbx",
+   "prop_bounds_m": [
+    [
+     -0.1324,
+     0.0005,
+     -0.0624
+    ],
+    [
+     0.0328,
+     0.5312,
+     0.0353
+    ]
+   ]
+  }
+ }
+}
