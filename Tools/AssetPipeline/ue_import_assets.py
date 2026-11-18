@@ -15,7 +15,7 @@ Creates, under /Game/Metalization:
     Weapons/<Name>/SK_<Name>_On<Holder>  weapons bonemerged onto a holder's skeleton
     Props/SM_<Name>                   weapons and grenades as static meshes (pickups)
     Ships/SM_<Part>                   capital ship pieces and the hangar kit (UCX collision + sockets)
-    Audio/SW_<Name>                   sound effects from generate_sfx.py (names ending _loop loop)
+    Audio/SW_<Name>                   sound effects from generate_sfx.py, music from Art/Music (names ending _loop loop)
 
 Incremental: import_plan.py (run first by run_pipeline.ps1) works out which units changed, deletes their
 old .uasset files and writes Saved/AssetPipeline/import_plan.json; only those are imported here, so
@@ -458,14 +458,14 @@ def import_weapons(manifest, instances, skeletons):
 
 
 def import_audio():
-    """Every WAV from generate_sfx.py becomes /Game/Metalization/Audio/SW_<Name>."""
+    """Every WAV (and music MP3) from generate_sfx.py becomes /Game/Metalization/Audio/SW_<Name>."""
     folder = os.path.join(PIPELINE_DIR, "Audio")
     if not os.path.isdir(folder):
         log("WARNING no Saved/AssetPipeline/Audio - run generate_sfx.py (the game will be silent)")
         return
     tasks = []
     for file in sorted(os.listdir(folder)):
-        if not file.endswith(".wav") or not planned("sounds", file[:-4]):
+        if not file.endswith((".wav", ".mp3")) or not planned("sounds", file[:-4]):
             continue
         task = unreal.AssetImportTask()
         task.set_editor_property("filename", os.path.join(folder, file))
@@ -478,13 +478,13 @@ def import_audio():
     asset_tools.import_asset_tasks(tasks)
     count = 0
     for file in sorted(os.listdir(folder)):
-        if not file.endswith(".wav") or not planned("sounds", file[:-4]):
+        if not file.endswith((".wav", ".mp3")) or not planned("sounds", file[:-4]):
             continue
         wave = load(f"{ROOT}/Audio/SW_{pascal(file[:-4])}")
         if wave is None:
             unreal.log_error(f"[MZImport] FAILED to import {file}")
             continue
-        wave.set_editor_property("looping", file.endswith("_loop.wav"))
+        wave.set_editor_property("looping", file[:-4].endswith("_loop"))
         count += 1
     log(f"sounds: {count} imported")
 

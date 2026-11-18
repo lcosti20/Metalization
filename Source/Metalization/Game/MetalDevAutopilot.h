@@ -7,7 +7,7 @@
 //   -MetalAutopilot[=combat|gate|boss|arena|flight|hangar|battle|dogfight|menu|ships]  run a scripted smoke test (see Scenarios() in the .cpp)
 //   -MetalMenuLevel=Arena        Level Select entry the "menu" scenario picks (it runs again after the switch)
 //   -MetalObjective=N            start the mission at objective N
-//   -MetalQuitAt=12              exit the game
+//   -MetalQuitAt=12              exit the game (timed from each level load, so a checkpoint retry runs again)
 
 #pragma once
 
@@ -54,6 +54,9 @@ private:
 	 */
 	AMetalBotCharacter* FindNearest(bool bHackableOnly, FName Tag) const;
 
+	/** Enemy the liftai scenario dropped at a lift, reported by ReportHeights. */
+	TWeakObjectPtr<AMetalBotCharacter> LuredEnemy;
+
 	/** Closest friendly robot the player can link to (a parked Stalker). */
 	AMetalBotCharacter* FindNearestLinkable() const;
 
@@ -90,6 +93,8 @@ private:
 	float StartTime = 0.f;
 	float NextLogTime = 0.f;
 	bool bAutopilot = false;
+	/** This level load is a checkpoint retry (skip -MetalTeleport, run the "<scenario>_restored" steps). */
+	bool bRestored = false;
 	bool bRunning = false;
 	/** The clock starts once the player has a pawn. */
 	bool bStarted = false;
@@ -100,6 +105,8 @@ private:
 	int32 NextStep = 0;
 	int32 ShotIndex = 0;
 	TWeakObjectPtr<AMetalBotCharacter> AimTarget;
+	/** The persistent beam the fx scenario leaves up (spawned once). */
+	TWeakObjectPtr<class AMetalFX> FxBeam;
 	/** Aim at this bone of AimTarget instead of its centre. */
 	FName AimBone;
 	/** Aim at a component instead (a capital ship's subsystem). */

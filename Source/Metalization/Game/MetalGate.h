@@ -32,6 +32,9 @@ public:
 	/** Starts opening the door. */
 	void Open();
 
+	/** Snaps the door fully open without the sound (restoring a checkpoint). Call after BeginPlay. */
+	void OpenInstantly();
+
 	/** @return True once Open() has been called (the door may still be moving). */
 	bool IsOpen() const { return bOpening; }
 

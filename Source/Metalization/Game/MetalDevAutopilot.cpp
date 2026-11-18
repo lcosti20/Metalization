@@ -6,13 +6,19 @@
 #include "MetalCapitalShip.h"
 #include "MetalControlConsole.h"
 #include "MetalFlyerAIController.h"
+#include "MetalFX.h"
+#include "MetalGravLift.h"
 #include "MetalHangar.h"
+#include "MetalMission.h"
+#include "MetalHackPuzzle.h"
 #include "MetalPauseMenu.h"
+#include "MetalPickup.h"
 #include "MetalPortal.h"
 #include "MetalSpaceBattleGameMode.h"
 #include "MetalPlayerController.h"
 #include "MetalStalker.h"
 #include "MetalTitle.h"
+#include "MetalTriggerZone.h"
 #include "MetalWeaponData.h"
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
@@ -21,6 +27,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
+#include "NavigationPath.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshPath.h"
 #include "Misc/Parse.h"
 #include "UnrealClient.h"
 
@@ -31,7 +40,10 @@ namespace
 		AimLinkable, Climb, StopClimb, Boost, StopBoost, DodgeLeft, DodgeRight, AimEnemyGun, AimEnemyShield, AimHomeMouth,
 		GoNearEnemyMouth, AimEnemyMouth, AimEnemyLifeSupport, WreckEnemyShip,
 		OpenPauseMenu, MenuLevelSelect, MenuBack, MenuPickLevel, MenuContinue,
-		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1 };
+		MenuSound, MenuCredits, MusicDown, MusicUp, VoicesDown, VoicesUp,
+		Sprint, StopSprint, Sneak, StopSneak, Aim, StopAim, NextWeapon, AimMarksman, Grenade, AimBunker, ClearSquad1,
+		SolveHack, FailHack, CancelHack, CountRobots, ScrapNearestEnemy, SelfDestruct, GoToCheckpoint, DropToLowHealth, HealFully,
+		Reload, GoToPickup, ScrapCommandYard, ScrapBoss, ScrapYardPatrol, AimButton, StopAimButton, LureToLift, ReportHeights, AlertNearest, GiveSniper, ClearAllButBoss, FxGallery };
 
 	/** An action to run at a time (seconds after the player first has a pawn). */
 	struct FAutopilotStep
@@ -51,11 +63,12 @@ namespace
 		static const TMap<FString, TArray<FAutopilotStep>> Map = {
 			// Shoot, hijack the nearest enemy robot, fight with it, disconnect.
 			{TEXT("combat"), {{1.5f, EStep::AimEnemy}, {1.6f, EStep::Fire}, {4.5f, EStep::StopFire}, {5.0f, EStep::AimHackable},
-				{5.6f, EStep::Tether}, {7.0f, EStep::AimEnemy}, {7.1f, EStep::Fire}, {10.0f, EStep::StopFire}, {10.5f, EStep::Tether}}},
+				{5.6f, EStep::Tether}, {6.0f, EStep::SolveHack}, {7.0f, EStep::AimEnemy}, {7.1f, EStep::Fire}, {10.0f, EStep::StopFire}, {10.5f, EStep::Tether}}},
 			// Hijack a guard through the energy fence, use the console, disconnect.
-			{TEXT("gate"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
-			// Hijack the Brute boss and turn its miniguns on the Soldiers.
-			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire}, {8.0f, EStep::StopFire}}},
+			{TEXT("gate"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
+			// Hijack the Brute boss and turn its miniguns, and (holding the aim button) its shoulder rockets, on the Soldiers.
+			{TEXT("boss"), {{1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::AimEnemy}, {2.6f, EStep::Fire},
+				{2.7f, EStep::AimButton}, {8.0f, EStep::StopFire}, {8.1f, EStep::StopAimButton}}},
 			// Free-roam movement in the arena: run, double-jump flip, turn, then shoot (action camera).
 			{TEXT("arena"), {{1.0f, EStep::Run}, {2.0f, EStep::Jump}, {2.35f, EStep::Jump}, {3.6f, EStep::TurnLeft}, {4.4f, EStep::Jump},
 				{5.4f, EStep::TurnRight}, {6.4f, EStep::Stop}, {7.0f, EStep::AimEnemy}, {7.2f, EStep::Fire}, {8.5f, EStep::StopFire}}},
@@ -85,6 +98,11 @@ namespace
 			// again in the new level, where picking it again is skipped and Continue resumes the game.
 			{TEXT("menu"), {{0.8f, EStep::OpenPauseMenu}, {1.6f, EStep::MenuLevelSelect}, {2.4f, EStep::MenuBack}, {3.2f, EStep::MenuLevelSelect},
 				{3.6f, EStep::MenuPickLevel}, {4.4f, EStep::MenuContinue}}},
+			// Pause menu Sound and Credits panels: turn the music, then the robot voices, down 30% and back up, then
+			// show the credits.
+			{TEXT("sound"), {{0.8f, EStep::OpenPauseMenu}, {1.4f, EStep::MenuSound}, {2.0f, EStep::MusicDown}, {2.8f, EStep::MusicUp},
+				{3.0f, EStep::VoicesDown}, {3.4f, EStep::VoicesUp},
+				{3.6f, EStep::MenuBack}, {4.0f, EStep::MenuCredits}, {5.0f, EStep::MenuBack}, {5.4f, EStep::MenuContinue}}},
 			// AI-only battle: the player stays aboard while both squadrons and the turrets fight it out.
 			{TEXT("dogfight"), {}},
 			// No inputs: exterior screenshots with -MetalCam.
@@ -93,6 +111,29 @@ namespace
 			{TEXT("alpha"), {{0.8f, EStep::Run}, {1.0f, EStep::Sprint}, {6.5f, EStep::StopSprint}, {7.5f, EStep::Jump}, {9.0f, EStep::Stop}}},
 			// Pick up the Repeater (acted-out swap), then swap back and forth: twist off, rack, snap on.
 			{TEXT("swap"), {{3.0f, EStep::NextWeapon}, {5.0f, EStep::NextWeapon}, {7.0f, EStep::NextWeapon}}},
+			// Reload animation (same spot as swap): spray the Repeater, then reload: gun arm drops and rolls, off hand
+			// fetches a cell from the hip, the spent cell pops, the hand slaps the new one home and racks it.
+			{TEXT("reload"), {{2.0f, EStep::Fire}, {2.6f, EStep::StopFire}, {2.7f, EStep::Reload},
+				{5.0f, EStep::Fire}, {5.5f, EStep::StopFire}, {5.6f, EStep::Reload}}},
+			// Quick draw (robots without the acted-out swap): hijack the gate guard, hand it a second gun (it drops
+			// its arm and brings the new one up), then swap back and forth.
+			{TEXT("draw"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {3.0f, EStep::GiveSniper},
+				{4.5f, EStep::NextWeapon}, {6.0f, EStep::NextWeapon}}},
+			// AI and lifts: an enemy dropped at the foot of the cliff lift, alerted to the player up on the plateau,
+			// must path through the lift (nav link) and ride it up rather than wait under the cliff.
+			{TEXT("liftai"), {{0.5f, EStep::LureToLift}, {3.0f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights},
+				{9.0f, EStep::ReportHeights}, {12.0f, EStep::ReportHeights}}},
+			// AI and ledges: the player waits at the foot of the cliff and the nearest enemy up on the plateau is
+			// alerted; it must path down via a generated jump link (drop off the cliff) instead of staying put.
+			{TEXT("drop"), {{0.3f, EStep::AlertNearest}, {2.0f, EStep::ReportHeights}, {3.0f, EStep::ReportHeights}, {4.0f, EStep::ReportHeights}, {5.0f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights},
+				{7.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}, {10.0f, EStep::ReportHeights}, {11.5f, EStep::ReportHeights}}},
+			// AI and obstacles: an enemy behind the first (full-width, 110 cm) barricade must jump it to reach the
+			// player (Over link) instead of standing behind it.
+			{TEXT("hop"), {{0.3f, EStep::AlertNearest}, {1.5f, EStep::ReportHeights}, {2.5f, EStep::ReportHeights}, {3.5f, EStep::ReportHeights},
+				{4.5f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}}},
+			// AI and the barricade ditch: an enemy down in the ditch must jump out (Climb link) to reach the player.
+			{TEXT("ditch"), {{0.3f, EStep::AlertNearest}, {1.5f, EStep::ReportHeights}, {2.5f, EStep::ReportHeights}, {3.5f, EStep::ReportHeights},
+				{4.5f, EStep::ReportHeights}, {6.0f, EStep::ReportHeights}, {8.0f, EStep::ReportHeights}}},
 			// Walk into the cliff lift and ride it to the top.
 			{TEXT("lift"), {{0.5f, EStep::Run}, {1.6f, EStep::Stop}}},
 			// Crouch and creep through the crawl pipe past the yard patrols.
@@ -102,7 +143,19 @@ namespace
 				{5.0f, EStep::Fire}, {5.1f, EStep::StopFire}, {6.0f, EStep::StopAim}}},
 			// Hack the gate guard through the shield fence, walk it to the console, open the gate (and the Blue
 			// hangar), let go, then watch the reinforcements head for the command yard.
-			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact}, {7.5f, EStep::Tether}}},
+			{TEXT("hack"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole}, {3.2f, EStep::Interact},
+			{7.5f, EStep::Tether}}},
+		// Energy field: shoot the gate guard through the shield fence (the shots ripple the field and the guard
+		// sees the player but holds fire, with no path round), then hack it through the field anyway.
+
+		{TEXT("field"), {{1.0f, EStep::AimGateGuard}, {1.3f, EStep::Fire}, {3.0f, EStep::StopFire}, {6.5f, EStep::AimGateGuard},
+			{7.0f, EStep::Tether}, {7.6f, EStep::SolveHack}}},
+
+		// Hack puzzle outcomes on the gate guard: a wrong compile raises its firewall, the tether is refused
+		// while it is up, [X] cancels without one, and the right wiring hijacks it.
+		{TEXT("hackfail"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.2f, EStep::FailHack}, {2.8f, EStep::Tether},
+			{6.6f, EStep::AimGateGuard}, {7.0f, EStep::Tether}, {7.4f, EStep::CancelHack}, {7.6f, EStep::AimGateGuard}, {8.0f, EStep::Tether},
+			{8.6f, EStep::SolveHack}, {11.0f, EStep::Tether}}},
 			// Collapsed bridge: run at the gap, jump at the edge, jump again at the top onto the higher ledge.
 			{TEXT("bridge"), {{0.5f, EStep::Run}, {0.82f, EStep::Jump}, {1.25f, EStep::Jump}, {2.6f, EStep::Stop}}},
 			// Bunker: grab the grenades, lob EMP grenades over the wall, then shoot whoever comes out.
@@ -111,8 +164,68 @@ namespace
 				{6.0f, EStep::AimEnemy}, {6.2f, EStep::Fire}, {11.0f, EStep::StopFire}}},
 			// Jetpack: stand still and double jump (the thrusters only fire on the mid-air jump).
 			{TEXT("jetpack"), {{1.0f, EStep::Jump}, {1.3f, EStep::Jump}, {3.0f, EStep::Jump}, {3.3f, EStep::Jump}}},
+			// Low-health warning: drop to 20% (red flash and double beep every second), then heal to stop it.
+			{TEXT("lowhealth"), {{0.5f, EStep::DropToLowHealth}, {3.6f, EStep::HealFully}}},
+			// Combat effects: every Niagara effect set off in a row in front of the camera, three times over.
+			// Report shots: the courtyard emptied so nothing shoots back (no damage tint), then hijack the Brute and
+			// fire its miniguns and shoulder rockets at nothing in particular. Filmed from fixed cameras after the hack.
+			{TEXT("fxboss"), {{0.1f, EStep::ClearAllButBoss}, {1.0f, EStep::AimBoss}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack},
+				{2.6f, EStep::Fire}, {2.7f, EStep::AimButton}, {8.0f, EStep::StopFire}, {8.1f, EStep::StopAimButton}}},
+			{TEXT("fx"), {{0.1f, EStep::ClearAllButBoss}, {1.0f, EStep::FxGallery}, {2.5f, EStep::FxGallery}, {4.0f, EStep::FxGallery}}},
 			// Title screen: just the menu over the orbiting camera.
 			{TEXT("title"), {}},
+			// Checkpoint snapshot: scrap a guard, step into the patrol yard checkpoint, scrap another, then get
+			// scrapped. The level reloads and runs "checkpoint_restored", which counts the robots again: the
+			// first guard must stay gone and the second must be back.
+			{TEXT("checkpoint"), {{0.3f, EStep::ScrapNearestEnemy}, {0.6f, EStep::GoToCheckpoint}, {1.0f, EStep::CountRobots},
+				{1.5f, EStep::ScrapNearestEnemy}, {2.0f, EStep::CountRobots}, {2.5f, EStep::SelfDestruct}}},
+			{TEXT("checkpoint_restored"), {{0.5f, EStep::CountRobots}}},
+
+			// Robot dispensers (MZ_DispenserTest): scrap an assigned guard and watch the left dispenser weld a
+			// copy together; open the gate so the right one starts building on its timer; then shut both down
+			// from the blue console.
+
+			{TEXT("dispenser"), {{0.3f, EStep::ScrapNearestEnemy}, {0.5f, EStep::CountRobots}, {4.6f, EStep::CountRobots},
+				{5.0f, EStep::GoToConsole}, {5.5f, EStep::Interact}, {9.0f, EStep::GoToConsole}, {9.5f, EStep::Interact},
+				{10.0f, EStep::CountRobots}, {13.5f, EStep::CountRobots}}},
+
+			// Production Alpha patrol yard: scrap a patrol (the yard dispenser welds a copy), then shut the
+			// dispenser down from the console beside it.
+
+			{TEXT("yard"), {{0.3f, EStep::ScrapNearestEnemy}, {0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots},
+				{5.5f, EStep::GoToConsole}, {6.0f, EStep::Interact}, {7.0f, EStep::CountRobots}}},
+
+			// Production Alpha command yard: hack the gate guard and open the gate, which powers on the two
+			// dispensers; watch them build, then shut them down from the catwalk console.
+
+			{TEXT("command"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole},
+				{3.2f, EStep::Interact}, {13.0f, EStep::GoToConsole}, {13.5f, EStep::Interact}, {14.0f, EStep::CountRobots}}},
+
+			// Production Alpha final area out of order: open the gate, scrap the yard while the dispensers still
+			// run (the "clear the yard" objective stays locked and they weld replacements), shut them down with
+			// two of their robots standing (checkpoint), then get scrapped. "endgame_restored" must bring those
+			// two back (the yard objective still open), clears the yard with the Brute still alive, then
+			// finishes the Brute, which must be what unlocks the extraction objective.
+
+			{TEXT("endgame"), {{1.0f, EStep::AimGateGuard}, {1.6f, EStep::Tether}, {2.0f, EStep::SolveHack}, {2.5f, EStep::GoToConsole},
+				{3.2f, EStep::Interact}, {7.5f, EStep::Tether}, {8.0f, EStep::ScrapCommandYard}, {8.5f, EStep::CountRobots},
+				{11.5f, EStep::GoToConsole}, {12.0f, EStep::Interact}, {12.5f, EStep::CountRobots}, {13.0f, EStep::SelfDestruct}}},
+
+			// Patrol yard (Respawn dispenser): scrap a patrol, let the dispenser rebuild it, step into the yard
+			// checkpoint, get scrapped. The rebuilt copy must come back in its slot, without a second copy being
+			// welded (the count must hold steady after the retry).
+
+			{TEXT("yardcheckpoint"), {{0.3f, EStep::ScrapYardPatrol}, {0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots},
+				{5.2f, EStep::GoToCheckpoint}, {5.6f, EStep::SelfDestruct}}},
+
+			{TEXT("yardcheckpoint_restored"), {{0.5f, EStep::CountRobots}, {5.0f, EStep::CountRobots}}},
+
+			{TEXT("endgame_restored"),{{0.5f, EStep::CountRobots}, {1.0f, EStep::ScrapCommandYard}, {1.5f, EStep::CountRobots},
+				{2.0f, EStep::ScrapBoss}, {2.5f, EStep::CountRobots}}},
+			// Pickups by the shield gate: walk into the Rocket Launcher, fire and reload it (reload bar + sound),
+			// then step onto the grenades (sphere) and the ammo crate. The repair wrench stays (full health).
+			{TEXT("pickups"), {{0.5f, EStep::Run}, {1.4f, EStep::Stop}, {4.0f, EStep::Fire}, {4.15f, EStep::StopFire}, {4.3f, EStep::Reload},
+				{6.5f, EStep::GoToPickup}, {7.3f, EStep::GoToPickup}}},
 		};
 		return Map;
 	}
@@ -164,13 +277,19 @@ void AMetalDevAutopilot::BeginPlay()
 	{
 		Scenario = TEXT("combat");
 	}
+	// After a death reloads the level from a checkpoint, run the scenario's follow-up (or nothing) instead of starting over.
+	if (const AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>(); bAutopilot && GameMode && GameMode->IsRestoredFromCheckpoint())
+	{
+		bRestored = true;
+		Scenario = Scenarios().Contains(Scenario + TEXT("_restored")) ? Scenario + TEXT("_restored") : TEXT("title");
+	}
 	// -MetalShots=t1,t2,...: take screenshots at these times. -MetalQuitAt=t: exit the game at that time.
 	if (FParse::Value(Cmd, TEXT("MetalShots="), Value, false))
 	{
 		ShotTimes = ParseFloats(Value);
 	}
 	FParse::Value(Cmd, TEXT("MetalQuitAt="), QuitAt);
-	// -MetalCam=x,y,z,pitch,yaw;...: fixed cameras to view the level from; each screenshot switches to the next one.
+	// -MetalCam=x,y,z,pitch,yaw;...: fixed cameras to view the level from; each screenshot switches to the next one. "player" is the normal game camera.
 	if (FParse::Value(Cmd, TEXT("MetalCam="), Value, false))
 	{
 		TArray<FString> Entries;
@@ -181,6 +300,11 @@ void AMetalDevAutopilot::BeginPlay()
 			if (V.Num() >= 5)
 			{
 				Cameras.Add(FTransform(FRotator(V[3], V[4], 0.f), FVector(V[0], V[1], V[2])));
+			}
+			else if (Entry.TrimStartAndEnd() == TEXT("player"))
+			{
+				// The normal game camera (zero scale marks it), e.g. while the Hack Tether aims from the view.
+				Cameras.Add(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, FVector::ZeroVector));
 			}
 		}
 		ViewFromCamera(0);
@@ -195,7 +319,8 @@ void AMetalDevAutopilot::Start()
 	StartTime = GetWorld()->GetUnpausedTimeSeconds();
 	FString Value;
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
+	// A checkpoint retry already put the player at the checkpoint.
+	if (!bRestored && FParse::Value(FCommandLine::Get(), TEXT("MetalTeleport="), Value, false) && PC && PC->GetPawn())
 	{
 		const TArray<float> V = ParseFloats(Value);
 		if (V.Num() >= 4)
@@ -213,6 +338,11 @@ void AMetalDevAutopilot::ViewFromCamera(int32 Index)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC && Cameras.IsValidIndex(Index))
 	{
+		if (Cameras[Index].GetScale3D().IsNearlyZero())
+		{
+			PC->SetViewTarget(PC->GetPawn());
+			return;
+		}
 		ACameraActor* Camera = GetWorld()->SpawnActor<ACameraActor>(Cameras[Index].GetLocation(), Cameras[Index].Rotator());
 		PC->SetViewTarget(Camera);
 	}
@@ -296,8 +426,17 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		TEXT("aim at enemy shield"), TEXT("aim at home hangar mouth"), TEXT("go near enemy mouth"), TEXT("aim at enemy mouth"),
 		TEXT("aim at enemy life support"), TEXT("wreck enemy ship"),
 		TEXT("open pause menu"), TEXT("menu: level select"), TEXT("menu: back"), TEXT("menu: pick level"), TEXT("menu: continue"),
+		TEXT("menu: sound"), TEXT("menu: credits"), TEXT("music down"), TEXT("music up"), TEXT("beep-boops down"), TEXT("beep-boops up"),
 			TEXT("sprint"), TEXT("stop sprint"), TEXT("sneak"), TEXT("stop sneak"), TEXT("aim"), TEXT("stop aim"), TEXT("next weapon"),
-			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad")};
+			TEXT("aim at marksman"), TEXT("grenade"), TEXT("aim at the bunker"), TEXT("clear the forward post squad"),
+			TEXT("solve hack puzzle"), TEXT("fail hack puzzle"), TEXT("cancel hack puzzle"),
+			TEXT("count robots"), TEXT("scrap nearest enemy"), TEXT("self destruct"), TEXT("go to the nearest checkpoint"),
+			TEXT("drop to low health"), TEXT("heal fully"), TEXT("reload"), TEXT("go to the nearest pickup"),
+			TEXT("scrap the command yard"), TEXT("scrap the boss"), TEXT("scrap one yard patrol"),
+			TEXT("press aim button"), TEXT("release aim button"), TEXT("lure an enemy to the lift"), TEXT("report enemy heights"), TEXT("alert the nearest enemy"), TEXT("give a sniper rifle"),
+			TEXT("clear every enemy but the boss"),
+			TEXT("set off every combat effect")};
+	static_assert(UE_ARRAY_COUNT(Names) == static_cast<int32>(EStep::FxGallery) + 1, "Every EStep needs a name");
 	UE_LOG(LogMetal, Display, TEXT("[Autopilot] step %d: %s"), Step, Names[static_cast<int32>(Action)]);
 	switch (Action)
 	{
@@ -312,6 +451,29 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 			PC->GetHackCandidate() ? *PC->GetHackCandidate()->GetName() : TEXT("none"));
 		PC->ToggleTether();
 		AimTarget.Reset();
+		if (const UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hack puzzle open: %s (%s)"), *Puzzle->GetBlueprintName(), *Puzzle->DescribeLinks());
+		}
+		break;
+	case EStep::SolveHack:
+	case EStep::FailHack:
+		if (UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			Puzzle->DevRewire(Action == EStep::SolveHack);
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    rewired: %s (solved=%d)"), *Puzzle->DescribeLinks(), Puzzle->IsSolved());
+			Puzzle->Compile();
+		}
+		else
+		{
+			UE_LOG(LogMetal, Warning, TEXT("[Autopilot]    no hack puzzle open"));
+		}
+		break;
+	case EStep::CancelHack:
+		if (UMetalHackPuzzle* Puzzle = PC->GetHackPuzzle())
+		{
+			Puzzle->Cancel();
+		}
 		break;
 	case EStep::Interact:    PC->Interact(); break;
 	case EStep::Run:         bRunning = true; break;
@@ -345,6 +507,83 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::StopSneak:   Me->SetSneaking(false); break;
 	case EStep::Aim:         Me->SetAiming(true); break;
 	case EStep::StopAim:     Me->SetAiming(false); break;
+	case EStep::AimButton:     PC->PressAimButton(); break;
+	case EStep::StopAimButton: PC->ReleaseAimButton(); break;
+	case EStep::LureToLift:
+	{
+		const AMetalGravLift* Lift = nullptr;
+		for (TActorIterator<AMetalGravLift> It(GetWorld()); It; ++It)
+		{
+			if (Lift == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Lift->GetActorLocation(), Me->GetActorLocation()))
+			{
+				Lift = *It;
+			}
+		}
+		AMetalBotCharacter* Enemy = FindNearest(false, NAME_None);
+		AMetalBotAIController* AI = Enemy ? Cast<AMetalBotAIController>(Enemy->GetController()) : nullptr;
+		if (Lift && AI)
+		{
+			// 7 m back from the pad, on the side away from the exit, so it has to walk in and ride up.
+			const FVector Back = -Lift->GetActorRotation().RotateVector(Lift->ExitDirection).GetSafeNormal2D();
+			const FVector Spot = Lift->GetActorLocation() + Back * 700.f + FVector(0.f, 0.f, Enemy->GetSimpleCollisionHalfHeight() + 20.f);
+			Enemy->TeleportTo(Spot, Enemy->GetActorRotation());
+			LuredEnemy = Enemy;
+			AI->Alert(Me);
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    lured %s to %s at %s"), *Enemy->GetName(), *Lift->GetName(), *Spot.ToCompactString());
+		}
+		break;
+	}
+	case EStep::AlertNearest:
+		if (AMetalBotCharacter* Enemy = LuredEnemy.IsValid() ? LuredEnemy.Get() : FindNearest(false, NAME_None))
+		{
+			// -MetalLureAt=X,Y,Z puts the enemy somewhere specific first (only the first time).
+			FString LureAt;
+			if (!LuredEnemy.IsValid() && FParse::Value(FCommandLine::Get(), TEXT("MetalLureAt="), LureAt, false))
+			{
+				TArray<FString> Parts;
+				LureAt.ParseIntoArray(Parts, TEXT(","));
+				if (Parts.Num() == 3)
+				{
+					const FVector At(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+					Enemy->TeleportTo(At, Enemy->GetActorRotation());
+					// The player's allies there would just shoot it: send them back to the start camp (scrapping
+					// them would catch it in the blasts).
+					int32 Moved = 0;
+					for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+					{
+						if (*It != Me && It->IsAlive() && !Me->IsHostileTo(*It) && FVector::Dist(It->GetActorLocation(), At) < 3000.f)
+						{
+							It->TeleportTo(FVector(-400.f, -1000.f + 250.f * Moved++, 150.f), It->GetActorRotation());
+						}
+					}
+				}
+			}
+			LuredEnemy = Enemy;
+			if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(Enemy->GetController()))
+			{
+				AI->Alert(Me);
+			}
+			// Show whether the navmesh has a full path (it needs a generated jump link off the ledge).
+			UNavigationPath* Path = UNavigationSystemV1::FindPathToActorSynchronously(GetWorld(), Enemy->GetNavAgentLocation(), Me, 0.f, Enemy);
+			int32 Links = 0;
+			if (Path && Path->GetPath().IsValid())
+			{
+				for (const FNavPathPoint& Point : Path->GetPath()->GetPathPoints())
+				{
+					Links += FNavMeshNodeFlags(Point.Flags).IsNavLink() ? 1 : 0;
+				}
+			}
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    alerted %s at %s: path valid=%d partial=%d links=%d"), *Enemy->GetName(),
+				*Enemy->GetActorLocation().ToCompactString(), Path && Path->IsValid(), Path && Path->IsPartial(), Links);
+		}
+		break;
+	case EStep::ReportHeights:
+		if (const AMetalBotCharacter* Enemy = LuredEnemy.Get())
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s at %s (player at %s)"), *Enemy->GetName(), *Enemy->GetActorLocation().ToCompactString(),
+				*Me->GetActorLocation().ToCompactString());
+		}
+		break;
 	case EStep::NextWeapon:  Me->CycleWeapon(1); break;
 	case EStep::AimMarksman: AimTarget = FindNearest(false, TEXT("Marksmen")); break;
 	case EStep::Grenade:     Me->ThrowGrenade(); break;
@@ -353,6 +592,145 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 		AimTarget = FindNearest(false, TEXT("Bunker"));
 		AimBone = AimTarget.IsValid() ? AimTarget->GetRig().Head : NAME_None;
 		break;
+	case EStep::CountRobots:
+	{
+		const AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>();
+		int32 Standing = 0;
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			Standing += It->IsAlive() && Me->IsHostileTo(*It) ? 1 : 0;
+		}
+		// The current objective group: + done, > active, - locked.
+		FString Group;
+		if (const AMetalMission* Mission = GameMode ? GameMode->GetMission() : nullptr)
+		{
+			for (const FMetalObjectiveStatus& Status : Mission->GetObjectiveList())
+			{
+				Group += FString::Printf(TEXT(" %c%d"), Status.State == EMetalObjectiveState::Done ? TEXT('+') : Status.State == EMetalObjectiveState::Locked ? TEXT('-') : TEXT('>'), Status.Index);
+			}
+		}
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    hostile robots standing: %d (objective %d [%s ], mission %s, at %s)"), Standing,
+			GameMode && GameMode->GetMission() ? GameMode->GetMission()->GetCurrentObjectiveIndex() : -1, *Group,
+			GameMode && GameMode->IsMissionComplete() ? TEXT("complete") : TEXT("running"), *Me->GetActorLocation().ToCompactString());
+		break;
+	}
+	case EStep::ScrapCommandYard:
+	case EStep::ScrapBoss:
+	case EStep::ScrapYardPatrol:
+	{
+		const FName Tag = Action == EStep::ScrapBoss ? FName(TEXT("Boss")) : Action == EStep::ScrapYardPatrol ? FName(TEXT("Yard")) : FName(TEXT("Command"));
+		int32 Scrapped = 0;
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			if (It->ActorHasTag(Tag) && It->IsAlive() && !It->IsHijacked())
+			{
+				UGameplayStatics::ApplyDamage(*It, 1.e6f, PC, Me, UDamageType::StaticClass());
+				if (++Scrapped == 1 && Action == EStep::ScrapYardPatrol)
+				{
+					break;
+				}
+			}
+		}
+		UE_LOG(LogMetal, Display, TEXT("[Autopilot]    scrapped %d robots tagged %s"), Scrapped, *Tag.ToString());
+		break;
+	}
+	case EStep::ScrapNearestEnemy:
+		if (AMetalBotCharacter* Enemy = FindNearest(false, NAME_None))
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot]    scrapping %s"), *Enemy->GetName());
+			UGameplayStatics::ApplyDamage(Enemy, 1.e6f, PC, Me, UDamageType::StaticClass());
+		}
+		break;
+	case EStep::GoToCheckpoint:
+	{
+		const AMetalTriggerZone* Best = nullptr;
+		for (TActorIterator<AMetalTriggerZone> It(GetWorld()); It; ++It)
+		{
+			if (It->bIsCheckpoint && !It->IsCheckpointUsed() &&
+				(Best == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Best->GetActorLocation(), Me->GetActorLocation())))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			Me->TeleportTo(Best->GetActorLocation(), Me->GetActorRotation());
+		}
+		break;
+	}
+	case EStep::Reload:
+		Me->Reload();
+		break;
+	case EStep::GiveSniper:
+		if (UMetalWeaponData* Sniper = LoadObject<UMetalWeaponData>(nullptr, TEXT("/Game/Metalization/Data/WD_EnemySniper.WD_EnemySniper")))
+		{
+			Me->GiveWeapon(Sniper, true);
+		}
+		break;
+	case EStep::GoToPickup:
+	{
+		const AMetalPickup* Best = nullptr;
+		for (TActorIterator<AMetalPickup> It(GetWorld()); It; ++It)
+		{
+			if (Best == nullptr || FVector::Dist(It->GetActorLocation(), Me->GetActorLocation()) < FVector::Dist(Best->GetActorLocation(), Me->GetActorLocation()))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			UE_LOG(LogMetal, Display, TEXT("[Autopilot] going to pickup %s"), *Best->GetActorNameOrLabel());
+			Me->TeleportTo(Best->GetActorLocation() + FVector(0.f, 0.f, 30.f), Me->GetActorRotation());
+		}
+		break;
+	}
+	case EStep::DropToLowHealth:
+		Me->RestoreHealth(Me->GetMaxHealth() * 0.2f);
+		break;
+	case EStep::HealFully:
+		Me->Heal(Me->GetMaxHealth());
+		break;
+	case EStep::SelfDestruct:
+		UGameplayStatics::ApplyDamage(Me, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
+		break;
+	case EStep::ClearAllButBoss:
+		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
+		{
+			if (*It != Me && It->IsAlive() && Me->IsHostileTo(*It) && !It->ActorHasTag(TEXT("Boss")))
+			{
+				UGameplayStatics::ApplyDamage(*It, 1.e6f, nullptr, nullptr, UDamageType::StaticClass());
+			}
+		}
+		break;
+	case EStep::FxGallery:
+	{
+		// Left to right across the view, 7 m out: muzzle flash firing right, impact on the floor, explosion,
+		// burst, and a tracer plus a persistent beam crossing above them.
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		const FRotator Flat(0.f, ViewRotation.Yaw, 0.f);
+		const FVector Forward = Flat.Vector();
+		const FVector Right = FRotationMatrix(Flat).GetUnitAxis(EAxis::Y);
+		FVector Floor = Me->GetActorLocation() + Forward * 700.f;
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Floor + FVector(0.f, 0.f, 300.f), Floor - FVector(0.f, 0.f, 600.f), ECC_Visibility))
+		{
+			Floor = Hit.ImpactPoint;
+		}
+		const FLinearColor Laser(1.f, 0.35f, 0.1f);
+		const FLinearColor Cyan(0.1f, 0.8f, 1.f);
+		AMetalFX::SpawnMuzzleFlash(GetWorld(), Floor - Right * 330.f + FVector(0.f, 0.f, 120.f), Right, Laser, 14.f);
+		AMetalFX::SpawnImpact(GetWorld(), Floor - Right * 170.f, FVector::UpVector, Cyan, 10.f);
+		AMetalFX::SpawnExplosion(GetWorld(), Floor + Right * 60.f + FVector(0.f, 0.f, 230.f), FLinearColor(1.f, 0.5f, 0.15f), 110.f);
+		AMetalFX::SpawnBurst(GetWorld(), Floor + Right * 220.f + FVector(0.f, 0.f, 80.f), FLinearColor(0.2f, 1.f, 0.3f), 60.f, 0.4f);
+		AMetalFX::SpawnBeam(GetWorld(), Floor - Right * 400.f + FVector(0.f, 0.f, 260.f), Floor + Right * 400.f + FVector(0.f, 0.f, 260.f), Laser, 2.5f, 0.07f);
+		if (!FxBeam.IsValid())
+		{
+			FxBeam = AMetalFX::SpawnBeam(GetWorld(), Floor - Right * 400.f + FVector(0.f, 0.f, 330.f), Floor + Right * 400.f + FVector(0.f, 0.f, 360.f), Cyan, 1.5f, 0.f);
+		}
+		break;
+	}
 	case EStep::ClearSquad1:
 		// Skipping ahead with -MetalObjective leaves the earlier squad standing next to the bunker.
 		for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
@@ -366,6 +744,12 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::OpenPauseMenu: PC->OpenPauseMenu(); break;
 	case EStep::MenuLevelSelect: if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Level Select")); } break;
 	case EStep::MenuBack:      if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Back")); } break;
+	case EStep::MenuSound:     if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Sound")); } break;
+	case EStep::MenuCredits:   if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->PressButton(TEXT("Credits")); } break;
+	case EStep::MusicDown:     if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Music, -0.3f); } break;
+	case EStep::MusicUp:       if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Music, 0.3f); } break;
+	case EStep::VoicesDown:    if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Voices, -0.3f); } break;
+	case EStep::VoicesUp:      if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->StepVolume(EMetalVolume::Voices, 0.3f); } break;
 	case EStep::MenuContinue:  if (UMetalPauseMenu* Menu = PC->GetPauseMenu()) { Menu->ShowMainPanel(); Menu->PressButton(TEXT("Continue")); } break;
 	case EStep::MenuPickLevel:
 		if (UMetalPauseMenu* Menu = PC->GetPauseMenu())
@@ -419,12 +803,23 @@ void AMetalDevAutopilot::RunStep(int32 Step)
 	case EStep::DodgeLeft:   if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(-1.f); } break;
 	case EStep::DodgeRight:  if (AMetalStalker* Flyer = Cast<AMetalStalker>(Me)) { Flyer->Dodge(1.f); } break;
 	case EStep::GoToConsole:
+	{
+		// The nearest console not used yet (Production Alpha has dispenser consoles as well as the gate's).
+		const AMetalControlConsole* Best = nullptr;
 		for (TActorIterator<AMetalControlConsole> It(GetWorld()); It; ++It)
 		{
-			Me->TeleportTo(It->GetActorLocation() + It->GetActorForwardVector() * 120.f + FVector(0.f, 0.f, 80.f), Me->GetActorRotation());
-			break;
+			if (!It->IsActivated() && (Best == nullptr ||
+				FVector::DistSquared(It->GetActorLocation(), Me->GetActorLocation()) < FVector::DistSquared(Best->GetActorLocation(), Me->GetActorLocation())))
+			{
+				Best = *It;
+			}
+		}
+		if (Best)
+		{
+			Me->TeleportTo(Best->GetActorLocation() + Best->GetActorForwardVector() * 120.f + FVector(0.f, 0.f, 80.f), Best->GetActorRotation() + FRotator(0.f, 180.f, 0.f));
 		}
 		break;
+	}
 	}
 }
 
@@ -531,7 +926,8 @@ void AMetalDevAutopilot::Tick(float DeltaSeconds)
 		{
 			if (const AMetalBotAIController* AI = Cast<AMetalBotAIController>(It->GetController()))
 			{
-				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d suspicion=%.2f"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()), AI->GetSuspicion());
+				UE_LOG(LogMetal, Display, TEXT("[Autopilot]    %s hp=%.0f state=%d suspicion=%.2f speed=%.0f loc=%s"), *It->GetName(), It->GetHealth(), static_cast<int32>(AI->GetState()),
+					AI->GetSuspicion(), It->GetVelocity().Size2D(), *It->GetActorLocation().ToCompactString());
 			}
 			else if (const AMetalFlyerAIController* Pilot = Cast<AMetalFlyerAIController>(It->GetController()))
 			{

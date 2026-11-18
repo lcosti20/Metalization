@@ -12,12 +12,15 @@ west to east, and every section teaches one thing, simplest first, each gated by
     5  Cliff                anti-gravity lift
     6  Forward post         shooting, first weapon-arm swap (Repeater)
     7  Bunker               EMP grenades
-    8  Patrol yard          sneaking (suspicion meters, crawl pipe)
+    8  Patrol yard          sneaking (suspicion meters, crawl pipe) to a robot dispenser's off switch
     9  Sniper perch         lift + sniper rifle vs Red marksmen
     10 Shield gate          Hack Tether a Red guard
     11 Gate console         consoles (only Reds may use it); Blue reinforcements pour out
-    12 Command yard         everything at once: Blue vs Red battle, lifts, the Brute commander
-    13 Extraction
+    12 Command yard         everything at once: Blue vs Red battle, lifts, and three goals in any order:
+                            the Brute commander, the two robot dispensers that keep the Reds coming
+                            (checkpoint when they're shut down), then clearing the yard (needs the
+                            dispensers off first)
+    13 Extraction           only once all three are done
 
 Called from ue_setup_gameplay.py (MZ_LEVELS=alpha,title) after the data assets exist. The maps are rebuilt
 from scratch every run - make manual layout changes on a copy.
@@ -54,6 +57,12 @@ def setp(obj, **props):
     for k, v in props.items():
         obj.set_editor_property(k, v)
     return obj
+
+
+def rgb_color(rgb):
+    """0-1 RGB to an 8-bit unreal.Color. Always name the channels: unreal.Color's positional order is the
+    struct's memory order, B, G, R, A, so unreal.Color(r, g, b, a) swaps red and blue."""
+    return unreal.Color(r=int(rgb[0] * 255), g=int(rgb[1] * 255), b=int(rgb[2] * 255), a=255)
 
 
 # --------------------------------------------------------------------------------------------
@@ -114,6 +123,16 @@ def box(label, center, size, material="MI_Alpha_Concrete", folder="Geometry", me
     return actor
 
 
+def energy_field(label, center, size, folder="Gates", rgb=(1.0, 0.3, 0.1)):
+    """See-through AMetalEnergyField slab (size in cm): blocks robots and shots, ripples where it is hit.
+    Same as ue_setup_gameplay.energy_field, which builds M_EnergyField before any map."""
+    actor = spawn(unreal.MetalEnergyField, center, 0.0, label, folder)
+    actor.set_actor_scale3d(unreal.Vector(size[0] / 100.0, size[1] / 100.0, size[2] / 100.0))
+    actor.get_component_by_class(unreal.StaticMeshComponent).set_material(0, load(ROOT + "/Materials/M_EnergyField"))
+    actor.set_editor_property("field_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    return actor
+
+
 def block(label, x0, x1, y0, y1, z0, z1, material="MI_Alpha_Concrete", folder="Geometry", collision=None):
     """Axis-aligned box from corner ranges."""
     return box(label, ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), material, folder, collision=collision)
@@ -152,7 +171,7 @@ def pillar(label, x, y, base, height, radius, material="MI_Alpha_Rock"):
 def point_light(label, loc, rgb, intensity=9000.0, radius=1800.0):
     actor = spawn(unreal.PointLight, loc, label=label, folder="Lighting")
     setp(actor.point_light_component, intensity=intensity, attenuation_radius=radius, cast_shadows=False,
-         light_color=unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+         light_color=rgb_color(rgb))
     return actor
 
 
@@ -161,7 +180,7 @@ def spot_light(label, loc, rgb, intensity=60000.0, cone=32.0, radius=2400.0):
     actor.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-90.0, yaw=0.0), False)
     setp(actor.spot_light_component, intensity=intensity, attenuation_radius=radius, outer_cone_angle=cone,
          inner_cone_angle=cone * 0.7, cast_shadows=True,
-         light_color=unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+         light_color=rgb_color(rgb))
     return actor
 
 
@@ -204,12 +223,54 @@ def gate(label, loc, yaw=0.0, material="MI_Alpha_Red"):
     return actor
 
 
+def dispenser(label, loc, yaw, assigned=(), choices=(), interval=5.0, max_alive=4, gate=None, tags=(), patrol=900.0, folder="Dispensers"):
+    """AMetalRobotDispenser (SM_RobotDispenser). With `assigned` robots it rebuilds them when destroyed
+    (Respawn mode); with `choices` [(archetype, weight)] it builds a random one every `interval` seconds
+    (Continuous). `gate`: stays idle until that AMetalGate opens. Its front (+X) faces `yaw`."""
+    actor = spawn(unreal.MetalRobotDispenser, loc, yaw, label, folder)
+    mesh = load(ROOT + "/Ships/SM_RobotDispenser")
+    if mesh:
+        setp(actor, dispenser_mesh=mesh)
+    if assigned:
+        setp(actor, mode=unreal.MetalDispenserMode.RESPAWN, assigned_units=list(assigned))
+        actor.record_assigned_units()
+    else:
+        setp(actor, mode=unreal.MetalDispenserMode.CONTINUOUS, spawn_interval=interval, max_alive=max_alive,
+             spawn_patrol_radius=patrol, spawn_tags=[unreal.Name(t) for t in tags],
+             spawn_choices=[setp(unreal.MetalDispenserChoice(), archetype=a, weight=wt) for a, wt in choices])
+    if gate:
+        setp(actor, activation_gate=gate)
+    return actor
+
+
+def dispenser_console(label, loc, yaw, dispensers, folder="Dispensers"):
+    """Console anyone (the player included) can use; it shuts the dispensers down. Blue screen, so it reads
+    differently from the Red-only gate consoles."""
+    actor = spawn(unreal.MetalControlConsole, loc, yaw, label, folder)
+    setp(actor, required_faction=unreal.MetalTeam.NEUTRAL, linked_dispensers=list(dispensers),
+         locked_color=unreal.LinearColor(0.1, 0.45, 1.0, 1.0),
+         prompt_text="[E] Shut down the robot dispenser" if len(dispensers) == 1 else "[E] Shut down the robot dispensers",
+         granted_text="DISPENSER OFFLINE - production halted." if len(dispensers) == 1 else "DISPENSERS OFFLINE - production halted.",
+         done_text="Already offline.")
+    for comp in actor.get_components_by_class(unreal.StaticMeshComponent):
+        if comp.get_name() == "Base":
+            comp.set_material(0, mat("MI_Alpha_Blue"))
+    return actor
+
+
 def line(text, duration=5.0, speaker="Command"):
     return setp(unreal.MetalDialogueLine(), speaker=speaker, line=text, duration=duration)
 
 
-def objective(text, otype, tag=None, target=None, dialogue=(), hint="", marker=True):
-    o = setp(unreal.MetalObjective(), description=text, type=otype, start_dialogue=list(dialogue), hint=hint, show_marker=marker)
+def objective(text, otype, tag=None, target=None, dialogue=(), hint="", marker=True, done_dialogue=(),
+              with_next=False, oid=None, requires=(), checkpoint=False):
+    """with_next: active together with the next objective (any order); requires: ids that must be done first;
+    checkpoint: save a checkpoint where the player stands when it completes."""
+    o = setp(unreal.MetalObjective(), description=text, type=otype, start_dialogue=list(dialogue), hint=hint, show_marker=marker,
+             complete_dialogue=list(done_dialogue), with_next=with_next, requires=[unreal.Name(r) for r in requires],
+             checkpoint_on_complete=checkpoint)
+    if oid:
+        o.set_editor_property("id", unreal.Name(oid))
     if tag:
         o.set_editor_property("target_tag", unreal.Name(tag))
     if target:
@@ -238,19 +299,20 @@ def fresh_level(path, game_mode):
 
 
 def environment(sun_pitch=-40.0, sun_yaw=-145.0, sun_rgb=(255, 205, 160), fog_rgb=(0.45, 0.3, 0.16), fog=0.008):
-    """Late-afternoon sun over a dusty valley. Same recipe as the Outpost (a strong warm sun, a weak warm
-    skylight, dusty sky and warm haze), which keeps the graybox colours readable; a cooler, brighter sky
-    washed everything out blue-white."""
+    """Late-afternoon sun over a dusty valley: a strong warm sun, a warm skylight that lifts the shadows, a
+    dusty sky and warm haze. Lighting pass 3 (Sprint 5): area lights were retuned once light colours stopped
+    coming out with red and blue swapped (see rgb_color); they had been set far too bright to fight the
+    blue cast. Saturation is pulled back slightly and bloom halved so the coloured lights don't smear."""
     sun = spawn(unreal.DirectionalLight, (0, 0, 3000), label="Sun", folder="Lighting")
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=sun_pitch, yaw=sun_yaw), False)
     setp(sun.get_component_by_class(unreal.DirectionalLightComponent), intensity=26.0, atmosphere_sun_light=True,
-         light_color=unreal.Color(*sun_rgb, 255), dynamic_shadow_distance_movable_light=15000.0)
+         light_color=unreal.Color(r=sun_rgb[0], g=sun_rgb[1], b=sun_rgb[2], a=255), dynamic_shadow_distance_movable_light=15000.0)
     atmosphere = spawn(unreal.SkyAtmosphere, (0, 0, 0), label="SkyAtmosphere", folder="Lighting")
     atmosphere.get_component_by_class(unreal.SkyAtmosphereComponent).set_editor_property(
         "rayleigh_scattering", unreal.LinearColor(0.0095, 0.0125, 0.0215, 1.0))
     sky = spawn(unreal.SkyLight, (0, 0, 600), label="SkyLight", folder="Lighting")
     setp(sky.get_component_by_class(unreal.SkyLightComponent), mobility=unreal.ComponentMobility.MOVABLE,
-         real_time_capture=True, intensity=0.3, light_color=unreal.Color(255, 210, 170, 255))
+         real_time_capture=True, intensity=0.9, light_color=unreal.Color(r=255, g=210, b=170, a=255))
     haze = spawn(unreal.ExponentialHeightFog, (0, 0, 0), label="HeightFog", folder="Lighting")
     setp(haze.get_component_by_class(unreal.ExponentialHeightFogComponent), fog_density=fog,
          fog_inscattering_luminance=unreal.LinearColor(fog_rgb[0], fog_rgb[1], fog_rgb[2], 1.0))
@@ -258,7 +320,9 @@ def environment(sun_pitch=-40.0, sun_yaw=-145.0, sun_rgb=(255, 205, 160), fog_rg
     ppv.set_editor_property("unbound", True)
     settings = ppv.get_editor_property("settings")
     setp(settings, override_auto_exposure_bias=True, auto_exposure_bias=0.0, override_vignette_intensity=True,
-         vignette_intensity=0.5, override_motion_blur_amount=True, motion_blur_amount=0.25)
+         vignette_intensity=0.5, override_motion_blur_amount=True, motion_blur_amount=0.25,
+         override_color_saturation=True, color_saturation=unreal.Vector4(0.95, 0.95, 0.95, 1.0),
+         override_bloom_intensity=True, bloom_intensity=0.5)
     ppv.set_editor_property("settings", settings)
 
 
@@ -370,8 +434,8 @@ def build_alpha(archetypes, w):
     bot("Blue_Commander", A["veteran"] if "veteran" in A else A["guide"], (-900, -350, 0), 30.0, patrol=0.0, passive=True, team=HEROES)
     for i, (x, y, yaw) in enumerate([(-400, 400, 200.0), (-200, -500, 150.0), (700, 300, 180.0), (900, -350, 160.0)]):
         bot(f"Blue_CampTrooper_{i}", A["ally_soldier" if i % 2 else "ally_shooter"], (x, y, 0), yaw, patrol=0.0, passive=True, team=HEROES)
-    point_light("Camp_Light_A", (-800, 0, 500), (0.6, 0.75, 1.0), 4800.0, 2400.0)
-    point_light("Camp_Light_B", (800, 0, 500), (0.6, 0.75, 1.0), 4800.0, 2400.0)
+    point_light("Camp_Light_A", (-800, 0, 500), (0.6, 0.75, 1.0), 600.0, 1200.0)
+    point_light("Camp_Light_B", (800, 0, 500), (0.6, 0.75, 1.0), 600.0, 1200.0)
     zone_trench_entry = zone("Zone_TrenchEntry", (1500, 0, 150), (150, 300, 150))
 
     # --- 2. Supply trench (sprint) - cut into the ground ---------------------------------------
@@ -384,7 +448,7 @@ def build_alpha(archetypes, w):
     for i, x in enumerate(range(TX0 + 300, TX1, 700)):
         block(f"Trench_Brace_{i}", x - 15, x + 15, -300, 300, 300, 330, "MI_Env_Dark", "Decor")
         sandbags(f"Trench_Sandbag_N{i}", x + 200, 300, 520, 330, 70, "MI_Alpha_Blue")
-        point_light(f"Trench_Light_{i}", (x, 250, 260), (1.0, 0.7, 0.4), 1400.0, 900.0)
+        point_light(f"Trench_Light_{i}", (x, 250, 260), (1.0, 0.7, 0.4), 300.0, 700.0)
     barrage = spawn(unreal.MetalBarrage, ((TX0 + TX1) / 2, 0, 150), label="Trench_Barrage", folder="Mission")
     barrage.get_component_by_class(unreal.BoxComponent).set_box_extent(unreal.Vector((TX1 - TX0) / 2 - 100, 280, 250))
     pickup("Pickup_Health_TrenchEnd", unreal.MetalPickupType.HEALTH, (6300, -200, 0), 50.0)
@@ -401,6 +465,12 @@ def build_alpha(archetypes, w):
     block("Barricade_2a", 7400, 7470, -1100, 100, 0, 120, "MI_Alpha_Concrete", "Traversal")
     block("Barricade_2b", 7650, 7720, -100, 1100, 0, 120, "MI_Alpha_Concrete", "Traversal")
     block("Barricade_Ditch_Lip", 7940, 7950, -1100, 1100, 0, 8, "MI_Env_Hazard", "Decor")
+    # The ditch floor sits below the 60 cm ground slabs either side: line its ends down to the floor, and fill
+    # under the side walls, or the player can crawl under the ground into the void.
+    block("Barricade_Ditch_Wall_W", 7900, 7950, -Y, Y, -210, 0, "MI_Env_Dark")
+    block("Barricade_Ditch_Wall_E", 8250, 8300, -Y, Y, -210, 0, "MI_Env_Dark")
+    block("Barricade_Ditch_Fill_N", 7950, 8250, 1100, Y, -150, 0, "MI_Alpha_Ground")
+    block("Barricade_Ditch_Fill_S", 7950, 8250, -Y, -1100, -150, 0, "MI_Alpha_Ground")
     zone_barricades = zone("Zone_Barricades", (8650, 0, 150), (200, 1000, 150))
 
     # --- 4. Collapsed bridge (double jump) --------------------------------------------------------
@@ -408,6 +478,9 @@ def build_alpha(archetypes, w):
     block("Bridge_Fill_N", BX1, 9400, 700, Y, -60, 330, "MI_Alpha_Rock")
     block("Bridge_Fill_S", BX1, 9400, -Y, -700, -60, 330, "MI_Alpha_Rock")
     ground("Chasm_Floor", 9400, 9800, -Y, Y, -500, "MI_Env_Dark")
+    # Near wall of the chasm, under the bridge deck: without it a robot that falls in can walk under the
+    # deck and drop out of the world.
+    block("Chasm_Wall_Near", 9300, 9400, -Y, Y, -560, -60, "MI_Alpha_Rock")
     ramp_y("Chasm_EscapeRamp", -1300, -500, 0, 0, 9550, 260, "MI_Alpha_Concrete")
     block("Chasm_Wall_Far", 9800, 9900, -Y, Y, -500, LEDGE, "MI_Alpha_Rock")
     ground("Ledge_Plateau", 9800, 11400, -Y, Y, LEDGE, "MI_Alpha_Ground")
@@ -417,7 +490,7 @@ def build_alpha(archetypes, w):
     box("Bridge_Debris_B", (9620, -500, -440), (300, 400, 40), "MI_Alpha_Concrete", rot=unreal.Rotator(roll=-8.0, pitch=18.0, yaw=10.0))
     block("Bridge_Rail_N", BX1, 9400, 680, 700, 0, 100, "MI_Env_Hazard", "Decor")
     block("Bridge_Rail_S", BX1, 9400, -700, -680, 0, 100, "MI_Env_Hazard", "Decor")
-    point_light("Bridge_Light", (9600, 0, 400), (1.0, 0.6, 0.3), 3600.0, 1500.0)
+    point_light("Bridge_Light", (9600, 0, 400), (1.0, 0.6, 0.3), 1500.0, 1500.0)
     zone_ledge = zone("Checkpoint_Ledge", (10100, 0, LEDGE + 150), (250, 1200, 150), checkpoint=True)
 
     # --- 5. Cliff + anti-gravity lift -------------------------------------------------------------
@@ -444,7 +517,7 @@ def build_alpha(archetypes, w):
               bot("Red_PostShooter_2", A["shooter"], (16200, 500, UP), 180.0, ("Squad1",), 250.0),
               bot("Red_PostShooter_3", A["shooter"], (16300, -900, UP), 180.0, ("Squad1",), 250.0)]
     banner("Post_RedBanner", 16300, 1100, UP, "Red", 500)
-    point_light("Post_Light", (13800, 0, UP + 600), (1.0, 0.75, 0.5), 5600.0, 3000.0)
+    point_light("Post_Light", (13800, 0, UP + 600), (1.0, 0.75, 0.5), 2000.0, 2200.0)
 
     # --- 7. Bunker (grenades) -----------------------------------------------------------------------
     BK = 17600
@@ -461,7 +534,7 @@ def build_alpha(archetypes, w):
     pickup("Pickup_Grenades_A", unreal.MetalPickupType.GRENADES, (16600, 500, UP), 3.0)
     pickup("Pickup_Grenades_B", unreal.MetalPickupType.GRENADES, (16600, -500, UP), 3.0)
     pickup("Pickup_Ammo_Bunker", unreal.MetalPickupType.AMMO, (18600, 1100, UP), 0.6)
-    point_light("Bunker_Light", (BK, 0, UP + 600), (1.0, 0.3, 0.2), 4800.0, 2000.0)
+    point_light("Bunker_Light", (BK, 0, UP + 600), (1.0, 0.4, 0.25), 1800.0, 1600.0)
 
     # --- 8. Patrol yard (sneak) ---------------------------------------------------------------------
     YX0, YX1 = 18900, 23000
@@ -479,15 +552,18 @@ def build_alpha(archetypes, w):
     block("Pipe_Wall_In", PX0, PX1, PY1, PY1 + 60, UP, UP + 115, "MI_Env_Dark")
     block("Pipe_Roof", PX0, PX1, PY0 - 60, PY1 + 60, UP + 115, UP + 175, "MI_Alpha_Blue")
     for i, x in enumerate(range(PX0 + 400, PX1, 800)):
-        point_light(f"Pipe_Light_{i}", (x, (PY0 + PY1) / 2, UP + 80), (0.3, 0.6, 1.0), 1500.0, 500.0)
+        point_light(f"Pipe_Light_{i}", (x, (PY0 + PY1) / 2, UP + 80), (0.3, 0.6, 1.0), 700.0, 500.0)
     yard = [bot(f"Red_YardPatrol_{i}", A["shooter" if i % 3 else "soldier"], (x, y, UP), yaw, ("Yard",), 800.0)
             for i, (x, y, yaw) in enumerate([(20000, 300, 180.0), (20800, -500, 90.0), (21600, 500, -90.0), (22200, -200, 180.0)])]
     for i, (x, y) in enumerate([(19900, -200), (20800, 700), (21500, -500), (22300, 400)]):
         pillar(f"Yard_LampPost_{i}", x, y, UP, 650, 15, "MI_Env_Dark")
-        spot_light(f"Yard_Spot_{i}", (x, y, UP + 640), (1.0, 0.35, 0.25), 18000.0, 30.0, 1500.0)
+        spot_light(f"Yard_Spot_{i}", (x, y, UP + 640), (1.0, 0.45, 0.3), 9000.0, 30.0, 1500.0)
     banner("Yard_Banner_A", 19300, 1300, UP, "Red")
     banner("Yard_Banner_B", 22700, 1300, UP, "Red")
-    zone_yard_exit = zone("Zone_YardExit", (22850, 0, UP + 150), (150, 1500, 150), rgb=(0.3, 0.9, 1.0))
+    # The robot dispenser backed against the north wall rebuilds every patrol that gets scrapped, so fighting
+    # through is pointless: sneak along the wall to the console just east of it that shuts it down.
+    yard_dispenser = dispenser("Yard_Dispenser", (21200, 1390, UP), -90.0, assigned=yard)
+    yard_console = dispenser_console("Yard_DispenserConsole", (21600, 1490, UP), -90.0, [yard_dispenser])
 
     # --- 9. Sniper perch (lift + sniper) ------------------------------------------------------------
     PERCH = UP + 900
@@ -496,10 +572,12 @@ def build_alpha(archetypes, w):
     # Only a low lip on the valley side, so shots angled down at the towers clear the edge.
     block("Perch_Lip", 23440, 23470, 600, 1400, PERCH, PERCH + 20, "MI_Env_Hazard", "Decor")
     block("Perch_Rail", 22950, 23470, 1380, 1420, PERCH, PERCH + 90, "MI_Env_Hazard", "Decor")
+    # Shields the lift from the valley so enemy snipers can't pick the player off on the way up.
+    block("Perch_Tower2", 23420, 23460, 90, 1590, UP, PERCH, "MI_Alpha_Concrete")
     lift("Lift_Perch", (23200, 330, UP), PERCH - UP + 80, (0.0, 1.0, 0.0))
     pickup("Pickup_Sniper", unreal.MetalPickupType.WEAPON, (23380, 1000, PERCH), 1.0, w["Sniper"])
     pickup("Pickup_Health_Perch", unreal.MetalPickupType.HEALTH, (23050, 750, PERCH), 40.0)
-    zone_perch = zone("Zone_Perch", (23200, 1000, PERCH + 120), (220, 380, 120), rgb=(0.3, 0.9, 1.0))
+    zone_perch = zone("Zone_Perch", (23200, 1000, PERCH + 120), (220, 380, 120), checkpoint=True, rgb=(0.3, 0.9, 1.0))
 
     # --- Valley floor (sections 10-13) and the way down -------------------------------------------
     VX0 = 23500
@@ -516,20 +594,26 @@ def build_alpha(archetypes, w):
 
     # --- 10/11. Shield gate, console and the Blue reinforcement hangar ---------------------------
     GX = 31000
+    # Checkpoint across the valley just short of the fence (west of the hack test's start spot at GX - 350).
+    zone("Checkpoint_Gate", (GX - 700, 0, 150), (200, Y, 150), checkpoint=True)
     main_gate = gate("ShieldGate", (GX, 0, 0), 0.0, "MI_Alpha_Red")
     block("ShieldGate_Lintel", GX - 60, GX + 60, -320, 320, 450, 520, "MI_Alpha_Red")
     for side, (y0, y1) in (("N", (300, 1000)), ("S", (-1000, -300))):
         block(f"Fence_Base_{side}", GX - 50, GX + 50, y0, y1, 0, 40, "MI_Env_Dark")
-        # Energy fence: blocks robots but not sight lines, shots or the Hack Tether.
-        block(f"Fence_Field_{side}", GX - 10, GX + 10, y0, y1, 40, 520, "MI_Alpha_Fence", "Gates", collision="InvisibleWall")
+        # Energy fence: see-through for sight lines and the Hack Tether, but stops robots and shots.
+        energy_field(f"Fence_Field_{side}", (GX, (y0 + y1) / 2, 280), (20, y1 - y0, 480), "Gates", (1.0, 0.25, 0.1))
+        # Thicker invisible wall so robots stay clear of the field (sight and shots pass it).
         block(f"Fence_Block_{side}", GX - 50, GX + 50, y0, y1, 40, 520, "MI_Alpha_Fence", "Gates", collision="InvisibleWall").set_actor_hidden_in_game(True)
         block(f"Fence_Post_{side}", GX - 60, GX + 60, y1 - 20 if y1 > 0 else y0, y1 if y1 > 0 else y0 + 20, 0, 560, "MI_Alpha_Red")
     block("GateWall_N", GX - 60, GX + 60, 1000, Y, 0, 600, "MI_Alpha_Concrete")
     block("GateWall_S", GX - 60, GX + 60, -Y, -1000, 0, 600, "MI_Alpha_Concrete")
+    # Fills the valley above the gate wall, so the brute fight past the gate can't be cheesed with the
+    # sniper rifle from back up the valley.
+    block("GateWall_S2", GX - 60, GX + 60, -1687.5, 1687.5, 500, 3200, "MI_Alpha_Concrete")
     # The guard idles behind the see-through part of the fence (not the solid door), so the tether can reach.
     guard = bot("Red_GateGuard", A["soldier"], (GX + 650, 650, 0), 180.0, ("GateGuard",), 200.0, docile=True)
     console = spawn(unreal.MetalControlConsole, (GX + 500, -1250, 0), 90.0, "GateConsole", "Gates")
-    point_light("Gate_Light", (GX - 300, 0, 600), (1.0, 0.3, 0.15), 6000.0, 2200.0)
+    point_light("Gate_Light", (GX - 300, 0, 600), (1.0, 0.45, 0.25), 1200.0, 1500.0)
     # Blue reinforcements wait in a closed hangar; the console opens its door together with the gate.
     HX0, HX1, HY0, HY1 = 29500, 30700, 1000, 1550
     block("Hangar_Back", HX0, HX1, HY1, HY1 + 50, 0, 480, "MI_Alpha_Concrete")
@@ -547,7 +631,7 @@ def build_alpha(archetypes, w):
             comp.set_material(0, mat("MI_Alpha_Red"))
     for i, x in enumerate([29700, 29950, 30200, 30450]):
         bot(f"Blue_Reinforcement_{i}", A["blue_soldier" if i % 2 else "blue_shooter"], (x, 1280, 0), -90.0, patrol=300.0)
-    point_light("Hangar_Light", (30100, 1280, 380), (0.5, 0.7, 1.0), 1600.0, 800.0)
+    point_light("Hangar_Light", (30100, 1280, 380), (0.5, 0.7, 1.0), 1200.0, 800.0)
 
     # --- 12. Command yard ---------------------------------------------------------------------------
     CX0, CX1 = GX + 100, 37000
@@ -574,10 +658,19 @@ def build_alpha(archetypes, w):
                bot("Red_CommandSoldier_2", A["soldier"], (35500, 500, 0), 180.0, ("Command",), 350.0),
                bot("Red_CommandCatwalk", A["shooter"], (35800, 1300, CW), 180.0, ("Command",), 0.0)]
     boss = bot("Red_Commander_Brute", A["brute"], (36300, 0, 0), 180.0, ("Boss",), 300.0)
+    # Two robot dispensers, one each side of the yard, start welding Reds the moment the gate opens: a Shooter
+    # (2/3) or a Soldier (1/3) every 5 s each, while fewer than three of theirs stand. Their off switch is
+    # on the catwalk (the raised platform on the right), guarded by its marksman.
+    reds = [(A["shooter"], 2.0), (A["soldier"], 1.0)]
+    command_dispensers = [dispenser("Command_Dispenser_S", (35000, -1250, 0), 90.0, choices=reds, max_alive=3, gate=main_gate,
+                                    tags=("Command",)),
+                          dispenser("Command_Dispenser_N", (36700, 1250, 0), -90.0, choices=reds, max_alive=3, gate=main_gate,
+                                    tags=("Command",))]
+    command_console = dispenser_console("Command_DispenserConsole", (36050, 1470, CW), -90.0, command_dispensers)
     for i, (x, y) in enumerate([(33500, 1300), (36500, -1300)]):
         banner(f"Command_Banner_{i}", x, y, 0, "Red", 800)
-    point_light("Command_Light_A", (33500, 0, 900), (1.0, 0.35, 0.15), 10000.0, 3500.0)
-    point_light("Command_Light_B", (36000, 0, 900), (1.0, 0.35, 0.15), 10000.0, 3500.0)
+    point_light("Command_Light_A", (33500, 0, 900), (1.0, 0.45, 0.25), 3500.0, 2800.0)
+    point_light("Command_Light_B", (36000, 0, 900), (1.0, 0.45, 0.25), 3500.0, 2800.0)
 
     # --- 13. Extraction -------------------------------------------------------------------------------
     extraction = zone("Zone_Extraction", (37400, 0, 150), (350, 350, 150), rgb=(0.2, 1.0, 0.3))
@@ -585,7 +678,7 @@ def build_alpha(archetypes, w):
     banner("Extraction_Banner", 37700, 500, 0, "Blue", 700)
 
     # --- Audio, navigation ----------------------------------------------------------------------------
-    ambience("Ambience_Wind", ROOT + "/Audio/SW_AmbienceLoop", 0.5)
+    ambience("Music", ROOT + "/Audio/SW_MusicBackgroundLoop", 0.5)
     ambience("Ambience_Battle", ROOT + "/Audio/SW_BattleLoop", 0.35)
     nav = spawn(unreal.NavMeshBoundsVolume, ((X0 + X1) / 2, 0, 900), label="NavBounds", folder="Mission")
     nav.set_actor_scale3d(unreal.Vector((X1 - X0 + 400) / 200.0, (2 * Y + 400) / 200.0, 3400 / 200.0))
@@ -620,14 +713,15 @@ def build_alpha(archetypes, w):
             line("Bunker ahead. Those Reds are hunkered down behind the wall - only their heads show. Hard to hit."),
             line("Grab the grenades and lob one on them - aim and press G. EMP stuns every robot in the blast. Then pick them off."),
         ]),
-        objective("Sneak through the patrol yard", OT.REACH_ZONE, target=zone_yard_exit,
-                  hint="Hold [Ctrl] / tap [C] to sneak     ? = suspicious     ! = spotted", dialogue=[
-            line("Patrol yard. Too many to fight - sneak through. Hold Ctrl, or tap C, to crouch down."),
-            line("Crouched, you're quiet and hard to see. Stay out of the lights, or crawl through the pipe on your left."),
+        objective("Sneak over to the robot dispenser and shut it down", OT.ACTIVATE_CONSOLE, target=yard_console,
+                  hint="Hold [Ctrl] / tap [C] to sneak     ? = suspicious     ! = spotted     [E] use the console", dialogue=[
+            line("Patrol yard. See that machine by the north wall? A robot dispenser - scrap a Red and it welds a new one.", 5.5),
+            line("So don't fight. Hold Ctrl, or tap C, to crouch: you're quiet and hard to see. Stay out of the lights.", 5.5),
+            line("Its off switch is the console against the wall right beside it. Sneak over and hit E. The pipe on your left gets you past the first guards.", 5.5),
             line("A question mark means one's getting curious. If one spots you, the whole yard comes running."),
         ]),
         objective("Take the perch and grab the sniper rifle", OT.REACH_ZONE, target=zone_perch, hint="Walk into the lift by the tower", dialogue=[
-            line("Good work. Ride the lift up that tower - there's a sniper rifle on the perch."),
+            line("Dispenser's dead. Whatever you scrap now stays scrapped. Ride the lift up that tower - there's a sniper rifle on the perch.", 5.5),
         ]),
         objective("Snipe the Red marksmen in the valley", OT.ELIMINATE_TAGGED, tag="Marksmen",
                   hint="[RMB] scope in   [LMB] fire   (the sniper is only accurate scoped)", dialogue=[
@@ -635,19 +729,36 @@ def build_alpha(archetypes, w):
             line("Watch for their red laser sights. Then take the ramp down to the valley floor."),
         ]),
         objective("Hack the gate guard", OT.HIJACK_TAGGED, tag="GateGuard", hint="Aim at the guard behind the fence and press [F]", dialogue=[
-            line("Shield gate. The field only lets Red robots through... but your Hack Tether goes right through it."),
+            line("Shield gate. Nothing gets through that field, not even your shots... but your Hack Tether does."),
             line("Aim at that guard and press F. He's yours for half a minute - when you let go, he's theirs again."),
         ]),
         objective("Open the gate from the console", OT.ACTIVATE_CONSOLE, target=console, hint="[E] use the console     [F] let go", dialogue=[
             line("You're driving a Red now. Walk him to the gate console and press E. Act natural."),
             line("The other Reds won't look twice at one of their own - unless you start shooting."),
         ]),
-        objective("Destroy the Red commander", OT.ELIMINATE_TAGGED, tag="Boss", hint="Rockets and EMP grenades work wonders on a Brute", dialogue=[
+        # Past the gate: three objectives at once, in any order, except that the yard can only be cleared once
+        # the dispensers stop replacing what gets scrapped. Extraction waits for all three.
+        objective("Destroy the Red commander", OT.ELIMINATE_TAGGED, tag="Boss", hint="Rockets and EMP grenades work wonders on a Brute",
+                  with_next=True, dialogue=[
             line("Gate's open! Blue squad, go go go! Their commander's a Brute - bring it down and the valley's ours."),
             line("There's a rocket launcher by the gate. Use the lift to the catwalk if you need the high ground."),
+        ], done_dialogue=[
+            line("The Brute's down! Their commander's scrap."),
+        ]),
+        objective("Shut down the robot dispensers", OT.ACTIVATE_CONSOLE, target=command_console,
+                  hint="Take the lift to the catwalk     [E] use the console", with_next=True, oid="Dispensers", checkpoint=True, dialogue=[
+            line("Heads up - their robot dispensers just powered on. They'll keep welding Reds until we shut them down.", 5.5),
+            line("Their off switch is on the catwalk, past the marksman. Ride the lift up and hit it - Brute or no Brute.", 5.5),
+        ], done_dialogue=[
+            line("Dispensers are offline. Whatever you scrap now stays scrapped."),
+        ]),
+        objective("Clear the command yard", OT.ELIMINATE_TAGGED, tag="Command", requires=("Dispensers",), dialogue=[
+            line("Now sweep the yard - scrap every Red still standing."),
+        ], done_dialogue=[
+            line("Yard's clean. Nice work."),
         ]),
         objective("Reach the extraction pad", OT.REACH_ZONE, target=extraction, hint="", dialogue=[
-            line("Commander's down! Get to the extraction pad, soldier."),
+            line("Commander, dispensers, yard - that's everything. Get to the extraction pad, soldier.", 5.5),
         ]),
     ])
     mission.set_editor_property("completion_dialogue", [line("Outstanding work. The valley's ours. Blue Command out.", 6.0)])
@@ -683,6 +794,6 @@ def build_title(archetypes):
     camera = spawn(unreal.CameraActor, (0, -1600, 450), 90.0, "TitleCamera", "Camera")
     camera.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-12.0, yaw=90.0), False)
     camera.set_editor_property("tags", [unreal.Name("TitleCamera")])
-    ambience("Title_Ambience", ROOT + "/Audio/SW_AmbienceLoop", 0.6)
+    ambience("Title_Music", ROOT + "/Audio/SW_MusicBackgroundLoop", 0.6)
     les.save_current_level()
     log(f"level saved: {TITLE_PATH}")

@@ -4,6 +4,10 @@
 // /Game/Metalization/Audio; the pipeline lists them in the DA_Sounds data asset (UMetalSoundLibrary).
 // Gameplay code never references a sound asset directly, it just asks for a name ("laser_fire").
 // A missing library or name is silent, so the game still runs before the pipeline has been run.
+//
+// Three volume settings (the sliders in the pause and title menus) scale every sound through its sound class:
+// SC_Music (music and background loops), SC_Voices (the robots' beep-boop "speech") and SC_Effects (everything
+// else). The pipeline assigns the classes.
 
 #pragma once
 
@@ -31,6 +35,17 @@ public:
 	TMap<FName, float> Volumes;
 };
 
+/** The player volume settings. */
+enum class EMetalVolume : uint8
+{
+	/** Music and background loops (SC_Music). */
+	Music,
+	/** Every other sound: weapons, robots, UI, radio (SC_Effects). */
+	Effects,
+	/** Robot voices, the "Beep-boops" slider (SC_Voices). */
+	Voices,
+};
+
 /** Static helpers to play library sounds. */
 namespace MetalAudio
 {
@@ -55,6 +70,52 @@ namespace MetalAudio
 	 */
 	UAudioComponent* PlayLoop(USceneComponent* AttachTo, FName Name, float Volume = 1.f);
 
+	/**
+	 * Plays a one-shot positional sound attached to a component, so it follows a moving robot and can be cut
+	 * short (robot voices).
+	 *
+	 * @param AttachTo Component to follow.
+	 * @param Name     Library name; unknown names are ignored.
+	 * @param Volume   Volume multiplier on top of the library's.
+	 * @param Pitch    Pitch multiplier.
+	 * @return The audio component, or null if the sound doesn't exist or is out of earshot. It destroys
+	 *         itself when the sound ends, so hold it weakly.
+	 */
+	UAudioComponent* PlayAttached(USceneComponent* AttachTo, FName Name, float Volume = 1.f, float Pitch = 1.f);
+
+	/**
+	 * Picks one of a sound's numbered variants at random ("voice_pain" -> "voice_pain1".."voice_pain6"). The
+	 * generator decides how many there are; they are counted in the library on first use.
+	 *
+	 * @param Base Name without the number.
+	 * @return A variant's library name, or None if the library has no "<Base>1".
+	 */
+	FName PickVariant(FName Base);
+
+	/**
+	 * Creates a looping non-positional sound (radio whistle under dialogue) without starting it, so the
+	 * caller can FadeIn from any point, at any pitch.
+	 *
+	 * @return The audio component, or null if the sound doesn't exist. It isn't destroyed when it stops,
+	 *         so the caller can FadeIn/FadeOut the same component again; it goes away with the world.
+	 */
+	UAudioComponent* CreateLoop2D(const UObject* WorldContext, FName Name, float Volume = 1.f);
+
 	/** @return True if the library has a sound with this name. */
 	bool HasSound(FName Name);
+
+	/** @return The player's volume setting for this group, 0..1 (default 1), saved in GameUserSettings.ini. */
+	float GetVolume(EMetalVolume Group);
+
+	/**
+	 * Changes a volume setting, saves it and applies it right away (sounds already playing follow).
+	 *
+	 * @param WorldContext Any object in the world.
+	 * @param Group        Which setting.
+	 * @param Volume       New volume, clamped to 0..1.
+	 */
+	void SetVolume(const UObject* WorldContext, EMetalVolume Group, float Volume);
+
+	/** Applies the saved volume settings to the audio device. Player controllers call it when a level starts. */
+	void ApplyVolumes(const UObject* WorldContext);
 }

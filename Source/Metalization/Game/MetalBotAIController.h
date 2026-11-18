@@ -89,8 +89,18 @@ public:
 	/** @return The enemy this robot is fighting, or null. */
 	AMetalBotCharacter* GetTarget() const { return Target.Get(); }
 
+	/**
+	 * Moves the patrol centre, e.g. a robot built at a dispenser walks back to the post of the one it replaces.
+	 *
+	 * @param NewHome New centre of the patrol.
+	 */
+	void SetHome(const FVector& NewHome) { Home = NewHome; LastKnownLocation = NewHome; }
+
 	/** Senses on a timer, then runs the current state's Tick* function. Idle while stunned or dormant. */
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** Refuses new moves while a gravlift carries the robot, so the paused path through the lift survives. */
+	virtual FPathFollowingRequestResult MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath = nullptr) override;
 
 protected:
 	/** Remembers the spawn point as Home (the patrol centre) and starts patrolling. */
@@ -105,9 +115,19 @@ private:
 
 	/**
 	 * @param Other Robot to look at.
-	 * @return True if nothing blocks a Visibility trace from this robot's eyes to Other's centre.
+	 * @return True if nothing blocks a Visibility trace from this robot's eyes to Other's centre. Energy
+	 *         fields are see-through, so they don't count.
 	 */
 	bool HasLineOfSight(const AMetalBotCharacter* Other) const;
+
+	/**
+	 * @param Other Robot in sight.
+	 * @return True if an energy field sits between this robot's eyes and Other, so shots would only hit it.
+	 */
+	bool IsShotBlockedByField(const AMetalBotCharacter* Other) const;
+
+	/** @return True if the navmesh has a complete path from this robot to Other. */
+	bool CanReach(const AMetalBotCharacter* Other) const;
 
 	/**
 	 * Targets Enemy and switches to Combat. Passive robots ignore this.
@@ -157,10 +177,28 @@ private:
 	 *
 	 * @param Center  Centre of the search.
 	 * @param Radius  Search radius in cm.
-	 * @param bStrafe Keep facing the focus (the target) while moving.
+	 * @param bStrafe Keep facing the focus (the target) while moving. Strafe points must be walkable (no jump
+	 *                links or lifts on the way); if none is found near Center it sidesteps near itself instead.
+	 * @param bAllowClimb With bStrafe: if nothing is walkable, take a point that needs a jump (the target is
+	 *                    above it, e.g. it's down in a pit, so climbing out is the point).
 	 * @return True if a move request was started.
 	 */
-	bool MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe);
+	bool MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe, bool bAllowClimb = false);
+
+	/**
+	 * Jumps across generated jump links (ledge drops, hops onto ledges and over low obstacles) when the path
+	 * following starts one, and uses a mid-air jump if the robot has one and is still short of the landing.
+	 * Big drops are just walked off. Custom links (gravlifts) are left to their owners.
+	 */
+	void TickNavLinkJump();
+
+	/** Path and segment of the jump link being crossed, so each link is jumped once. */
+	const void* JumpLinkPath = nullptr;
+	int32 JumpLinkSegment = INDEX_NONE;
+	/** Height of the landing point of the jump link being crossed. */
+	float JumpLinkEndZ = 0.f;
+	/** The link being crossed climbs, so a mid-air jump may be needed to reach its end. */
+	bool bJumpLinkRises = false;
 
 	/** Enemy being fought, if any. */
 	TWeakObjectPtr<AMetalBotCharacter> Target;
@@ -177,9 +215,24 @@ private:
 	/** World time to flip between firing and pausing in a burst. */
 	float BurstToggleTime = 0.f;
 	bool bBurstFiring = false;
+	/** World time the AI may fire the robot's secondary weapon again (on top of the weapon's own cooldown). */
+	float NextSecondaryTime = 0.f;
 	bool bTargetVisible = false;
+	/** The target is in sight but behind an energy field (refreshed by Sense). */
+	bool bFieldBlocksShot = false;
+	/** While bFieldBlocksShot: whether the navmesh leads round the field to the target. */
+	bool bTargetReachable = false;
+	/** bTargetReachable has been worked out for the current stretch behind a field. */
+	bool bReachKnown = false;
+	/** World time of the next CanReach check (pathfinding is too costly for every Sense). */
+	float NextReachCheckTime = 0.f;
 	/** Robots only retreat once per life. */
 	bool bHasRetreated = false;
+	/**
+	 * World time of the robot's next unprompted line (AMetalBotCharacter::Speak): idle chatter on patrol,
+	 * orders in a fight, dazed noises while stunned. 0 until the first tick picks a random start.
+	 */
+	float NextBarkTime = 0.f;
 
 	/**
 	 * Hears a noise: investigates it unless already fighting.
@@ -201,4 +254,7 @@ private:
 	float AlertTime = -100.f;
 	/** Last Sense() saw a player-driven suspect (so suspicion shouldn't decay). */
 	bool bSuspectInView = false;
+	/** The suspect last Sense() saw, and whether it was standing then: crouching in front of us gives it away. */
+	TWeakObjectPtr<AMetalBotCharacter> LastSeenSuspect;
+	bool bLastSeenStanding = false;
 };

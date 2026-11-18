@@ -48,6 +48,21 @@ public:
 	 */
 	bool ContainsActor(const AActor* Actor) const;
 
+	/** @return True once this checkpoint has saved the respawn point. */
+	bool IsCheckpointUsed() const { return bTriggered; }
+
+	/** @return True once the dialogue has been queued. */
+	bool HasPlayedDialogue() const { return bDialoguePlayed; }
+
+	/**
+	 * Restores the zone's progress from a checkpoint snapshot, before BeginPlay, so the player spawning
+	 * inside it does not trigger it again. A used checkpoint hides its marker.
+	 *
+	 * @param bCheckpointUsed The checkpoint had already been reached.
+	 * @param bDialogueDone   The dialogue had already played.
+	 */
+	void RestoreState(bool bCheckpointUsed, bool bDialogueDone);
+
 	/** Fits the floor marker to the box extent. */
 	virtual void OnConstruction(const FTransform& Transform) override;
 

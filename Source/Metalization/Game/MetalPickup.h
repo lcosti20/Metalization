@@ -50,7 +50,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Pickup")
 	float Amount = 50.f;
 
-	/** Picks the visual: the weapon's prop mesh, or an engine sphere/cube for the other types. */
+	/** Picks the visual: the weapon's prop mesh, the wrench (repair) or ammo crate model, or a sphere (grenades). */
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	/** Bobs and spins the visual. */
@@ -79,6 +79,12 @@ protected:
 private:
 	/** @return The type's colour (green repair, amber ammo, blue grenades, pink weapon). */
 	FLinearColor GetColor() const;
+
+	/** @return The modelled visual for repairs (SM_Wrench) and ammo (SM_AmmoCrate), or null for other types or if it isn't imported. */
+	UStaticMesh* GetModelMesh() const;
+
+	/** Sets Visual's mesh, scale, tilt and the light colour for the pickup's type. */
+	void UpdateVisual();
 
 	/** Seconds since spawn, drives the bob and spin. */
 	float Age = 0.f;

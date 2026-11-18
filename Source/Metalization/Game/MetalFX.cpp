@@ -2,26 +2,22 @@
 
 #include "MetalTypes.h"
 #include "Components/PointLightComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 
 namespace
 {
 	const TCHAR* GlowMaterialPath = TEXT("/Game/Metalization/Materials/M_FX_Glow.M_FX_Glow");
-	const TCHAR* CylinderPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-	const TCHAR* SpherePath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	const float GlowIntensity = 6.f;
+	const TCHAR* EffectFolder = TEXT("/Game/Metalization/FX");
+	const FName ColorParam(TEXT("User.Color"));
 
-	/**
-	 * @param Path Object path of an engine basic shape.
-	 * @return The loaded mesh, or null.
-	 */
-	UStaticMesh* LoadMesh(const TCHAR* Path)
-	{
-		return LoadObject<UStaticMesh>(nullptr, Path);
-	}
+	/** Reference sizes the systems are authored at (see UMetalFXAuthoring::BuildEffectSystems). */
+	const float MuzzleReferenceSize = 10.f;
+	const float ImpactReferenceSize = 10.f;
+	const float BurstReferenceRadius = 100.f;
+	/** Beams are a unit cylinder: 100 cm long and 100 cm across. */
+	const float BeamReferenceLength = 100.f;
 }
 
 UMaterialInterface* MetalAssets::GetGlowMaterial()
@@ -38,91 +34,121 @@ UMaterialInterface* MetalAssets::GetGlowMaterial()
 	return Cached.Get();
 }
 
+UNiagaraSystem* MetalAssets::GetEffect(const TCHAR* Name)
+{
+	// Rooted so the systems aren't collected and reloaded (a hitch) between shots or across level travel.
+	static TMap<FName, UNiagaraSystem*> Loaded;
+	const FName Key(Name);
+	if (UNiagaraSystem** Found = Loaded.Find(Key))
+	{
+		return *Found;
+	}
+	const FString Path = FString::Printf(TEXT("%s/%s.%s"), EffectFolder, Name, Name);
+	UNiagaraSystem* System = LoadObject<UNiagaraSystem>(nullptr, *Path);
+	if (System)
+	{
+		System->AddToRoot();
+	}
+	else
+	{
+		UE_LOG(LogMetal, Warning, TEXT("Missing %s - run Tools/AssetPipeline/run_pipeline.ps1"), *Path);
+	}
+	Loaded.Add(Key, System);
+	return System;
+}
+
 AMetalFX::AMetalFX()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetCastShadow(false);
-	MeshComponent->SetGenerateOverlapEvents(false);
-	RootComponent = MeshComponent;
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	RootComponent = Root;
+
+	Effect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Effect"));
+	Effect->SetupAttachment(Root);
+	Effect->SetAutoActivate(false);
+	Effect->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Effect->SetCastShadow(false);
 
 	Light = CreateDefaultSubobject<UPointLightComponent>(TEXT("Light"));
-	Light->SetupAttachment(MeshComponent);
+	Light->SetupAttachment(Root);
 	Light->SetCastShadows(false);
 	Light->SetIntensityUnits(ELightUnits::Candelas);
 	Light->SetVisibility(false);
 	SetCanBeDamaged(false);
 }
 
-void AMetalFX::Setup(UStaticMesh* Mesh, const FLinearColor& Color, float InLifetime, float LightRadius)
+AMetalFX* AMetalFX::SpawnEffect(UWorld* World, const TCHAR* SystemName, const FTransform& Transform, const FLinearColor& Color, float LightRadius, float InLifetime)
 {
-	Lifetime = InLifetime;
-	MeshComponent->SetStaticMesh(Mesh);
-	if (UMaterialInterface* Glow = MetalAssets::GetGlowMaterial())
-	{
-		Material = UMaterialInstanceDynamic::Create(Glow, this);
-		Material->SetVectorParameterValue(TEXT("Color"), Color);
-		Material->SetScalarParameterValue(TEXT("Intensity"), GlowIntensity);
-		MeshComponent->SetMaterial(0, Material);
-	}
-	StartGlow = GlowIntensity;
-	if (LightRadius > 0.f)
-	{
-		StartLightIntensity = 40.f * (LightRadius / 100.f);
-		Light->SetLightColor(Color);
-		Light->SetAttenuationRadius(LightRadius);
-		Light->SetIntensity(StartLightIntensity);
-		Light->SetVisibility(true);
-	}
-}
-
-AMetalFX* AMetalFX::SpawnBeam(UWorld* World, const FVector& Start, const FVector& End, const FLinearColor& Color, float Width, float Lifetime)
-{
-	if (World == nullptr)
+	UNiagaraSystem* System = MetalAssets::GetEffect(SystemName);
+	if (World == nullptr || System == nullptr)
 	{
 		return nullptr;
 	}
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AMetalFX* FX = World->SpawnActor<AMetalFX>(AMetalFX::StaticClass(), FTransform(Start), Params);
+	AMetalFX* FX = World->SpawnActor<AMetalFX>(AMetalFX::StaticClass(), FTransform(Transform.GetRotation(), Transform.GetLocation()), Params);
+	if (FX == nullptr)
+	{
+		return nullptr;
+	}
+	FX->Lifetime = InLifetime;
+	FX->Effect->SetRelativeScale3D(Transform.GetScale3D());
+	FX->Effect->SetAsset(System);
+	FX->Effect->SetVariableLinearColor(ColorParam, Color);
+	FX->Effect->Activate(true);
+	if (LightRadius > 0.f)
+	{
+		FX->StartLightIntensity = 40.f * (LightRadius / 100.f);
+		FX->Light->SetLightColor(Color);
+		FX->Light->SetAttenuationRadius(LightRadius);
+		FX->Light->SetIntensity(FX->StartLightIntensity);
+		FX->Light->SetVisibility(true);
+	}
+	return FX;
+}
+
+AMetalFX* AMetalFX::SpawnBeam(UWorld* World, const FVector& Start, const FVector& End, const FLinearColor& Color, float Width, float Lifetime)
+{
+	AMetalFX* FX = SpawnEffect(World, Lifetime > 0.f ? TEXT("NS_Tracer") : TEXT("NS_Beam"), FTransform(Start), Color, 0.f, Lifetime);
 	if (FX)
 	{
 		FX->BeamWidth = Width;
-		FX->Setup(LoadMesh(CylinderPath), Color, Lifetime, 0.f);
 		FX->SetBeamEndpoints(Start, End);
-		FX->StartScale = FX->GetActorScale3D();
-		FX->EndScale = FVector(0.f, 0.f, FX->StartScale.Z);
 	}
 	return FX;
 }
 
 AMetalFX* AMetalFX::SpawnBurst(UWorld* World, const FVector& Location, const FLinearColor& Color, float Radius, float Lifetime)
 {
-	if (World == nullptr)
-	{
-		return nullptr;
-	}
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AMetalFX* FX = World->SpawnActor<AMetalFX>(AMetalFX::StaticClass(), FTransform(Location), Params);
-	if (FX)
-	{
-		FX->Setup(LoadMesh(SpherePath), Color, Lifetime, Radius * 4.f);
-		FX->StartScale = FVector(Radius / 50.f * 0.3f);
-		FX->EndScale = FVector(Radius / 50.f);
-		FX->SetActorScale3D(FX->StartScale);
-	}
-	return FX;
+	const FTransform Transform(FQuat::Identity, Location, FVector(Radius / BurstReferenceRadius));
+	return SpawnEffect(World, TEXT("NS_Burst"), Transform, Color, Radius * 4.f, FMath::Max(Lifetime, 0.01f));
+}
+
+AMetalFX* AMetalFX::SpawnMuzzleFlash(UWorld* World, const FVector& Location, const FVector& Direction, const FLinearColor& Color, float Size)
+{
+	const FTransform Transform(FRotationMatrix::MakeFromX(Direction.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector)).ToQuat(), Location, FVector(Size / MuzzleReferenceSize));
+	return SpawnEffect(World, TEXT("NS_MuzzleFlash"), Transform, Color, Size * 8.f, 0.08f);
+}
+
+AMetalFX* AMetalFX::SpawnImpact(UWorld* World, const FVector& Location, const FVector& Normal, const FLinearColor& Color, float Size)
+{
+	const FTransform Transform(FRotationMatrix::MakeFromX(Normal.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector)).ToQuat(), Location, FVector(Size / ImpactReferenceSize));
+	return SpawnEffect(World, TEXT("NS_Impact"), Transform, Color, Size * 5.f, 0.1f);
+}
+
+AMetalFX* AMetalFX::SpawnExplosion(UWorld* World, const FVector& Location, const FLinearColor& Color, float Radius, float Lifetime)
+{
+	const FTransform Transform(FQuat::Identity, Location, FVector(Radius / BurstReferenceRadius));
+	return SpawnEffect(World, TEXT("NS_Explosion"), Transform, Color, Radius * 4.f, FMath::Max(Lifetime, 0.01f));
 }
 
 void AMetalFX::SetBeamEndpoints(const FVector& Start, const FVector& End)
 {
 	const FVector Delta = End - Start;
 	const float Length = FMath::Max(1.f, Delta.Size());
-	// The engine cylinder is 100 units tall along Z, 100 wide, centred on its origin.
+	// The unit beam runs along local Z, centred on the component.
 	SetActorLocationAndRotation((Start + End) * 0.5f, FRotationMatrix::MakeFromZ(Delta / Length).Rotator());
-	SetActorScale3D(FVector(BeamWidth / 100.f, BeamWidth / 100.f, Length / 100.f));
+	Effect->SetRelativeScale3D(FVector(BeamWidth / BeamReferenceLength, BeamWidth / BeamReferenceLength, Length / BeamReferenceLength));
 }
 
 void AMetalFX::Tick(float DeltaSeconds)
@@ -134,14 +160,16 @@ void AMetalFX::Tick(float DeltaSeconds)
 	}
 	Age += DeltaSeconds;
 	const float Alpha = FMath::Clamp(Age / Lifetime, 0.f, 1.f);
-	// Sqrt makes the change fast at first and slow at the end (bursts pop outwards, beams thin quickly).
-	SetActorScale3D(FMath::Lerp(StartScale, EndScale, FMath::Sqrt(Alpha)));
-	if (Material)
+	if (Light->IsVisible())
 	{
-		Material->SetScalarParameterValue(TEXT("Intensity"), StartGlow * (1.f - Alpha));
+		// Squared so the light drops quickly, like the flash it comes from.
+		Light->SetIntensity(StartLightIntensity * FMath::Square(1.f - Alpha));
+		if (Alpha >= 1.f)
+		{
+			Light->SetVisibility(false);
+		}
 	}
-	Light->SetIntensity(StartLightIntensity * (1.f - Alpha));
-	if (Alpha >= 1.f)
+	if (Alpha >= 1.f && !Effect->IsActive())
 	{
 		Destroy();
 	}

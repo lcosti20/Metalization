@@ -111,7 +111,7 @@ def units(manifest):
         out[f"ship:{part}"] = (sha(importer, fingerprint(s["file"]), json.dumps(s["sockets"], sort_keys=True)), [f"Ships/SM_{part}"])
     audio = os.path.join(PIPELINE, "Audio")
     for file in sorted(os.listdir(audio)) if os.path.isdir(audio) else []:
-        if file.endswith(".wav"):
+        if file.endswith((".wav", ".mp3")):
             out[f"sound:{file[:-4]}"] = (sha(importer, file_sha(os.path.join(audio, file))), [f"Audio/SW_{pascal(file[:-4])}"])
     return out
 

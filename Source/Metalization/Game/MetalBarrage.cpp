@@ -66,7 +66,7 @@ void AMetalBarrage::Fire(const FVector& Location)
 	FTimerHandle Handle;
 	GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Location]()
 	{
-		AMetalFX::SpawnBurst(GetWorld(), Location + FVector(0.f, 0.f, 60.f), FLinearColor(1.f, 0.5f, 0.15f), BlastRadius * 0.8f, 0.45f);
+		AMetalFX::SpawnExplosion(GetWorld(), Location + FVector(0.f, 0.f, 60.f), FLinearColor(1.f, 0.5f, 0.15f), BlastRadius * 0.8f, 0.45f);
 		MetalAudio::PlayAt(this, TEXT("explosion"), Location, 0.9f, 0.1f);
 		// Damage is credited to no one, so the player's own team takes it; Red robots are never in the trench.
 		UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, Damage * 0.3f, Location, BlastRadius * 0.4f, BlastRadius, 1.f,

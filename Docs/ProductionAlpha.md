@@ -20,8 +20,8 @@ a battle that uses all of them at once.
 
 Move up → read the radio and the control tip → use the new mechanic → clear the objective. That repeats 13
 times, with checkpoints along the way. The player starts with only the Laser and no grenades. The Repeater,
-grenades, sniper and rocket launcher are handed out as they become relevant. Dying respawns the player at
-the last checkpoint with their loadout. Finishing shows a results panel (time, kills, deaths, accuracy) with
+grenades, sniper and rocket launcher are handed out as they become relevant. Dying puts the whole level back
+the way it was at the last checkpoint (enemies, pickups, gates, objective and the player's loadout). Finishing shows a results panel (time, kills, deaths, accuracy) with
 Retry or the menu.
 
 ## The mission, beat by beat
@@ -38,24 +38,25 @@ floor (0 m), the bridge ledge (2.5 m) and the clifftop plateau (12.5 m).
 | 5 | Cliff | **Anti-grav lift** | A 10 m cliff. The lift (`AMetalGravLift`) carries you up and drops you on the plateau. |
 | 6 | Forward post | Shooting, **weapon-arm swap** | A Blue squad holds the sandbags while a Red squad waits beyond sight range. A Repeater lies by the sandbags, and picking it up plays the first acted-out arm swap. Pushing forward pulls the Reds into a firefight with you and the Blues. |
 | 7 | Bunker | Grenades | Three Reds hunker behind a chest-high wall, with only their heads showing. Grab grenades and lob one (it arcs onto the crosshair); the EMP blast stuns them all. |
-| 8 | Patrol yard | **Sneaking** | A walled yard with four patrols under red spotlights and low walls. A crawl pipe on the left only fits a crouched robot. Suspicion meters show who's getting curious; being spotted brings the yard running (no mission fail). **Checkpoint.** |
-| 9 | Sniper perch | Lift + **sniper** | A lift to a tower perch with the sniper rifle. Three Red marksmen with red laser sights cover the valley from their towers. |
-| 10 | Shield gate | Hacking | A Red-only energy fence. The Hack Tether goes through it to take over the guard. |
+| 8 | Patrol yard | **Sneaking**, robot dispenser | A walled yard with four patrols under red spotlights and low walls. A crawl pipe on the left only fits a crouched robot. Suspicion meters show who's getting curious; being spotted brings the yard running (no mission fail). A **robot dispenser** backed against the north wall rebuilds every patrol that gets scrapped, so the goal is to sneak along the wall to the console just east of it that shuts it down. **Checkpoint.** |
+| 9 | Sniper perch | Lift + **sniper** | A lift to a tower perch with the sniper rifle. Three Red marksmen with red laser sights cover the valley from their towers. **Checkpoint** on the perch. |
+| 10 | Shield gate | Hacking | A Red-only energy fence. The Hack Tether goes through it to take over the guard. **Checkpoint** across the valley just short of the fence. |
 | 11 | Gate console | Consoles | Walk the hijacked Red to the Red-only console. Reds barely suspect one of their own. The console opens the gate and the Blue reinforcement hangar. |
-| 12 | Command yard | Everything | Blue reinforcements storm in. Reds, a catwalk reached by lift and a Brute commander. A rocket launcher waits by the gate. |
-| 13 | Extraction | — | Reach the pad, then the results screen. |
+| 12 | Command yard | Everything | Blue reinforcements storm in. Reds, a catwalk reached by lift and a Brute commander. A rocket launcher waits by the gate. Two **robot dispensers**, one on each side, power on with the gate and weld a Shooter (2/3) or a Soldier (1/3) every 5 s while fewer than three of theirs stand. Three objectives run at once and can be done in any order: destroy the Brute, shut the dispensers down from the console on the catwalk (**checkpoint** when they go offline), and clear the yard of Reds, which only unlocks once the dispensers are off. |
+| 13 | Extraction | — | Unlocks once all three command-yard objectives are done. Reach the pad, then the results screen. |
 
 ## New mechanics
 
 | Mechanic | Controls | Where it lives |
 |---|---|---|
 | Sprint | Hold Shift / L3 | `AMetalBotCharacter::SetWantsSprint`, `TickLocomotion`; `UMetalBotArchetype::SprintSpeed` (player 1000 cm/s, walk 600) |
-| Sneak (crouch) | Hold Ctrl, or toggle with C / R3 | `SetSneaking` (engine crouch with a shorter capsule), `UMetalBotArchetype::CrouchSpeed` (260) |
+| Sneak (crouch) | Hold Ctrl, or toggle with C / R3 | `SetSneaking` (engine crouch with a shorter capsule), `UMetalBotArchetype::CrouchSpeed` (260). The robot tucks its arms and legs in to pass for a console and slides on its base. No shooting, aiming, grenades, jumping or sprinting while crouched (hacking is fine); with toggle on, pressing one of those stands the robot up. Hacking crouches the body automatically. |
 | Hearing and suspicion | — | `AMetalBotAIController::ReportNoise`, `HearNoise`, `BuildSuspicion`; HUD `DrawAwareness` |
 | Sniper rifle | RMB scope, LMB fire | `WD_Sniper`: `AimFOV` 16, `AimArmLengthScale` 0 (eye level), `bScopeOverlay`, `HipSpreadDegrees` 5; HUD `DrawScope` |
 | Anti-gravity lift | Walk in | `AMetalGravLift` (`Source/Metalization/Game/MetalGravLift.*`) |
 | Acted-out weapon swap | 1–6 / wheel / Y | `EquipWeapon` → `TickWeaponSwap`; poses in `UMetalBotAnimInstance` |
 | Jetpack | fires on the double jump | `BuildJetpack` / `FireJetpack` / `TickJetpack`; archetype `bHasJetpack`, rig `JetpackOffset` / `JetpackSpread` |
+| Robot dispenser | [E] at its console | `AMetalRobotDispenser` (`MetalRobotDispenser.*`): Respawn mode rebuilds its `AssignedUnits`, Continuous mode builds from weighted `SpawnChoices` every `SpawnInterval`; each robot takes `AssemblyTime` (2 s), welded on part by part. `AMetalControlConsole::LinkedDispensers` shuts it down. Test map `MZ_DispenserTest` |
 
 ### Jetpack
 
@@ -95,15 +96,20 @@ instantly.
 - **Sight.** Spotting the player isn't instant any more. While the player is in view, a robot's suspicion
   fills from 0 to 1:
   - **Distance.** About 0.4 s up close, 3.5 s at the edge of sight.
-  - **Stance.** Sneaking makes it 2.5× slower; sprinting makes it 1.7× faster.
+  - **Stance.** Sprinting makes it 1.7× faster.
   - **Shooting.** Firing in the last 1.5 s makes it 4× faster.
-  - **Disguise.** A hijacked robot of the watcher's own side makes it 4× slower.
+  - **Disguise.** A hijacked robot of the watcher's own side, or a player crouched still as a console, makes
+    it 4× slower. A console sliding around is only 2× slower.
+  - **Ducking in view.** Crouching while a robot is watching you standing skips suspicion: it attacks at once.
+    The automatic crouch when you start a hack doesn't count.
+  - **Hacking.** The player's body, left crouched while linked to another robot, builds suspicion the same
+    way instead of being fought on sight.
 - **What a sneaking robot gets.** It is only seen at about 60% of the normal range, and isn't felt behind
   the back.
 - **What suspicion does.** At half, the robot walks over to look. When full, it attacks and alerts its squad.
 - **Other robots.** Robots that aren't the player are fought on sight, as before.
 - **Noise.** Every noise is heard within its radius, and the hearer goes to investigate:
-  - footsteps: walking 4.5 m, sprinting 13 m, sneaking silent;
+  - footsteps: walking 4.5 m, sprinting 13 m, crouched silent (it slides, no steps);
   - gunshots: the weapon's `NoiseRadius` (sniper 45 m);
   - explosions: 18 m.
 - **HUD.** A yellow "?" with a meter over curious robots, and a red "!" for 2.5 s when one spots you.
@@ -119,7 +125,7 @@ instantly.
 - **HUD additions.**
   - **Control tips:** a card under the objective (`FMetalObjective::Hint`).
   - **Objective marker:** with distance, pinned to the screen edge when off screen.
-  - **Stance line:** SNEAKING / SPRINTING.
+  - **Stance line:** CONSOLE DISGUISE / SPRINTING.
   - **Scope overlay.**
   - **Suspicion markers.**
   - **Swap state:** "SWAPPING ARM..." on the weapon panel.
@@ -141,12 +147,18 @@ Each new beat has an autopilot smoke test that drives it and records a log and s
 |---|---|
 | `alpha` | Sprint down the trench (1000 cm/s) without being hit by the barrage; jump the first barricade |
 | `bridge` | Double jump onto the higher ledge; checkpoint and next objective |
+| `checkpoint` | Scrap a guard, enter the yard checkpoint, scrap another, die. After the reload the first guard stays gone and the second is back (logs `[Checkpoint]` and the hostile count) |
 | `lift` | Ride the cliff lift from 3.3 m to the plateau at 13 m |
 | `swap` | Pick up the Repeater; swap arms three times (side camera, shots at each beat) |
 | `bunker` | Lob EMP grenades onto the Reds behind the wall, then shoot them |
 | `sneak` | Crawl the pipe past the yard patrols without being spotted (logs every robot's suspicion) |
 | `sniper` | Scope in from the perch and drop a marksman with one shot |
 | `hack` | Hijack the guard through the fence, open the gate, Blue reinforcements engage |
+| `yard` | Scrap a yard patrol, watch the dispenser rebuild it, then shut the dispenser down from the console beside it |
+| `command` | Open the gate (the command-yard dispensers power on and start building), then shut them down from the catwalk console |
+| `endgame` | Final area out of order: scrap the yard while the dispensers run (yard objective locked), shut them down with two of their robots standing (checkpoint), die. After the retry those two are back, clearing them completes the yard with the Brute alive, and the Brute unlocks extraction |
+| `yardcheckpoint` | A patrol the yard dispenser rebuilt is saved at the yard checkpoint and comes back once after a death, without the dispenser welding a second copy |
+| `dispenser` | `MZ_DispenserTest`: an assigned guard is rebuilt, the gate starts the timed dispenser, the console shuts both down |
 | `title` | Title screen and menu |
 
 ```powershell

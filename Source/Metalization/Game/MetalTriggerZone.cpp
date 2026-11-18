@@ -58,6 +58,16 @@ bool AMetalTriggerZone::ContainsActor(const AActor* Actor) const
 	return Actor && Box->IsOverlappingActor(Actor);
 }
 
+void AMetalTriggerZone::RestoreState(bool bCheckpointUsed, bool bDialogueDone)
+{
+	bTriggered = bCheckpointUsed;
+	bDialoguePlayed = bDialogueDone;
+	if (bIsCheckpoint && bTriggered)
+	{
+		Marker->SetVisibility(false);
+	}
+}
+
 void AMetalTriggerZone::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(OtherActor);
@@ -82,7 +92,7 @@ void AMetalTriggerZone::OnOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 	bTriggered = true;
 	if (AMetalGameMode* GameMode = GetWorld()->GetAuthGameMode<AMetalGameMode>())
 	{
-		GameMode->SetCheckpoint(FTransform(Bot->GetActorRotation(), GetActorLocation()));
+		GameMode->SetCheckpoint(FTransform(Bot->GetActorRotation(), GetActorLocation()), Bot);
 	}
 	Bot->Heal(Bot->GetMaxHealth());
 	Marker->SetVisibility(false);

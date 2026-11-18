@@ -412,7 +412,7 @@ void AMetalCapitalShip::DestroySubsystem(UMetalShipSubsystemComponent* Subsystem
 		}
 	}
 	HitFlash.Remove(Subsystem);
-	AMetalFX::SpawnBurst(GetWorld(), Subsystem->Bounds.Origin, Fire, Subsystem->Bounds.SphereRadius * 1.2f, 1.2f);
+	AMetalFX::SpawnExplosion(GetWorld(), Subsystem->Bounds.Origin, Fire, Subsystem->Bounds.SphereRadius * 1.2f, 1.2f);
 	UE_LOG(LogMetal, Display, TEXT("%s lost subsystem %s"), *GetName(), *Subsystem->GetName());
 	OnSubsystemDestroyed(Subsystem);
 	OnAnySubsystemDestroyed.Broadcast(this, Subsystem);
@@ -544,7 +544,7 @@ void AMetalCapitalShip::TickTurrets(float DeltaSeconds)
 				{
 					Shot->Launch(Weapon, Stats.Damage, Direction * Weapon->ProjectileSpeed);
 				}
-				AMetalFX::SpawnBurst(World, Muzzle, Weapon->TracerColor, 150.f, 0.08f);
+				AMetalFX::SpawnMuzzleFlash(World, Muzzle, Direction, Weapon->TracerColor, 150.f);
 			}
 		}
 	}
@@ -578,7 +578,7 @@ void AMetalCapitalShip::Tick(float DeltaSeconds)
 	if (bShipDestroyed && WreckBursts < 24 && GetWorld()->GetTimeSeconds() - DestroyedTime > WreckBursts * 0.25f)
 	{
 		const FBox Box = Hull->Bounds.GetBox();
-		AMetalFX::SpawnBurst(GetWorld(), FMath::RandPointInBox(Box), Fire, 2500.f + 2000.f * FMath::FRand(), 1.5f);
+		AMetalFX::SpawnExplosion(GetWorld(), FMath::RandPointInBox(Box), Fire, 2500.f + 2000.f * FMath::FRand(), 1.5f);
 		++WreckBursts;
 	}
 }

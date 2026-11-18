@@ -35,6 +35,15 @@ AMetalPickup::AMetalPickup()
 	Light->SetCastShadows(false);
 }
 
+UStaticMesh* AMetalPickup::GetModelMesh() const
+{
+	// Loaded by path, so Config/DefaultGame.ini cooks /Game/Metalization/Props.
+	const TCHAR* Path = Type == EMetalPickupType::Health ? TEXT("/Game/Metalization/Props/SM_Wrench.SM_Wrench")
+		: Type == EMetalPickupType::Ammo ? TEXT("/Game/Metalization/Props/SM_AmmoCrate.SM_AmmoCrate")
+		: nullptr;
+	return Path ? LoadObject<UStaticMesh>(nullptr, Path) : nullptr;
+}
+
 FLinearColor AMetalPickup::GetColor() const
 {
 	switch (Type)
@@ -49,31 +58,49 @@ FLinearColor AMetalPickup::GetColor() const
 void AMetalPickup::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	// Weapons show their prop model; repairs (sphere) and ammo/grenades (cube) use simple glowing
-	// engine shapes.
+	UpdateVisual();
+}
+
+void AMetalPickup::UpdateVisual()
+{
+	// Weapons show their prop model, repairs a wrench and ammo an ammo crate (graybox models from
+	// Art/Graybox/Pickups), and grenades a glowing sphere. A missing model falls back to a glowing cube.
 	UStaticMesh* Mesh = nullptr;
 	FVector Scale(1.f);
+	FRotator Rotation = FRotator::ZeroRotator;
 	if (Type == EMetalPickupType::Weapon && Weapon && Weapon->PropMesh)
 	{
 		Mesh = Weapon->PropMesh;
 		Scale = FVector(1.6f);
 	}
+	else if (UStaticMesh* Model = GetModelMesh())
+	{
+		Mesh = Model;
+		// The wrench is modelled lying flat: stand it on edge, tilted, so its outline shows as it spins.
+		Scale = FVector(Type == EMetalPickupType::Health ? 1.7f : 1.2f);
+		Rotation = Type == EMetalPickupType::Health ? FRotator(0.f, 0.f, 70.f) : FRotator::ZeroRotator;
+	}
 	else
 	{
-		Mesh = LoadObject<UStaticMesh>(nullptr, Type == EMetalPickupType::Health ? TEXT("/Engine/BasicShapes/Sphere.Sphere") : TEXT("/Engine/BasicShapes/Cube.Cube"));
+		Mesh = LoadObject<UStaticMesh>(nullptr, Type == EMetalPickupType::Grenades ? TEXT("/Engine/BasicShapes/Sphere.Sphere") : TEXT("/Engine/BasicShapes/Cube.Cube"));
 		Scale = FVector(0.35f);
 	}
 	Visual->SetStaticMesh(Mesh);
 	Visual->SetRelativeScale3D(Scale);
+	Visual->SetRelativeRotation(Rotation);
 	Light->SetLightColor(GetColor());
 }
 
 void AMetalPickup::BeginPlay()
 {
 	Super::BeginPlay();
+	// Again at runtime: pickups placed in a map keep the mesh they were saved with, which predates the models.
+	UpdateVisual();
 	VisualBase = Visual->GetRelativeLocation();
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AMetalPickup::OnOverlap);
-	if (Type != EMetalPickupType::Weapon || Weapon == nullptr || Weapon->PropMesh == nullptr)
+	// Weapons and the wrench/crate models keep their own materials; the plain shapes glow in the type's colour.
+	const bool bHasModel = Type == EMetalPickupType::Weapon ? Weapon && Weapon->PropMesh : GetModelMesh() != nullptr;
+	if (!bHasModel)
 	{
 		if (UMaterialInterface* Glow = MetalAssets::GetGlowMaterial())
 		{
@@ -138,7 +165,8 @@ void AMetalPickup::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* O
 			GameMode->ShowMessage(FText::GetEmpty(), Message, 2.f);
 		}
 		AMetalFX::SpawnBurst(GetWorld(), GetActorLocation(), GetColor(), 40.f, 0.25f);
-		MetalAudio::PlayAt(this, TEXT("pickup"), GetActorLocation(), 0.8f, 0.f);
+		// Only the player collects pickups, so the sound is theirs: non-positional, never lost behind the camera.
+		MetalAudio::Play2D(this, TEXT("pickup"), 0.8f);
 		Destroy();
 	}
 }

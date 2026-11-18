@@ -2,6 +2,7 @@
 
 #include "MetalGameMode.h"
 #include "MetalBotCharacter.h"
+#include "MetalBotArchetype.h"
 #include "MetalControlConsole.h"
 #include "MetalDialogue.h"
 #include "MetalBotAIController.h"
@@ -125,6 +126,12 @@ void AMetalHUD::DrawHUD()
 			const TCHAR* Verb = Candidate->GetTeam() == Bot->GetTeam() ? TEXT("PILOT") : TEXT("HACK");
 			DrawTextShadowed(FString::Printf(TEXT("[F] %s %s"), Verb, *Candidate->GetDisplayName().ToString().ToUpper()), CX, CY + 30.f * UI, Cyan, Medium, UI, true);
 		}
+		else if (const AMetalBotCharacter* Walled = PC->GetFirewalledCandidate())
+		{
+			// A failed hack left this one firewalled: say how long until the tether works on it again.
+			DrawTextShadowed(FString::Printf(TEXT("FIREWALL  %s  %.1fs"), *Walled->GetDisplayName().ToString().ToUpper(), Walled->GetFirewallTimeRemaining()),
+				CX, CY + 30.f * UI, Danger, Medium, UI, true);
+		}
 
 		// Health.
 		const float BarW = 360.f * UI;
@@ -137,11 +144,13 @@ void AMetalHUD::DrawHUD()
 		const float HealthFraction = Bot->GetHealth() / FMath::Max(1.f, Bot->GetMaxHealth());
 		const FString Name = Bot->GetDisplayName().ToString().ToUpper() + (Bot->IsHijacked() ? TEXT("  (HIJACKED)") : TEXT(""));
 		DrawTextShadowed(Name, BarX, BarY - NameH - 4.f * UI, Bot->IsHijacked() ? Cyan : Amber, Medium, UI);
-		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthFraction < 0.3f ? Danger : FLinearColor(0.3f, 1.f, 0.4f));
-		// Stance: sneaking keeps you hidden, sprinting is loud.
+		// The bar's hue slides from its healthy green at full health, through yellow and orange, to red when empty.
+		const FLinearColor HealthColor = FLinearColor::LerpUsingHSV(Danger, FLinearColor(0.3f, 1.f, 0.4f), FMath::Clamp(HealthFraction, 0.f, 1.f));
+		DrawBar(BarX, BarY, BarW, 18.f * UI, HealthFraction, HealthColor);
+		// Stance: the console disguise keeps you hidden (best when still), sprinting is loud.
 		if (Bot->IsSneaking())
 		{
-			DrawTextShadowed(TEXT("SNEAKING - quiet, hard to spot"), BarX, BarY + 24.f * UI, Cyan, Small, UI * 1.2f);
+			DrawTextShadowed(TEXT("CONSOLE DISGUISE - keep still"), BarX, BarY + 24.f * UI, Cyan, Small, UI * 1.2f);
 		}
 		else if (Bot->IsSprinting())
 		{
@@ -168,7 +177,9 @@ void AMetalHUD::DrawHUD()
 		MeasureText(TEXT("Ag"), LW, LH, Small, UI * 1.2f);
 		const float GrenadeY = H - 14.f * UI - GH;
 		const float AmmoY = GrenadeY - AH;
-		const float WeaponNameY = AmmoY - WH;
+		// A small gap between the weapon name and the ammo counter holds the reload bar.
+		const float ReloadGap = 16.f * UI;
+		const float WeaponNameY = AmmoY - WH - ReloadGap;
 		if (const FMetalWeaponSlot* Slot = Bot->GetCurrentWeapon(); Slot && Slot->Data)
 		{
 			const FString WeaponName = FString::Printf(TEXT("%s  LV%d"), *Slot->Data->DisplayName.ToString().ToUpper(), Slot->Level + 1);
@@ -184,6 +195,13 @@ void AMetalHUD::DrawHUD()
 			DrawTextShadowed(WeaponName, RightX - TW, WeaponNameY, Amber, Medium, UI);
 			MeasureText(Ammo, TW, TH, Large, UI);
 			DrawTextShadowed(Ammo, RightX - TW, AmmoY, FLinearColor::White, Large, UI);
+			// Reload progress: a bar just over the ammo counter (in the gap under the weapon name), right-aligned with it.
+			if (Bot->IsReloading())
+			{
+				const float ReloadW = FMath::Max(TW, 260.f * UI);
+				const float ReloadH = 6.f * UI;
+				DrawBar(RightX - ReloadW, AmmoY - ReloadGap + 5.f * UI, ReloadW, ReloadH, Bot->GetReloadFraction(), Amber);
+			}
 		}
 		if (Bot->GrenadeWeapon && !Bot->IsHijacked())
 		{
@@ -191,6 +209,20 @@ void AMetalHUD::DrawHUD()
 			float TW = 0.f, TH = 0.f;
 			MeasureText(GrenadeText, TW, TH, Small, UI * 1.3f);
 			DrawTextShadowed(GrenadeText, RightX - TW, GrenadeY, FLinearColor(0.6f, 0.75f, 1.f), Small, UI * 1.3f);
+		}
+		else if (Bot->HasSecondaryWeapon())
+		{
+			// Built-in second weapon (a hacked Brute's rockets) on the aim button, with a cooldown bar under it.
+			const bool bReady = Bot->GetSecondaryReadyFraction() >= 1.f;
+			const FString SecondaryText = FString::Printf(TEXT("[RMB] %s %s"), *Bot->Archetype->SecondaryWeapon->DisplayName.ToString().ToUpper(),
+				bReady ? TEXT("READY") : TEXT("LOADING"));
+			float TW = 0.f, TH = 0.f;
+			MeasureText(SecondaryText, TW, TH, Small, UI * 1.3f);
+			DrawTextShadowed(SecondaryText, RightX - TW, GrenadeY, bReady ? Amber : FLinearColor(1.f, 1.f, 1.f, 0.6f), Small, UI * 1.3f);
+			if (!bReady)
+			{
+				DrawBar(RightX - TW, GrenadeY - 2.f * UI, TW, 4.f * UI, Bot->GetSecondaryReadyFraction(), Amber);
+			}
 		}
 		// Weapon list (1-6).
 		const TArray<FMetalWeaponSlot>& Weapons = Bot->GetWeapons();
@@ -241,9 +273,9 @@ void AMetalHUD::DrawHUD()
 	{
 		if (const FMetalDialogueLine* Line = Dialogue->GetCurrentLine())
 		{
-			DrawDialogueBox(*Line, Dialogue->GetOpenTime(), UI);
+			DrawDialogueBox(*Line, Dialogue->GetLineTime(), Dialogue->GetOpenTime(), UI);
 			const AMetalBotCharacter* OwnBody = PC ? PC->GetPlayerBody() : nullptr;
-			if (PC && PC->GetPawn() && !(OwnBody && Line->Speaker.EqualToCaseIgnored(OwnBody->GetDisplayName())))
+			if (Dialogue->IsTalking() && PC && PC->GetPawn() && !(OwnBody && Line->Speaker.EqualToCaseIgnored(OwnBody->GetDisplayName())))
 			{
 				DrawRadioIcon(PC->GetPawn(), UI);
 			}
@@ -257,32 +289,53 @@ void AMetalHUD::DrawHUD()
 		MeasureText(TEXT("Ag"), LabelW, LabelH, Small, UI * 1.2f);
 		MeasureText(TEXT("Ag"), ObjW, ObjH, Medium, UI);
 		const float ObjectiveY = 24.f * UI + LabelH;
-		const float HintY = ObjectiveY + ObjH + 16.f * UI;
-		const FText Objective = GameMode->GetObjectiveText();
-		if (!Objective.IsEmpty())
-		{
-			DrawTextShadowed(TEXT("OBJECTIVE"), 40.f * UI, 24.f * UI, Amber, Small, UI * 1.2f);
-			DrawTextShadowed(Objective.ToString(), 40.f * UI, ObjectiveY, FLinearColor::White, Medium, UI);
-		}
 		if (const AMetalMission* Mission = GameMode->GetMission(); Mission && !GameMode->IsMissionComplete())
 		{
-			// Control tip for the current step, in a panel under the objective.
-			const FText Hint = Mission->GetCurrentHint();
-			if (!Hint.IsEmpty())
+			// The current group's objectives: active in white, still locked in grey, done in green.
+			const TArray<FMetalObjectiveStatus> List = Mission->GetObjectiveList();
+			float HintY = ObjectiveY;
+			if (List.Num() > 0)
+			{
+				DrawTextShadowed(List.Num() > 1 ? TEXT("OBJECTIVES") : TEXT("OBJECTIVE"), 40.f * UI, 24.f * UI, Amber, Small, UI * 1.2f);
+				float Y = ObjectiveY;
+				for (const FMetalObjectiveStatus& Status : List)
+				{
+					FString Text = Mission->Objectives[Status.Index].Description.ToString();
+					FLinearColor Color = FLinearColor::White;
+					if (List.Num() > 1)
+					{
+						switch (Status.State)
+						{
+						case EMetalObjectiveState::Done:   Text = TEXT("[x] ") + Text; Color = FLinearColor(0.35f, 0.95f, 0.45f); break;
+						case EMetalObjectiveState::Locked: Text = TEXT("[ ] ") + Text; Color = FLinearColor(0.5f, 0.5f, 0.5f); break;
+						default:                           Text = TEXT("[ ] ") + Text; break;
+						}
+					}
+					DrawTextShadowed(Text, 40.f * UI, Y, Color, Medium, UI);
+					Y += ObjH + 6.f * UI;
+				}
+				HintY = Y + 10.f * UI;
+			}
+			// Control tips for the active steps, in panels under the objectives.
+			for (const FText& Hint : Mission->GetCurrentHints())
 			{
 				float TW = 0.f, TH = 0.f;
 				MeasureText(Hint.ToString(), TW, TH, Medium, UI);
-				const float Y = HintY;
-				DrawRect(Panel, 34.f * UI, Y - 6.f * UI, TW + 24.f * UI, TH + 12.f * UI);
-				DrawRect(Cyan, 34.f * UI, Y - 6.f * UI, 4.f * UI, TH + 12.f * UI);
-				DrawTextShadowed(Hint.ToString(), 46.f * UI, Y, FLinearColor(0.85f, 0.97f, 1.f), Medium, UI);
+				DrawRect(Panel, 34.f * UI, HintY - 6.f * UI, TW + 24.f * UI, TH + 12.f * UI);
+				DrawRect(Cyan, 34.f * UI, HintY - 6.f * UI, 4.f * UI, TH + 12.f * UI);
+				DrawTextShadowed(Hint.ToString(), 46.f * UI, HintY, FLinearColor(0.85f, 0.97f, 1.f), Medium, UI);
+				HintY += TH + 20.f * UI;
 			}
 			// Where to go (hidden while scoped so it doesn't clutter the sight picture).
-			FVector Target;
-			if (Bot && Scope < 0.5f && Mission->GetObjectiveMarker(Target))
+			if (Bot && Scope < 0.5f)
 			{
-				const int32 Meters = FMath::RoundToInt(FVector::Dist(Target, Bot->GetActorLocation()) / 100.f);
-				DrawMarker(Target, FString::Printf(TEXT("%d m"), Meters), Amber, UI, true);
+				TArray<FVector> Targets;
+				Mission->GetObjectiveMarkers(Targets);
+				for (const FVector& Target : Targets)
+				{
+					const int32 Meters = FMath::RoundToInt(FVector::Dist(Target, Bot->GetActorLocation()) / 100.f);
+					DrawMarker(Target, FString::Printf(TEXT("%d m"), Meters), Amber, UI, true);
+				}
 			}
 		}
 		// System notices.
@@ -432,7 +485,7 @@ void AMetalHUD::DrawResults(const AMetalGameMode* GameMode, const AMetalPlayerCo
 	DrawTextShadowed(TEXT("[ENTER] play again      [ESC] menu"), W * 0.5f, Y + PanelH - FootH - 16.f * UI, Amber, Small, UI * 1.3f, true);
 }
 
-void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, float UI)
+void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float LineTime, float OpenTime, float UI)
 {
 	const float W = Canvas->ClipX;
 	const float H = Canvas->ClipY;
@@ -493,9 +546,24 @@ void AMetalHUD::DrawDialogueBox(const FMetalDialogueLine& Line, float OpenTime, 
 		DrawTextShadowed(Name, X + Pad, TextY, FLinearColor(Amber.R, Amber.G, Amber.B, Pop), Small, UI * 1.3f);
 		TextY += NameH;
 	}
+	// Type the line out one character at a time at (characters / (Duration - 1 s)) per second, so the finished
+	// line holds for a second before the next one. The rows are wrapped from the full line above, so the box
+	// keeps its size and words don't jump to the next row as they type.
+	int32 TotalChars = 0;
 	for (const FString& Row : Rows)
 	{
-		DrawTextShadowed(Row, X + Pad, TextY, FLinearColor(1.f, 0.95f, 0.8f, Pop), Medium, UI);
+		TotalChars += Row.Len();
+	}
+	const float CharsPerSecond = TotalChars / UMetalDialogueSubsystem::GetTalkTime(Line);
+	int32 Remaining = FMath::Min(TotalChars, FMath::FloorToInt(LineTime * CharsPerSecond) + 1);
+	for (const FString& Row : Rows)
+	{
+		if (Remaining <= 0)
+		{
+			break;
+		}
+		DrawTextShadowed(Row.Left(Remaining), X + Pad, TextY, FLinearColor(1.f, 0.95f, 0.8f, Pop), Medium, UI);
+		Remaining -= Row.Len();
 		TextY += RowH;
 	}
 }

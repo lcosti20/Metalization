@@ -5,6 +5,10 @@
 // possesses the robot. When the link ends - by choice, timeout, or the host being destroyed -
 // control returns to the player's body and the host reboots back onto its own side.
 //
+// Hijacking an enemy first opens the hack puzzle (UMetalHackPuzzle), a fake Blueprint the player rewires while
+// the world keeps running. A correct compile starts the hijack; a wrong one makes the target put up a firewall
+// (unhackable for FirewallTime seconds); the [X] just cancels.
+//
 // Friendly robots built for it (parked Stalkers) take an open-ended link instead: no timer, the player
 // flies them until they disconnect, and the robot then goes idle, ready to be linked again. Flyers use
 // their own input context.
@@ -19,6 +23,7 @@ class AMetalBotCharacter;
 class AMetalControlConsole;
 class AMetalFX;
 class AMetalStalker;
+class UMetalHackPuzzle;
 class UMetalPauseMenu;
 class UInputAction;
 class UInputMappingContext;
@@ -50,6 +55,12 @@ public:
 	/** @return The robot the Hack Tether would grab right now (for the HUD's target marker), or null. */
 	AMetalBotCharacter* GetHackCandidate() const { return HackCandidate.Get(); }
 
+	/** @return A firewalled robot under the crosshair that would otherwise be hackable (for the HUD), or null. */
+	AMetalBotCharacter* GetFirewalledCandidate() const { return FirewalledCandidate.Get(); }
+
+	/** @return The open hack puzzle, or null. */
+	UMetalHackPuzzle* GetHackPuzzle() const { return HackPuzzle; }
+
 	/** @return The closest unused console within reach, or null. */
 	AMetalControlConsole* GetNearbyConsole() const { return NearbyConsole.Get(); }
 
@@ -64,6 +75,10 @@ public:
 
 	/** Hijack the robot under the crosshair, or disconnect from the current host. */
 	void ToggleTether() { TetherPressed(); }
+
+	/** Press / release the aim button (right mouse): aims, or fires the robot's secondary weapon if it has one. */
+	void PressAimButton() { AimPressed(); }
+	void ReleaseAimButton() { AimReleased(); }
 
 	/** Use the nearby console, if any. */
 	void Interact() { InteractPressed(); }
@@ -102,6 +117,14 @@ public:
 	/** Seconds a released hijack victim stays stunned ("rebooting") before its AI takes over again. */
 	UPROPERTY(EditAnywhere, Category="Metalization")
 	float RebootTime = 2.f;
+
+	/** Enemies must be "rewired" in the hack puzzle before a hijack. Off: the tether hijacks instantly (the old behaviour). */
+	UPROPERTY(EditAnywhere, Category="Metalization")
+	bool bRequireHackPuzzle = true;
+
+	/** Seconds an enemy can't be hacked after a failed compile in the hack puzzle. */
+	UPROPERTY(EditAnywhere, Category="Metalization")
+	float FirewallTime = 4.f;
 
 	/** Max distance for the Hack Tether. */
 	UPROPERTY(EditAnywhere, Category="Metalization")
@@ -170,6 +193,30 @@ private:
 	/** Toggle sneak (C / right stick click). */
 	void SneakToggled();
 
+	/**
+	 * Called before an action a crouched robot can't do (shoot, aim, grenade, jump, sprint). With toggle sneak on
+	 * the press stands the robot up and the action goes ahead; while Ctrl is held, or while crouched for a hack,
+	 * the robot stays down and the action is refused.
+	 *
+	 * @return True if the action may go ahead (the robot is standing, or just stood up).
+	 */
+	bool StandUpForAction();
+
+	/** Applies the held/toggled sneak buttons to the robot (crouches or stands it). */
+	void ApplySneakInput();
+
+	/**
+	 * Crouches the player's body for a hack (puzzle open or linked to another robot). Called when the puzzle opens
+	 * and right before the body goes dormant for a link; does nothing if already crouched for the hack.
+	 */
+	void BeginHackCrouch();
+
+	/** Puts the body back the way it was before the hack: Tick calls it once the hack is over. */
+	void EndHackCrouch();
+
+	/** Turns a held Ctrl into toggle sneak, for when a window takes the input and the release would be lost. */
+	void LatchHeldSneak();
+
 	/** Jumps (a second press in mid-air is the double jump). */
 	void JumpPressed();
 
@@ -182,10 +229,10 @@ private:
 	/** Releases the trigger. */
 	void FireReleased();
 
-	/** Starts aiming (zoomed camera). */
+	/** Starts aiming (zoomed camera), or holds the secondary trigger on robots with a secondary weapon (Brute rockets). */
 	void AimPressed();
 
-	/** Stops aiming. */
+	/** Stops aiming and releases the secondary trigger. */
 	void AimReleased();
 
 	/** Reloads the equipped weapon. */
@@ -203,7 +250,7 @@ private:
 	/** @param Index Weapon slot bound to number keys 1-6. */
 	void SelectWeapon(int32 Index);
 
-	/** Disconnects if linked, otherwise hijacks the hack candidate (or says there is none). */
+	/** Disconnects if linked, otherwise starts hacking the hack candidate (or says there is none, or that it is firewalled). */
 	void TetherPressed();
 
 	/** Activates the nearby console and shows its result message. */
@@ -232,9 +279,28 @@ private:
 	 * of a 7-degree cone around the view direction, with a clear line from the player's eyes.
 	 * Only works from the player's own body.
 	 *
+	 * @param bFirewalled Look for a robot that is hackable except for its firewall instead.
 	 * @return The best candidate, or null.
 	 */
-	AMetalBotCharacter* FindHackCandidate() const;
+	AMetalBotCharacter* FindHackCandidate(bool bFirewalled = false) const;
+
+	/**
+	 * Opens the hack puzzle for an enemy: the body lets go of its controls, the mouse is freed for the window,
+	 * and a faint tether beam shows what is being hacked. The world keeps running.
+	 *
+	 * @param Target Enemy robot to hack; must satisfy CanBeHackedBy.
+	 */
+	void OpenHackPuzzle(AMetalBotCharacter* Target);
+
+	/** Removes the hack puzzle window (if open) and gives the controls back to the game. */
+	void CloseHackPuzzle();
+
+	/**
+	 * The puzzle's result: hijack on success, firewall the target on a failed compile, nothing on cancel.
+	 *
+	 * @param Result How the puzzle ended.
+	 */
+	void OnHackPuzzleFinished(uint8 Result);
 
 	/**
 	 * Hands the player's control over to Target: destroys its AI controller, powers the body down,
@@ -278,12 +344,20 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMetalPauseMenu> PauseMenu;
 
+	/** The open hack puzzle window, or null. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMetalHackPuzzle> HackPuzzle;
+
 	/** The player's own robot, also while another robot is being driven. */
 	TWeakObjectPtr<AMetalBotCharacter> PlayerBody;
 	/** Robot currently hijacked with the Hack Tether, or null. */
 	TWeakObjectPtr<AMetalBotCharacter> Host;
 	/** Robot the tether would take right now, refreshed every tick. */
 	TWeakObjectPtr<AMetalBotCharacter> HackCandidate;
+	/** Firewalled robot under the crosshair, refreshed every tick (only when there is no HackCandidate). */
+	TWeakObjectPtr<AMetalBotCharacter> FirewalledCandidate;
+	/** Robot the open hack puzzle is for. */
+	TWeakObjectPtr<AMetalBotCharacter> HackTarget;
 	/** Console in reach of the possessed robot, for the HUD prompt. */
 	TWeakObjectPtr<AMetalControlConsole> NearbyConsole;
 	/** World time the hijack runs out and control returns to the player's body. */
@@ -304,6 +378,14 @@ private:
 	bool bAllyLink = false;
 	/** Tilt the camera down on the next tick after a fresh spawn. */
 	bool bApplySpawnPitch = false;
+	/** Ctrl is held down (hold-to-sneak). */
+	bool bSneakHeld = false;
+	/** Toggle sneak (C) is on. */
+	bool bSneakToggle = false;
+	/** The body is crouched for a hack (puzzle or link); see UpdateHackCrouch. */
+	bool bHackCrouchActive = false;
+	/** The body was standing when the hack crouch began, so it stands back up when the hack ends. */
+	bool bStandAfterHack = false;
 	/** Subscription to AMetalBotCharacter::OnAnyBotDied. */
 	FDelegateHandle BotDiedHandle;
 };

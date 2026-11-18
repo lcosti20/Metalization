@@ -16,6 +16,7 @@ SHIP_SOCKETS = {
     "SM_CapShip_Hull": ["hangar_portal", "engines", "shieldgen_L", "shieldgen_R", "comms", "turret_01"],
     "SM_CapShip_TurretBase": ["gun"],
     "SM_Hangar_Shell": ["hangar_portal", "corridor_door", "pad_1", "pad_2", "pad_3"],
+    "SM_RobotDispenser": ["assembly", "nozzle", "torch_L", "torch_R", "light"],
 }
 
 

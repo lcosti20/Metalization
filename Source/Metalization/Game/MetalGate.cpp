@@ -36,6 +36,13 @@ void AMetalGate::Open()
 	bOpening = true;
 }
 
+void AMetalGate::OpenInstantly()
+{
+	bOpening = true;
+	OpenAlpha = 1.f;
+	Door->SetRelativeLocation(ClosedLocation + OpenOffset);
+}
+
 void AMetalGate::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

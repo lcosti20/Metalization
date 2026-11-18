@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "MetalBotCharacter.h"
+#include "MetalCheckpoint.h"
 #include "MetalGameMode.generated.h"
 
 class AMetalMission;
@@ -51,15 +52,19 @@ public:
 	void ShowBanner(const FText& Text, float Duration);
 
 	/**
-	 * Makes Transform the respawn point and shows the CHECKPOINT banner.
+	 * Makes Transform the respawn point, shows the CHECKPOINT banner and, with bResetLevelOnDeath, takes a
+	 * snapshot of the level (UMetalCheckpointSubsystem) to go back to when the player dies.
 	 *
-	 * @param Transform Where the player respawns.
+	 * @param Transform  Where the player respawns.
+	 * @param PlayerBody The player's own body (its loadout is part of the snapshot).
 	 */
-	void SetCheckpoint(const FTransform& Transform);
+	void SetCheckpoint(const FTransform& Transform, AMetalBotCharacter* PlayerBody);
 
 	/**
-	 * Called by the player controller when the player's own body dies. Saves the loadout and respawns the
-	 * player three seconds later. Overridden by the space battle mode to spend tickets instead.
+	 * Called by the player controller when the player's own body dies. Three seconds later it either
+	 * reloads the level back to the last checkpoint snapshot (bResetLevelOnDeath; the level start if no
+	 * checkpoint was reached) or respawns the player in the running level with the loadout they died with.
+	 * Overridden by the space battle mode to spend tickets.
 	 *
 	 * @param Controller The player's controller.
 	 * @param Body       The body that died.
@@ -117,8 +122,28 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Metalization")
 	bool bMinimalHUD = false;
 
+	/**
+	 * Dying puts the whole level back the way it was at the last checkpoint (robots, pickups, consoles,
+	 * objective, loadout) by reloading it. Off for free-roam levels and the space battle, which respawn
+	 * the player into the running level instead.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Metalization")
+	bool bResetLevelOnDeath = true;
+
+	/** @return True when this level was loaded as a retry from a checkpoint snapshot. */
+	bool IsRestoredFromCheckpoint() const { return bRestoredFromCheckpoint; }
+
 protected:
-	/** Subscribes to robot deaths, starts the first AMetalMission in the level and spawns the dev autopilot if requested. */
+	/** Takes back a pending checkpoint retry (UMetalCheckpointSubsystem::TakeRetry) before anything spawns. */
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+
+	/** On a checkpoint retry, restores the snapshot in two passes around every actor's BeginPlay. */
+	virtual void StartPlay() override;
+
+	/** Once a checkpoint is known (including on a retry), spawns the player there instead of at a player start. */
+	virtual void RestartPlayer(AController* NewPlayer) override;
+
+	/** Subscribes to robot deaths, starts (or, on a retry, resumes) the level's AMetalMission and spawns the dev autopilot if requested. */
 	virtual void BeginPlay() override;
 
 	/** Unsubscribes from robot deaths. */
@@ -132,6 +157,9 @@ private:
 	 * @param Controller The player's controller.
 	 */
 	void Respawn(AMetalPlayerController* Controller);
+
+	/** Reloads the level for a retry from the last checkpoint snapshot, carrying over deaths and mission time. */
+	void ReloadFromCheckpoint();
 
 	/**
 	 * OnAnyBotDied handler that counts the player's kills.
@@ -176,6 +204,13 @@ private:
 	int32 Deaths = 0;
 	/** Subscription to AMetalBotCharacter::OnAnyBotDied. */
 	FDelegateHandle BotDiedHandle;
+	/** This load is a retry and RestoreSnapshot is being put back. */
+	bool bRestoredFromCheckpoint = false;
+	/** Copy of the snapshot being restored (valid when bRestoredFromCheckpoint). */
+	UPROPERTY(Transient)
+	FMetalLevelSnapshot RestoreSnapshot;
+	/** Mission time carried over from before the retry. */
+	float CarriedMissionTime = 0.f;
 };
 
 /**
@@ -207,5 +242,6 @@ public:
 	{
 		bActionCamera = true;
 		bMinimalHUD = true;
+		bResetLevelOnDeath = false;
 	}
 };

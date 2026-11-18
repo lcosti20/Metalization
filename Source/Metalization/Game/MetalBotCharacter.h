@@ -10,6 +10,7 @@
 #include "MetalBotCharacter.generated.h"
 
 class AMetalFX;
+class UAudioComponent;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class UPointLightComponent;
@@ -42,6 +43,28 @@ struct FMetalWeaponSlot
 	/** Spare rounds outside the clip. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
 	int32 Reserve = 0;
+};
+
+/**
+ * What a robot "says" (AMetalBotCharacter::Speak): wordless beeps and whistles, one mood each. Listed from
+ * least to most urgent: a robot that is already talking is only interrupted by something more urgent.
+ */
+enum class EMetalBark : uint8
+{
+	/** Idle muttering on patrol. */
+	Chatter,
+	/** Barked commands while fighting. */
+	Orders,
+	/** Took out an enemy. */
+	Laugh,
+	/** Spotted an enemy. */
+	Alert,
+	/** Stunned or hacked. */
+	Confused,
+	/** Took damage. */
+	Pain,
+	/** Destroyed: the last scream. */
+	Death,
 };
 
 /**
@@ -159,14 +182,28 @@ public:
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	float GetMaxHealth() const { return MaxHealth; }
 
+	/** Health fraction at or below which the player's robot flashes red and beeps. */
+	static constexpr float LowHealthFraction = 0.25f;
+
 	/** @return True while an EMP stun is active: the robot can't move or shoot. */
 	bool IsStunned() const;
 
 	/** Powered down: body left behind during possession, or a robot with no ragdoll that died. */
 	bool IsSlumped() const { return bDormant || (bDead && !bRagdoll); }
 
-	/** @return True while the robot is switched off (its controller is driving another robot). */
-	bool IsDormant() const { return bDormant; }
+	/** @return True while the robot is switched off (its controller is driving another robot), or still being assembled. */
+	bool IsDormant() const { return bDormant || bAssembling; }
+
+	/** @return True while an AMetalRobotDispenser is still building this robot. */
+	bool IsAssembling() const { return bAssembling; }
+
+	/**
+	 * Marks the robot as being built by a robot dispenser: like dormant (no AI, firing or moving) but it
+	 * stands upright, can't be damaged or hacked, and the dispenser decides which parts are drawn.
+	 *
+	 * @param bNewAssembling True while the dispenser works on it; false powers it on.
+	 */
+	void SetAssembling(bool bNewAssembling);
 
 	/** @return True once the weapon arm (or every built-in gun) has been shot off; the robot then fights in melee. */
 	bool IsWeaponDisabled() const { return bWeaponDisabled; }
@@ -186,6 +223,23 @@ public:
 	void Stun(float Duration);
 
 	/**
+	 * Makes the robot "say" something: plays a random variant of the mood's voice sound ("voice_pain3") from
+	 * its body, at the pitch of its type (UMetalBotArchetype::VoicePitch). Robots the player is driving stay quiet, and so do dead ones
+	 * (except for the death scream) and robots with no voice (flyers).
+	 *
+	 * A robot says one thing at a time: the bark is dropped if it is already saying something as urgent or
+	 * more (see EMetalBark), and cuts off anything less urgent.
+	 *
+	 * @param Bark  The mood.
+	 * @param Delay Seconds to wait first (the laugh after a kill lets the victim's scream start).
+	 * @return True if the robot spoke (or will, after Delay).
+	 */
+	bool Speak(EMetalBark Bark, float Delay = 0.f);
+
+	/** @return True while the robot is saying something (see Speak). */
+	bool IsSpeaking() const;
+
+	/**
 	 * Restores health, capped at GetMaxHealth(). Ignored once dead.
 	 *
 	 * @param Amount Hit points to add.
@@ -193,13 +247,22 @@ public:
 	void Heal(float Amount);
 
 	/**
+	 * Sets health to a checkpoint snapshot's value (UMetalCheckpointSubsystem), capped at GetMaxHealth().
+	 * Ignored once dead.
+	 *
+	 * @param NewHealth Hit points to have.
+	 */
+	void RestoreHealth(float NewHealth);
+
+	/**
 	 * Enemy robots can be hijacked (a timed link, then they reboot back onto their own side). Friendly robots built for it
 	 * (bAllyHackable, e.g. parked Stalkers) accept an open-ended link instead.
 	 *
-	 * @param Hacker The robot firing the Hack Tether.
+	 * @param Hacker           The robot firing the Hack Tether.
+	 * @param bIgnoreFirewall  Answer as if no firewall were up (to tell "firewalled" apart from "not hackable at all").
 	 * @return True if Hacker may take control of this robot now.
 	 */
-	bool CanBeHackedBy(const AMetalBotCharacter* Hacker) const;
+	bool CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall = false) const;
 
 	/**
 	 * Marks the robot as under the player's control: it joins the Heroes and its hack glow pulses.
@@ -213,6 +276,20 @@ public:
 
 	/** @return Seconds a hijack link to this robot lasts (from the archetype). */
 	float GetPossessionDuration() const;
+
+	/**
+	 * Blocks the Hack Tether for a while after a failed hack (the robot "puts up a firewall").
+	 * CanBeHackedBy returns false until it drops, and the hack glow stutters meanwhile.
+	 *
+	 * @param Duration Seconds the firewall stays up.
+	 */
+	void RaiseFirewall(float Duration);
+
+	/** @return Seconds left on the firewall, or 0 when the robot can be hacked again. */
+	float GetFirewallTimeRemaining() const;
+
+	/** @return True while a firewall from a failed hack is up. */
+	bool IsFirewalled() const { return GetFirewallTimeRemaining() > 0.f; }
 
 	/**
 	 * Powers the robot down, then after Delay it explodes, damaging nearby enemies of its current team.
@@ -266,10 +343,27 @@ public:
 	/** Lobs one grenade (GrenadeWeapon) towards the aim point, if any are left. */
 	void ThrowGrenade();
 
+	// --- Secondary attack (archetype SecondaryWeapon, e.g. the Brute's rockets) ------------------
+
+	/** @return True if this robot's archetype has a built-in secondary weapon. */
+	bool HasSecondaryWeapon() const;
+
+	/** Holds the secondary trigger: Tick() fires the secondary weapon whenever its cooldown is over. */
+	void StartSecondaryFire();
+
+	/** Releases the secondary trigger. */
+	void StopSecondaryFire() { bSecondaryHeld = false; }
+
+	/** @return True when the secondary weapon could fire right now (cooldown over, robot able to shoot). */
+	bool IsSecondaryReady() const;
+
+	/** @return 0 just fired .. 1 ready, for the HUD's cooldown bar. */
+	float GetSecondaryReadyFraction() const;
+
 	/**
-	 * @param bNewAiming True while the aim button is held (zooms the action camera).
+	 * @param bNewAiming True while the aim button is held (zooms the action camera). Ignored while crouched.
 	 */
-	void SetAiming(bool bNewAiming) { bAiming = bNewAiming; }
+	void SetAiming(bool bNewAiming) { bAiming = bNewAiming && !bIsCrouched; }
 
 	/** @return True while the aim button is held. */
 	bool IsAiming() const { return bAiming; }
@@ -289,15 +383,28 @@ public:
 	bool IsSprinting() const { return bSprinting; }
 
 	/**
-	 * Crouches into a sneak (slow, quiet, hard to spot) or stands back up. Ignored by robots that can't crouch.
+	 * Crouches into a sneak or stands back up. Ignored by robots that can't crouch. Crouched, the robot tucks its
+	 * arms and legs into its body to pass for a console and slides around on its base: it can't shoot, aim, throw
+	 * grenades, jump or sprint (StartFire, SetAiming, ThrowGrenade and Jump are ignored), but it can still hack.
 	 *
 	 * @param bNewSneaking True to sneak.
 	 */
 	void SetSneaking(bool bNewSneaking);
 
-	/** @return True while crouched. */
+	/** @return True while crouched (in the console disguise). */
 	UFUNCTION(BlueprintPure, Category="Metalization")
 	bool IsSneaking() const { return bIsCrouched; }
+
+	/**
+	 * Marks the crouch as the automatic one taken while hacking. Enemies don't treat that crouch as suspicious
+	 * the way they treat a robot ducking down in front of them (see AMetalBotAIController::Sense).
+	 *
+	 * @param bNewHackCrouch True while the player is hacking from this body.
+	 */
+	void SetHackCrouch(bool bNewHackCrouch) { bHackCrouch = bNewHackCrouch; }
+
+	/** @return True while crouched because the player is hacking from this body. */
+	bool IsHackCrouching() const { return bHackCrouch && bIsCrouched; }
 
 	/** @return True if this robot's archetype can sprint / crouch at all. */
 	bool CanSprint() const;
@@ -319,6 +426,12 @@ public:
 
 	/** @return Slot the current swap will equip, or INDEX_NONE. */
 	int32 GetSwapTargetSlot() const { return IsSwappingWeapon() ? SwapTargetSlot : INDEX_NONE; }
+
+	/**
+	 * @return 0..1 progress through the quick weapon draw (gun arm drops out of view, the new gun comes up) used
+	 * by robots without an acted-out swap, or -1 when not drawing.
+	 */
+	float GetDrawProgress() const;
 
 	// --- Aim / scope ---------------------------------------------------------------------------------
 
@@ -362,6 +475,23 @@ public:
 
 	/** @return True while a reload is in progress. */
 	bool IsReloading() const { return ReloadEndTime > 0.f; }
+
+	/** @return How far the current reload has got, 0-1 (0 when not reloading). Drives the HUD's reload bar. */
+	float GetReloadFraction() const;
+
+	/**
+	 * Timeline of the reload animation. The reload sound is ~1.15 s long and is timed to end with the reload, so
+	 * longer reloads open with a "fetch a fresh cell" pre-roll and the eject / seat / rack beats always land on
+	 * the sound's clicks.
+	 *
+	 * @param OutElapsed   Seconds since the reload started.
+	 * @param OutSoundTime Seconds into the reload sound (negative during the pre-roll).
+	 * @return False when not reloading.
+	 */
+	bool GetReloadTimeline(float& OutElapsed, float& OutSoundTime) const;
+
+	/** Length of the "reload" sound in seconds; the animation beats are authored against it. */
+	static constexpr float ReloadSoundLength = 1.15f;
 
 	/** Weapon thrown by ThrowGrenade(). Filled from the archetype at BeginPlay if left empty. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Metalization|Combat")
@@ -487,6 +617,9 @@ protected:
 	 */
 	void FireMelee(const FMetalWeaponSlot& Slot);
 
+	/** Fires the archetype's SecondaryWeapon once from SecondaryMuzzleBone and starts its cooldown. */
+	void FireSecondaryOnce();
+
 	/** Moves rounds from the reserve into the clip at the end of a reload. */
 	void FinishReload();
 
@@ -503,6 +636,12 @@ protected:
 	 * @param Value     Value to set.
 	 */
 	void SetMaterialScalar(FName Parameter, float Value);
+
+	/** Sets a vector parameter on every dynamic material of the robot ("HitFlashColor"). */
+	void SetMaterialVector(FName Parameter, const FLinearColor& Value);
+
+	/** The player's low-health warning: a red body flash and a double beep, repeated every second. */
+	void TickLowHealthWarning(float Now);
 
 	/** Players turn with the controller (strafe); AI turns smoothly towards its focus point. */
 	virtual void ConfigureRotationForController();
@@ -534,6 +673,12 @@ protected:
 
 	/** Advances an acted-out weapon swap through its detach / rack / attach beats. */
 	void TickWeaponSwap(float Now);
+
+	/** Plays the reload's sound and its eject / seat sparks on the beats of the animation. */
+	void TickReload();
+
+	/** Swaps the gun mesh at the bottom of a quick draw and ends it. */
+	void TickWeaponDraw(float Now);
 
 	/** Shows the most recently stowed weapons on the back rack. */
 	void RefreshRack();
@@ -614,6 +759,8 @@ protected:
 	bool bSprinting = false;
 	/** Smoothed 0..1 crouch amount, for the animator. */
 	float CrouchAlpha = 0.f;
+	/** Crouched automatically for a hack (see SetHackCrouch). */
+	bool bHackCrouch = false;
 	/** Smoothed 0..1 sprint amount, for the animator and camera. */
 	float SprintAlpha = 0.f;
 	/** Distance walked since the last footstep. */
@@ -628,6 +775,12 @@ protected:
 	int32 SwapTargetSlot = INDEX_NONE;
 	/** 0 reaching, 1 gun off, 2 racked/drawn, 3 attached. */
 	int32 SwapStage = 0;
+	/** World time the quick draw started, or -1. */
+	float DrawStartTime = -1.f;
+	/** True once the quick draw has swapped the gun mesh (half way). */
+	bool bDrawSwapped = false;
+	/** Seconds the quick draw takes. */
+	static constexpr float DrawDuration = 0.45f;
 	/** Slots most recently stowed first; the first two are drawn on the rack. */
 	TArray<int32> RackOrder;
 
@@ -677,19 +830,36 @@ protected:
 	bool bRagdoll = false;
 	/** Switched off: no firing, moving or footsteps (see SetDormant). */
 	bool bDormant = false;
+	/** Being built by a robot dispenser (see SetAssembling). */
+	bool bAssembling = false;
 	bool bHijacked = false;
+	/** World time the firewall from a failed hack drops (see RaiseFirewall). */
+	float FirewallEndTime = -1.f;
+	/** The firewall was up last tick, so the glow is reset once when it drops. */
+	bool bFirewallGlow = false;
 	bool bWeaponDisabled = false;
 	bool bFireHeld = false;
+	bool bSecondaryHeld = false;
 	bool bAiming = false;
+	/** World time the secondary weapon is ready again. */
+	float NextSecondaryFireTime = 0.f;
 	bool bHasAITarget = false;
 	FVector AITargetPoint = FVector::ZeroVector;
 	/** World time when the weapon may fire again. */
 	float NextFireTime = 0.f;
 	/** World time a reload finishes, or 0 when not reloading. */
 	float ReloadEndTime = 0.f;
+	/** Length of the current reload in seconds (the weapon's ReloadTime when it started). */
+	float ReloadDuration = 0.f;
+	/** Reload beats already played: 0 none, 1 sound started, 2 cell ejected, 3 fresh cell seated. */
+	int32 ReloadBeat = 0;
 	float StunEndTime = 0.f;
 	/** 1 right after a hit, fading to 0; drives the HitFlash material parameter. */
 	float HitFlash = 0.f;
+	/** 1.25 at each low-health pulse (held at 1 briefly), fading to 0; drives HitFlash in red while it outshines the hit flash. */
+	float LowHealthFlash = 0.f;
+	/** World time of the next low-health pulse, or 0 while health isn't low (the first pulse is immediate). */
+	float NextLowHealthPulseTime = 0.f;
 	float LastDamageTakenTime = -100.f;
 	/** Camera distance and offset from the archetype; the action camera blends around these. */
 	float DefaultArmLength = 300.f;
@@ -709,4 +879,12 @@ protected:
 	TSet<FName> BrokenMuzzles;
 	/** Extra mesh rotation around the capsule centre (flyers pitch and bank the body with it). */
 	FQuat MeshTilt = FQuat::Identity;
+	/** Whether this robot talks (see Speak). Flyers don't. */
+	bool bHasVoice = true;
+	/** The voice line being said, if any (it destroys itself when the line ends). */
+	TWeakObjectPtr<UAudioComponent> Voice;
+	/** Mood of the line in Voice. */
+	EMetalBark VoiceBark = EMetalBark::Chatter;
+	/** World time before which another cry of pain is skipped, so rapid fire doesn't stutter. */
+	float NextPainTime = 0.f;
 };

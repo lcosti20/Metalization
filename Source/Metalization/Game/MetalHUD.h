@@ -80,13 +80,15 @@ private:
 
 	/**
 	 * The dialogue box at the bottom of the screen: speaker name over the word-wrapped line. It slides up
-	 * when it opens and stays put across back-to-back lines.
+	 * when it opens and stays put across back-to-back lines. The line types out one character at a time
+	 * at (characters in the line / (its Duration - 1 s)) per second, so the finished line holds for a second.
 	 *
 	 * @param Line     Line on screen.
+	 * @param LineTime Seconds the line has been on screen.
 	 * @param OpenTime Seconds since the box opened.
 	 * @param UI       Resolution scale factor.
 	 */
-	void DrawDialogueBox(const struct FMetalDialogueLine& Line, float OpenTime, float UI);
+	void DrawDialogueBox(const struct FMetalDialogueLine& Line, float LineTime, float OpenTime, float UI);
 
 	/**
 	 * A handheld radio with pulsing signal waves above Pawn's head, shown while an NPC talks to the player.

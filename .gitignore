@@ -30,5 +30,8 @@ __pycache__/
 *.o
 *.obj
 
+# Pixabay licence certificates name the downloading account; keep them local.
+/Art/Music/*-license.txt
+
 # Blender backup files
 *.blend[0-9]*

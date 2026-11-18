@@ -10,6 +10,6 @@ public class MetalizationEditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
-		ExtraModuleNames.Add("Metalization");
+		ExtraModuleNames.AddRange(new string[] { "Metalization", "MetalizationEditor" });
 	}
 }

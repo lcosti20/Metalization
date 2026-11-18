@@ -13,6 +13,7 @@
 #include "MetalProjectile.h"
 #include "MetalWeaponData.h"
 #include "Camera/CameraComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -34,6 +35,18 @@
 DEFINE_LOG_CATEGORY(LogMetal);
 
 FOnMetalBotDied AMetalBotCharacter::OnAnyBotDied;
+
+namespace
+{
+	/** Ground handling on foot... */
+	constexpr float WalkFriction = 8.f;
+	constexpr float WalkBraking = 2000.f;
+	constexpr float WalkAcceleration = 2400.f;
+	/** ...and crouched, gliding on the console base: slow to get going, slow to stop. */
+	constexpr float SlideFriction = 0.6f;
+	constexpr float SlideBraking = 350.f;
+	constexpr float SlideAcceleration = 900.f;
+}
 
 AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -90,8 +103,9 @@ AMetalBotCharacter::AMetalBotCharacter(const FObjectInitializer& ObjectInitializ
 	Move->AirControl = 0.6f;
 	Move->MaxWalkSpeed = 500.f;
 	Move->JumpZVelocity = 650.f;
-	Move->MaxAcceleration = 2400.f;
-	Move->BrakingDecelerationWalking = 2000.f;
+	Move->MaxAcceleration = WalkAcceleration;
+	Move->BrakingDecelerationWalking = WalkBraking;
+	Move->GroundFriction = WalkFriction;
 	Move->RotationRate = FRotator(0.f, 600.f, 0.f);
 	Move->bOrientRotationToMovement = false;
 	// The player's own body keeps falling/landing while the player is busy driving another robot.
@@ -261,7 +275,7 @@ bool AMetalBotCharacter::IsInCombatStance() const
 		return bHasAITarget || bFireHeld;
 	}
 	const UWorld* World = GetWorld();
-	return !UsesActionCamera() || bAiming || bFireHeld || (World && World->GetTimeSeconds() - LastFireTime < 1.5f);
+	return !UsesActionCamera() || bAiming || bFireHeld || bSecondaryHeld || (World && World->GetTimeSeconds() - LastFireTime < 1.5f);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -277,6 +291,17 @@ void AMetalBotCharacter::SetTeam(EMetalTeam NewTeam)
 bool AMetalBotCharacter::IsHostileTo(const AMetalBotCharacter* Other) const
 {
 	return Other && Other != this && Team != EMetalTeam::Neutral && Other->Team != EMetalTeam::Neutral && Team != Other->Team;
+}
+
+void AMetalBotCharacter::SetAssembling(bool bNewAssembling)
+{
+	bAssembling = bNewAssembling;
+	SetCanBeDamaged(!bAssembling);
+	StopFire();
+	if (bAssembling)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+	}
 }
 
 bool AMetalBotCharacter::IsStunned() const
@@ -298,7 +323,11 @@ void AMetalBotCharacter::Stun(float Duration)
 {
 	if (!bDead)
 	{
-		StunEndTime = FMath::Max(StunEndTime, GetWorld()->GetTimeSeconds() + Duration);
+		if (!IsStunned())
+		{
+			Speak(EMetalBark::Confused);
+		}
+		StunEndTime =FMath::Max(StunEndTime, GetWorld()->GetTimeSeconds() + Duration);
 		StopFire();
 		GetCharacterMovement()->StopMovementImmediately();
 	}
@@ -312,9 +341,17 @@ void AMetalBotCharacter::Heal(float Amount)
 	}
 }
 
-bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
+void AMetalBotCharacter::RestoreHealth(float NewHealth)
 {
-	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bHijacked || IsPlayerControlled())
+	if (!bDead)
+	{
+		Health = FMath::Clamp(NewHealth, 1.f, MaxHealth);
+	}
+}
+
+bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker, bool bIgnoreFirewall) const
+{
+	if (Archetype == nullptr || Hacker == nullptr || Hacker == this || bDead || bAssembling || bHijacked || IsPlayerControlled() || (!bIgnoreFirewall && IsFirewalled()))
 	{
 		return false;
 	}
@@ -328,6 +365,18 @@ bool AMetalBotCharacter::CanBeHackedBy(const AMetalBotCharacter* Hacker) const
 	return Archetype->bHackable && Hacker->IsHostileTo(this);
 }
 
+void AMetalBotCharacter::RaiseFirewall(float Duration)
+{
+	FirewallEndTime = GetWorld()->GetTimeSeconds() + Duration;
+	bFirewallGlow = true;
+}
+
+float AMetalBotCharacter::GetFirewallTimeRemaining() const
+{
+	const UWorld* World = GetWorld();
+	return World ? FMath::Max(0.f, FirewallEndTime - World->GetTimeSeconds()) : 0.f;
+}
+
 EMetalTeam AMetalBotCharacter::GetBaseTeam() const
 {
 	return bOverrideTeam ? TeamOverride : (Archetype ? Archetype->Team : EMetalTeam::Villains);
@@ -335,6 +384,11 @@ EMetalTeam AMetalBotCharacter::GetBaseTeam() const
 
 void AMetalBotCharacter::SetHijacked(bool bNewHijacked)
 {
+	if (bNewHijacked && !bHijacked)
+	{
+		// Hacked: a baffled warble as the link takes hold.
+		Speak(EMetalBark::Confused);
+	}
 	bHijacked = bNewHijacked;
 	SetTeam(bHijacked ? EMetalTeam::Heroes : GetBaseTeam());
 	SetMaterialScalar(TEXT("HackGlow"), bHijacked ? 1.f : 0.f);
@@ -380,6 +434,8 @@ void AMetalBotCharacter::SetWeapons(const TArray<FMetalWeaponSlot>& NewWeapons, 
 	Weapons = NewWeapons;
 	CurrentWeapon = INDEX_NONE;
 	SwapStartTime = -1.f;
+	DrawStartTime = -1.f;
+	ReloadEndTime = 0.f;
 	CarriedGun->SetVisibility(false);
 	RackOrder.Reset();
 	EquipWeapon(EquipIndex);
@@ -468,6 +524,16 @@ void AMetalBotCharacter::EquipWeapon(int32 SlotIndex)
 	}
 	ReloadEndTime = 0.f;
 	const UWorld* World = GetWorld();
+	if (DrawStartTime >= 0.f)
+	{
+		// Picked another gun mid-draw: the draw carries on and brings that one up instead.
+		CurrentWeapon = SlotIndex;
+		if (bDrawSwapped)
+		{
+			RefreshWeaponVisual();
+		}
+		return;
+	}
 	// Players with an animated rig act the swap out; everything else (AI, respawn loadouts) swaps instantly.
 	const bool bActOut = World && World->IsGameWorld() && HasActorBegunPlay() && Archetype && Archetype->bAnimatedWeaponSwap
 		&& IsPlayerControlled() && !bDead && !bWeaponDisabled && Weapons.IsValidIndex(CurrentWeapon);
@@ -480,13 +546,55 @@ void AMetalBotCharacter::EquipWeapon(int32 SlotIndex)
 		PlaySound(TEXT("swap_servo"));
 		return;
 	}
+	// Everyone else in play does a quick draw: the gun arm drops out of view, the gun changes at the bottom and
+	// the new one comes back up (UMetalBotAnimInstance). Loadouts set before play just appear.
+	const bool bQuickDraw = World && World->IsGameWorld() && HasActorBegunPlay() && !bDead && !bWeaponDisabled
+		&& Weapons.IsValidIndex(CurrentWeapon);
 	CurrentWeapon = SlotIndex;
+	if (bQuickDraw)
+	{
+		DrawStartTime = World->GetTimeSeconds();
+		bDrawSwapped = false;
+		NextFireTime = FMath::Max(NextFireTime, DrawStartTime + DrawDuration);
+		PlaySound(TEXT("swap_servo"), 0.6f);
+		return;
+	}
 	if (World)
 	{
 		NextFireTime = World->GetTimeSeconds() + 0.2f;
 	}
 	RefreshWeaponVisual();
 	RefreshRack();
+}
+
+float AMetalBotCharacter::GetDrawProgress() const
+{
+	if (DrawStartTime < 0.f || GetWorld() == nullptr)
+	{
+		return -1.f;
+	}
+	return FMath::Clamp((GetWorld()->GetTimeSeconds() - DrawStartTime) / DrawDuration, 0.f, 1.f);
+}
+
+void AMetalBotCharacter::TickWeaponDraw(float Now)
+{
+	if (DrawStartTime < 0.f)
+	{
+		return;
+	}
+	const float T = GetDrawProgress();
+	if (!bDrawSwapped && (T >= 0.5f || bDead || bDormant))
+	{
+		// The arm is at the bottom of its drop, out of the way: change the gun.
+		bDrawSwapped = true;
+		RefreshWeaponVisual();
+		RefreshRack();
+		PlaySound(TEXT("swap_attach"), 0.6f);
+	}
+	if (T >= 1.f || bDead || bDormant)
+	{
+		DrawStartTime = -1.f;
+	}
 }
 
 float AMetalBotCharacter::GetSwapProgress() const
@@ -680,6 +788,11 @@ void AMetalBotCharacter::RefreshWeaponVisual()
 
 void AMetalBotCharacter::StartFire()
 {
+	if (bIsCrouched)
+	{
+		// Tucked into the console disguise: the gun arm is folded away.
+		return;
+	}
 	bFireHeld = true;
 	if (UsesActionCamera() && GetController())
 	{
@@ -693,18 +806,168 @@ void AMetalBotCharacter::StopFire()
 	bFireHeld = false;
 }
 
+bool AMetalBotCharacter::HasSecondaryWeapon() const
+{
+	return Archetype && Archetype->SecondaryWeapon;
+}
+
+void AMetalBotCharacter::StartSecondaryFire()
+{
+	if (!HasSecondaryWeapon() || bIsCrouched)
+	{
+		return;
+	}
+	bSecondaryHeld = true;
+	if (UsesActionCamera() && GetController())
+	{
+		SetActorRotation(FRotator(0.f, GetController()->GetControlRotation().Yaw, 0.f));
+	}
+}
+
+bool AMetalBotCharacter::IsSecondaryReady() const
+{
+	return HasSecondaryWeapon() && !bDead && !bDormant && !bAssembling && !IsStunned() && !IsSwappingWeapon()
+		&& GetWorld()->GetTimeSeconds() >= NextSecondaryFireTime;
+}
+
+float AMetalBotCharacter::GetSecondaryReadyFraction() const
+{
+	if (!HasSecondaryWeapon())
+	{
+		return 0.f;
+	}
+	const float Interval = FMath::Max(0.01f, Archetype->SecondaryWeapon->GetLevel(0).FireInterval);
+	return FMath::Clamp(1.f - (NextSecondaryFireTime - GetWorld()->GetTimeSeconds()) / Interval, 0.f, 1.f);
+}
+
+void AMetalBotCharacter::FireSecondaryOnce()
+{
+	UWorld* World = GetWorld();
+	const UMetalWeaponData* Data = Archetype->SecondaryWeapon;
+	const FMetalWeaponLevel& Stats = Data->GetLevel(0);
+	NextSecondaryFireTime = World->GetTimeSeconds() + Stats.FireInterval;
+	LastFireTime = World->GetTimeSeconds();
+
+	// Shots leave MuzzleOffset in front of the launcher bone, along the aim.
+	const FVector Forward = GetAimForward();
+	const FName Bone = Archetype->SecondaryMuzzleBone;
+	const FVector Base = GetMesh()->GetBoneIndex(Bone) != INDEX_NONE ? GetMesh()->GetBoneLocation(Bone) : GetEyesLocation();
+	const FVector Muzzle = Base + Forward * Data->MuzzleOffset * GetMesh()->GetRelativeScale3D().X;
+	FVector AimDirection = (GetAimPoint() - Muzzle).GetSafeNormal();
+	if (FVector::DotProduct(AimDirection, Forward) < 0.2f)
+	{
+		AimDirection = Forward;
+	}
+	const float AIError = (!IsPlayerControlled() && Archetype) ? Archetype->AimErrorDegrees : 0.f;
+	const float Cone = FMath::DegreesToRadians(Data->SpreadDegrees + AIError);
+
+	for (int32 Pellet = 0; Pellet < FMath::Max(1, Data->Pellets); ++Pellet)
+	{
+		const FVector Direction = FMath::VRandCone(AimDirection, Cone);
+		FActorSpawnParameters Params;
+		Params.Owner = this;
+		Params.Instigator = this;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (AMetalProjectile* Projectile = World->SpawnActor<AMetalProjectile>(Muzzle, Direction.Rotation(), Params))
+		{
+			Projectile->Launch(Data, Stats.Damage, Direction * Data->ProjectileSpeed);
+		}
+	}
+
+	AMetalFX::SpawnMuzzleFlash(World, Muzzle, AimDirection, Data->TracerColor, 14.f);
+	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.8f);
+	if (IsPlayerControlled())
+	{
+		AMetalBotAIController::ReportNoise(this, Muzzle, Data->NoiseRadius);
+	}
+	UE_LOG(LogMetal, Log, TEXT("%s fired secondary %s"), *GetName(), *Data->DisplayName.ToString());
+}
+
 void AMetalBotCharacter::Reload()
 {
 	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
-	if (Slot == nullptr || Slot->Data == nullptr || Slot->Data->bInfiniteAmmo || IsReloading())
+	if (Slot == nullptr || Slot->Data == nullptr || Slot->Data->bInfiniteAmmo || IsReloading() || IsSwappingWeapon() || DrawStartTime >= 0.f)
 	{
 		return;
 	}
 	if (Slot->Clip < Slot->Data->GetLevel(Slot->Level).ClipSize && Slot->Reserve > 0)
 	{
-		ReloadEndTime = GetWorld()->GetTimeSeconds() + Slot->Data->ReloadTime;
-		PlaySound(Slot->Data->ReloadSound, IsPlayerControlled() ? 1.f : 0.5f);
+		ReloadDuration = FMath::Max(0.01f, Slot->Data->ReloadTime);
+		ReloadEndTime = GetWorld()->GetTimeSeconds() + ReloadDuration;
+		// The sound and the eject / seat sparks follow the animation's beats (TickReload).
+		ReloadBeat = 0;
+		TickReload();
 	}
+}
+
+bool AMetalBotCharacter::GetReloadTimeline(float& OutElapsed, float& OutSoundTime) const
+{
+	if (!IsReloading() || GetWorld() == nullptr)
+	{
+		return false;
+	}
+	OutElapsed = FMath::Max(0.f, ReloadDuration - (ReloadEndTime - GetWorld()->GetTimeSeconds()));
+	// The sound ends with the reload. A reload shorter than the sound squeezes the beats to fit.
+	const float SoundStart = FMath::Max(0.f, ReloadDuration - ReloadSoundLength);
+	const float Squeeze = ReloadSoundLength / FMath::Min(ReloadSoundLength, ReloadDuration);
+	OutSoundTime = (OutElapsed - SoundStart) * Squeeze;
+	return true;
+}
+
+void AMetalBotCharacter::TickReload()
+{
+	float Elapsed = 0.f;
+	float SoundTime = 0.f;
+	if (!GetReloadTimeline(Elapsed, SoundTime))
+	{
+		return;
+	}
+	const FMetalWeaponSlot* Slot = GetCurrentWeapon();
+	// Where the spent cell pops out: the gun on the arm (weapon bone), or the built-in guns' muzzles.
+	auto SparkAt = [this](float Radius, const FLinearColor& Color)
+	{
+		TArray<FName, TInlineAllocator<2>> Bones;
+		if (Archetype && Archetype->MuzzleBones.Num() > 0)
+		{
+			Bones.Append(Archetype->MuzzleBones);
+		}
+		else
+		{
+			Bones.Add(GetMesh()->GetBoneIndex(GetRig().WeaponBone) != INDEX_NONE ? GetRig().WeaponBone : GetRig().ForearmR);
+		}
+		for (const FName Bone : Bones)
+		{
+			if (GetMesh()->GetBoneIndex(Bone) != INDEX_NONE)
+			{
+				AMetalFX::SpawnBurst(GetWorld(), GetMesh()->GetBoneLocation(Bone), Color, Radius * GetMesh()->GetRelativeScale3D().X, 0.15f);
+			}
+		}
+	};
+	if (ReloadBeat == 0 && SoundTime >= 0.f)
+	{
+		ReloadBeat = 1;
+		// Positional, so a reloading enemy nearby is a cue to push; the player's own is full volume.
+		PlaySound(Slot && Slot->Data ? Slot->Data->ReloadSound : FName(TEXT("reload")), IsPlayerControlled() ? 1.f : 0.8f);
+	}
+	if (ReloadBeat == 1 && SoundTime >= 0.06f)
+	{
+		ReloadBeat = 2;
+		SparkAt(5.f, FLinearColor(0.35f, 0.3f, 0.25f)); // the spent cell, dull
+	}
+	if (ReloadBeat == 2 && SoundTime >= 0.48f)
+	{
+		ReloadBeat = 3;
+		SparkAt(7.f, Slot && Slot->Data ? Slot->Data->TracerColor : FLinearColor(1.f, 0.4f, 0.1f)); // fresh cell lights up
+	}
+}
+
+float AMetalBotCharacter::GetReloadFraction() const
+{
+	if (!IsReloading() || ReloadDuration <= 0.f)
+	{
+		return 0.f;
+	}
+	return FMath::Clamp(1.f - (ReloadEndTime - GetWorld()->GetTimeSeconds()) / ReloadDuration, 0.f, 1.f);
 }
 
 void AMetalBotCharacter::FinishReload()
@@ -900,7 +1163,7 @@ void AMetalBotCharacter::FireOnce()
 			AMetalFX::SpawnBeam(World, Muzzle, Impact, Data->TracerColor, 2.5f, 0.07f);
 			if (bHit)
 			{
-				AMetalFX::SpawnBurst(World, Impact, Data->TracerColor, 10.f, 0.12f);
+				AMetalFX::SpawnImpact(World, Impact, Hit.ImpactNormal, Data->TracerColor, 10.f);
 				if (Pellet == 0)
 				{
 					MetalAudio::PlayAt(this, Data->ImpactSound, Impact, 0.6f, 0.1f);
@@ -930,7 +1193,14 @@ void AMetalBotCharacter::FireOnce()
 		}
 	}
 
-	AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 8.f, 0.06f);
+	if (Data->FireMode == EMetalFireMode::Thrown)
+	{
+		AMetalFX::SpawnBurst(World, Muzzle, Data->TracerColor, 8.f, 0.06f);
+	}
+	else
+	{
+		AMetalFX::SpawnMuzzleFlash(World, Muzzle, AimDirection, Data->TracerColor, 8.f);
+	}
 	MetalAudio::PlayAt(this, Data->FireSound, Muzzle, IsPlayerControlled() ? 1.f : 0.7f);
 	if (IsPlayerControlled())
 	{
@@ -988,7 +1258,7 @@ void AMetalBotCharacter::FireMelee(const FMetalWeaponSlot& Slot)
 
 void AMetalBotCharacter::ThrowGrenade()
 {
-	if (GrenadeWeapon == nullptr || Grenades <= 0 || bDead || bDormant || IsStunned())
+	if (GrenadeWeapon == nullptr || Grenades <= 0 || bDead || bDormant || IsStunned() || bIsCrouched)
 	{
 		return;
 	}
@@ -1080,7 +1350,7 @@ int32 AMetalBotCharacter::FindHitZone(const FDamageEvent& DamageEvent) const
 
 float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (bDead || DamageAmount <= 0.f)
+	if (bDead || bAssembling || DamageAmount <= 0.f)
 	{
 		return 0.f;
 	}
@@ -1133,6 +1403,11 @@ float AMetalBotCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		PlaySound(IsPlayerControlled() ? TEXT("player_hit") : TEXT("robot_hit"), 0.8f);
 	}
 	LastDamageTakenTime = GetWorld()->GetTimeSeconds();
+	// Cry out, but not on every round of a burst (the death scream follows instead if this hit is fatal).
+	if (Health > 0.f && LastDamageTakenTime >= NextPainTime && Speak(EMetalBark::Pain))
+	{
+		NextPainTime = LastDamageTakenTime + FMath::FRandRange(0.7f, 1.4f);
+	}
 
 	const FVector From = Attacker ? Attacker->GetActorLocation() : (DamageCauser ? DamageCauser->GetActorLocation() : GetActorLocation() - GetActorForwardVector());
 	if (UMetalBotAnimInstance* Anim = Cast<UMetalBotAnimInstance>(GetMesh()->GetAnimInstance()))
@@ -1166,7 +1441,7 @@ void AMetalBotCharacter::DisableWeapon()
 		return;
 	}
 	bWeaponDisabled = true;
-	AMetalFX::SpawnBurst(GetWorld(), GetMuzzleLocation(), FLinearColor(1.f, 0.6f, 0.1f), 40.f, 0.4f);
+	AMetalFX::SpawnExplosion(GetWorld(), GetMuzzleLocation(), FLinearColor(1.f, 0.6f, 0.1f), 40.f, 0.4f);
 	RefreshWeaponVisual();
 }
 
@@ -1180,7 +1455,7 @@ void AMetalBotCharacter::BreakZone(const FMetalHitZone& Zone)
 	{
 		BrokenMuzzles.Add(Zone.DisablesMuzzleBone);
 		const float Scale = GetMesh()->GetRelativeScale3D().X;
-		AMetalFX::SpawnBurst(GetWorld(), GetMesh()->GetBoneLocation(Zone.DisablesMuzzleBone), FLinearColor(1.f, 0.6f, 0.1f), 120.f * Scale, 0.5f);
+		AMetalFX::SpawnExplosion(GetWorld(), GetMesh()->GetBoneLocation(Zone.DisablesMuzzleBone), FLinearColor(1.f, 0.6f, 0.1f), 120.f * Scale, 0.5f);
 		// The arm comes off: hide it and drop its physics bodies so shots pass through the gap.
 		GetMesh()->HideBoneByName(Zone.Bone, PBO_Term);
 		if (GetWorkingMuzzleCount() == 0)
@@ -1216,6 +1491,13 @@ void AMetalBotCharacter::Die(AController* Killer)
 		bRagdoll = true;
 	}
 
+	// The last scream, and a moment later the killer gloats (unless it's the robot's own doing).
+	Speak(EMetalBark::Death);
+	if (AMetalBotCharacter* Victor = Killer ? Cast<AMetalBotCharacter>(Killer->GetPawn()) : nullptr; Victor && Victor != this)
+	{
+		Victor->Speak(EMetalBark::Laugh, FMath::FRandRange(0.5f, 0.9f));
+	}
+
 	// Kill counts, hijack endings and battle tickets all hang off this event.
 	OnAnyBotDied.Broadcast(this, Killer);
 	if (AMetalBotAIController* AI = Cast<AMetalBotAIController>(GetController()))
@@ -1233,7 +1515,7 @@ void AMetalBotCharacter::Explode()
 		return;
 	}
 	const FVector Center = GetMesh()->GetComponentLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	AMetalFX::SpawnBurst(GetWorld(), Center, FLinearColor(1.f, 0.45f, 0.1f), 140.f * GetMesh()->GetRelativeScale3D().X, 0.5f);
+	AMetalFX::SpawnExplosion(GetWorld(), Center, FLinearColor(1.f, 0.45f, 0.1f), 140.f * GetMesh()->GetRelativeScale3D().X, 0.5f);
 	MetalAudio::PlayAt(this, TEXT("robot_explode"), Center, FMath::Clamp(GetMesh()->GetRelativeScale3D().X, 0.8f, 2.f));
 	if (IsPlayerControlled())
 	{
@@ -1321,12 +1603,9 @@ bool AMetalBotCharacter::CanSneak() const
 
 void AMetalBotCharacter::SetWantsSprint(bool bNewWantsSprint)
 {
+	// Held while crouched it does nothing (TickLocomotion won't sprint a crouched robot) until the robot stands;
+	// the player controller decides when a sprint press stands the robot up.
 	bWantsSprint = bNewWantsSprint;
-	if (bWantsSprint && bIsCrouched)
-	{
-		// Breaking into a run stands the robot up.
-		UnCrouch();
-	}
 }
 
 void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
@@ -1337,12 +1616,30 @@ void AMetalBotCharacter::SetSneaking(bool bNewSneaking)
 	}
 	if (bNewSneaking)
 	{
-		bWantsSprint = false;
+		// Tucking in folds the gun arm away: let go of the triggers and the scope.
+		bFireHeld = false;
+		bSecondaryHeld = false;
+		bAiming = false;
 		Crouch();
 	}
 	else
 	{
 		UnCrouch();
+	}
+	// The engine applies stance changes on its next movement update; do it now, so a press that stands the robot
+	// up can shoot or jump in the same frame, and a body crouched for a hack is down before it goes dormant.
+	// (Standing up fails, and is retried every update, while something is overhead.)
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	if (Move->bWantsToCrouch != bIsCrouched)
+	{
+		if (Move->bWantsToCrouch)
+		{
+			Move->Crouch(false);
+		}
+		else
+		{
+			Move->UnCrouch(false);
+		}
 	}
 }
 
@@ -1477,6 +1774,48 @@ void AMetalBotCharacter::TickJetpack(float Now)
 	}
 }
 
+bool AMetalBotCharacter::IsSpeaking() const
+{
+	return Voice.IsValid() && Voice->IsPlaying();
+}
+
+bool AMetalBotCharacter::Speak(EMetalBark Bark, float Delay)
+{
+	const bool bDeath = Bark == EMetalBark::Death;
+	if (!bHasVoice || IsPlayerControlled() || (bDead && !bDeath) || IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	if (Delay > 0.f)
+	{
+		FTimerHandle Handle;
+		GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(this, [this, Bark]() { Speak(Bark); }), Delay, false);
+		return true;
+	}
+	if (IsSpeaking())
+	{
+		if (Bark <= VoiceBark)
+		{
+			return false;
+		}
+		Voice->Stop();
+	}
+	static const TCHAR* Bases[] = {TEXT("voice_chatter"), TEXT("voice_orders"), TEXT("voice_laugh"), TEXT("voice_alert"),
+		TEXT("voice_confused"), TEXT("voice_pain"), TEXT("voice_death")};
+	const FName Name = MetalAudio::PickVariant(Bases[static_cast<int32>(Bark)]);
+	if (Name.IsNone())
+	{
+		return false;
+	}
+	// Idle muttering is quieter than the rest, and every line wavers a little in pitch.
+	const float Volume = Bark == EMetalBark::Chatter ? 0.45f : (Bark == EMetalBark::Orders ? 0.6f : 0.75f);
+	const float TypePitch = Archetype ? Archetype->VoicePitch : 1.f;
+	Voice = MetalAudio::PlayAttached(GetMesh(), Name, Volume, TypePitch * FMath::FRandRange(0.96f, 1.04f));
+	VoiceBark = Bark;
+	UE_LOG(LogMetal, Log, TEXT("[Voice] %s says %s"), *GetName(), *Name.ToString());
+	return true;
+}
+
 void AMetalBotCharacter::PlaySound(FName Name, float Volume) const
 {
 	MetalAudio::PlayAt(this, Name, GetActorLocation(), Volume);
@@ -1500,7 +1839,7 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		// Sprint only while running forward-ish with nothing else going on. In the air, keep the momentum.
 		const FVector ViewForward = GetController() ? FRotator(0.f, GetController()->GetControlRotation().Yaw, 0.f).Vector() : GetActorForwardVector();
 		const bool bForward = Speed > 50.f && FVector::DotProduct(Velocity2D / Speed, ViewForward) > 0.3f;
-		const bool bFree = !bAiming && !bFireHeld && Now - LastFireTime > 0.4f && !IsSwappingWeapon() && !IsStunned() && !bDormant;
+		const bool bFree = !bAiming && !bFireHeld && !bSecondaryHeld && Now - LastFireTime > 0.4f && !IsSwappingWeapon() && !IsStunned() && !bDormant;
 		if (Move->IsFalling())
 		{
 			bSprinting = bSprinting && bWantsSprint;
@@ -1512,6 +1851,14 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		// Also restores full speed to a hijacked robot that was walking at its slow patrol pace.
 		Move->MaxWalkSpeed = bSprinting ? Archetype->SprintSpeed : Archetype->WalkSpeed;
 	}
+	if (CanSneak())
+	{
+		// Crouched, the robot has no legs out to walk on: it glides on its base, picking up speed slowly and
+		// drifting to a stop instead of planting its feet.
+		Move->GroundFriction = bIsCrouched ? SlideFriction : WalkFriction;
+		Move->BrakingDecelerationWalking = bIsCrouched ? SlideBraking : WalkBraking;
+		Move->MaxAcceleration = bIsCrouched ? SlideAcceleration : WalkAcceleration;
+	}
 	else
 	{
 		bSprinting = false;
@@ -1522,8 +1869,9 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 	const float SprintTarget = bSprinting ? FMath::Clamp((Speed - Archetype->WalkSpeed * 0.8f) / SprintRange, 0.f, 1.f) : 0.f;
 	SprintAlpha = FMath::FInterpTo(SprintAlpha, SprintTarget, DeltaSeconds, 6.f);
 
-	// Footsteps every half stride. Sneaking is near silent; walking and especially sprinting carry to enemies.
-	if (Move->IsMovingOnGround() && Speed > 40.f && !bDormant)
+	// Footsteps every half stride; walking and especially sprinting carry to enemies. A crouched robot slides
+	// on its base and makes no steps at all.
+	if (Move->IsMovingOnGround() && Speed > 40.f && !bDormant && !bIsCrouched)
 	{
 		StepDistance += Speed * DeltaSeconds;
 		const float Scale = GetMesh()->GetRelativeScale3D().X;
@@ -1532,10 +1880,10 @@ void AMetalBotCharacter::TickLocomotion(float DeltaSeconds)
 		{
 			StepDistance = 0.f;
 			const bool bHeavy = Scale > 1.5f || Archetype->CapsuleHalfHeight > 100.f;
-			const float Volume = bIsCrouched ? 0.12f : (bPlayer ? 0.55f : 0.4f);
+			const float Volume = bPlayer ? 0.55f : 0.4f;
 			const FVector Feet = GetActorLocation() - FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 			MetalAudio::PlayAt(this, bHeavy ? TEXT("footstep_heavy") : (bSprinting ? TEXT("footstep_sprint") : TEXT("footstep")), Feet, Volume, 0.12f);
-			if (bPlayer && !bIsCrouched)
+			if (bPlayer)
 			{
 				AMetalBotAIController::ReportNoise(this, Feet, bSprinting ? 1300.f : 450.f);
 			}
@@ -1726,26 +2074,69 @@ void AMetalBotCharacter::SetMaterialScalar(FName Parameter, float Value)
 	}
 }
 
+void AMetalBotCharacter::SetMaterialVector(FName Parameter, const FLinearColor& Value)
+{
+	for (UMaterialInstanceDynamic* MID : DynamicMaterials)
+	{
+		if (MID)
+		{
+			MID->SetVectorParameterValue(Parameter, Value);
+		}
+	}
+}
+
+void AMetalBotCharacter::TickLowHealthWarning(float Now)
+{
+	const bool bLow = IsPlayerControlled() && !bDead && !bDormant && Health <= MaxHealth * LowHealthFraction;
+	if (!bLow)
+	{
+		// Healing or switching bodies stops the warning; dropping low again warns straight away.
+		NextLowHealthPulseTime = 0.f;
+		return;
+	}
+	if (Now >= NextLowHealthPulseTime)
+	{
+		NextLowHealthPulseTime = Now + 1.f;
+		// Above 1 so the red holds at full for a beat before fading: about 0.25 s in all (see Tick).
+		LowHealthFlash = 1.25f;
+		MetalAudio::Play2D(this, TEXT("low_health"), 0.6f);
+		UE_LOG(LogMetal, Log, TEXT("%s low health warning (%.0f / %.0f)"), *GetName(), Health, MaxHealth);
+	}
+}
+
 void AMetalBotCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	const float Now = GetWorld()->GetTimeSeconds();
 
 	// Material feedback: the hit flash fades out in about 1/6 s, and a hijacked robot's hack glow pulses.
-	if (HitFlash > 0.f)
+	TickLowHealthWarning(Now);
+	if (HitFlash > 0.f || LowHealthFlash > 0.f)
 	{
 		HitFlash = FMath::Max(0.f, HitFlash - DeltaSeconds * 6.f);
-		SetMaterialScalar(TEXT("HitFlash"), HitFlash);
+		LowHealthFlash = FMath::Max(0.f, LowHealthFlash - DeltaSeconds * 5.f);
+		// Both flashes share the material's HitFlash parameter; whichever is brighter picks the colour.
+		const bool bLowHealthShows = LowHealthFlash > HitFlash;
+		SetMaterialVector(TEXT("HitFlashColor"), bLowHealthShows ? FLinearColor(3.f, 0.05f, 0.03f) : FLinearColor(2.f, 0.8f, 0.3f));
+		SetMaterialScalar(TEXT("HitFlash"), FMath::Max(HitFlash, FMath::Min(1.f, LowHealthFlash)));
 	}
 	if (bHijacked && !bDead)
 	{
 		SetMaterialScalar(TEXT("HackGlow"), 0.65f + 0.35f * FMath::Sin(Now * 6.f));
+	}
+	else if (bFirewallGlow && !bDead)
+	{
+		// A firewall after a failed hack: the hack glow stutters on and off until it drops.
+		bFirewallGlow = IsFirewalled();
+		SetMaterialScalar(TEXT("HackGlow"), bFirewallGlow && FMath::Frac(Now * 5.f) < 0.35f ? 0.8f : 0.f);
 	}
 
 	// Movement state first (sprint, crouch, footsteps), then the things that pose or move the body, and the
 	// flip last because it sets the final mesh transform.
 	TickLocomotion(DeltaSeconds);
 	TickWeaponSwap(Now);
+	TickWeaponDraw(Now);
+	TickReload();
 	TickJetpack(Now);
 	TickActionCamera(DeltaSeconds);
 	TickFlip(Now);
@@ -1761,7 +2152,7 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 
 	// The trigger: fire whenever it is held and the weapon is ready. A player has to click again for each shot
 	// of a semi-automatic weapon; AI keeps holding the trigger for its bursts.
-	if (bFireHeld && !bDead && !bDormant && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
+	if (bFireHeld && !bDead && !bDormant && !bIsCrouched && !IsStunned() && !IsReloading() && !IsSwappingWeapon() && Now >= NextFireTime)
 	{
 		FireOnce();
 		const FMetalWeaponSlot* Slot = GetCurrentWeapon();
@@ -1769,5 +2160,10 @@ void AMetalBotCharacter::Tick(float DeltaSeconds)
 		{
 			bFireHeld = false;
 		}
+	}
+	// The secondary trigger (built-in rockets) has its own cooldown and fires alongside the main gun.
+	if (bSecondaryHeld && IsSecondaryReady())
+	{
+		FireSecondaryOnce();
 	}
 }

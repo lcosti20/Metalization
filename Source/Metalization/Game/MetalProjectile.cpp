@@ -3,6 +3,7 @@
 #include "MetalAudio.h"
 #include "MetalBotAIController.h"
 #include "MetalBotCharacter.h"
+#include "MetalEnergyField.h"
 #include "MetalFX.h"
 #include "MetalWeaponData.h"
 #include "Components/SphereComponent.h"
@@ -128,6 +129,11 @@ void AMetalProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherAct
 	// Grenades bounce off the world and only go off early when they hit a robot.
 	if (FuseTime > 0.f && Cast<AMetalBotCharacter>(OtherActor) == nullptr)
 	{
+		// A grenade bouncing off an energy field still ripples it (once per bounce, not every resting frame).
+		if (AMetalEnergyField* Field = Cast<AMetalEnergyField>(OtherActor); Field && GetVelocity().SizeSquared() > FMath::Square(150.f))
+		{
+			Field->AddRipple(Hit.ImpactPoint);
+		}
 		return;
 	}
 	Detonate(&Hit);
@@ -143,10 +149,21 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 
 	UWorld* World = GetWorld();
 	AController* InstigatorController = GetInstigatorController();
-	const FVector Location = DirectHit ? FVector(DirectHit->ImpactPoint) : GetActorLocation();
+	FVector Location = DirectHit ? FVector(DirectHit->ImpactPoint) : GetActorLocation();
+	AMetalEnergyField* HitField = DirectHit ? Cast<AMetalEnergyField>(DirectHit->GetActor()) : nullptr;
+	if (HitField)
+	{
+		// Blow up just in front of the field: a blast centred on its surface would trace out the far side
+		// and reach robots behind it.
+		Location += DirectHit->ImpactNormal * 15.f;
+	}
 
 	if (ExplosionRadius > 0.f)
 	{
+		if (HitField)
+		{
+			HitField->AddRipple(DirectHit->ImpactPoint);
+		}
 		// Full damage inside the inner 30% of the radius, falling to 25% at the edge. Nothing is ignored, so
 		// the shooter can be caught by their own blast (AMetalBotCharacter halves self-damage).
 		TArray<AActor*> Ignore;
@@ -158,13 +175,28 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 			World->OverlapMultiByObjectType(Overlaps, Location, FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(ExplosionRadius));
 			for (const FOverlapResult& Overlap : Overlaps)
 			{
-				if (AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(Overlap.GetActor()))
+				AMetalBotCharacter* Bot = Cast<AMetalBotCharacter>(Overlap.GetActor());
+				// The pulse goes round cover as before, but an energy field in between soaks it up.
+				FCollisionQueryParams FieldParams(SCENE_QUERY_STAT(MetalEmpField), false, this);
+				FieldParams.AddIgnoredActor(Bot);
+				FHitResult FieldHit;
+				const bool bShielded = Bot && World->LineTraceSingleByChannel(FieldHit, Location, Bot->GetActorLocation(), ECC_Visibility, FieldParams)
+					&& FieldHit.GetActor() && FieldHit.GetActor()->IsA<AMetalEnergyField>();
+				if (Bot && !bShielded)
 				{
 					Bot->Stun(StunDuration);
 				}
 			}
 		}
-		AMetalFX::SpawnBurst(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		// An EMP is a clean pulse of light; anything else is a fireball.
+		if (StunDuration > 0.f)
+		{
+			AMetalFX::SpawnBurst(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		}
+		else
+		{
+			AMetalFX::SpawnExplosion(World, Location, Color, ExplosionRadius * 0.8f, 0.45f);
+		}
 		MetalAudio::PlayAt(this, StunDuration > 0.f ? TEXT("emp_blast") : TEXT("explosion"), Location, 1.f, 0.08f);
 		// Explosions are heard a long way off.
 		if (AMetalBotCharacter* Thrower = Cast<AMetalBotCharacter>(GetInstigator()); Thrower && Thrower->IsPlayerControlled())
@@ -179,7 +211,8 @@ void AMetalProjectile::Detonate(const FHitResult* DirectHit)
 			UGameplayStatics::ApplyPointDamage(DirectHit->GetActor(), Damage, GetVelocity().GetSafeNormal(), *DirectHit,
 				InstigatorController, this, UDamageType::StaticClass());
 		}
-		AMetalFX::SpawnBurst(World, Location, Color, 18.f * Scale, 0.15f);
+		const FVector Normal = DirectHit ? FVector(DirectHit->ImpactNormal) : -GetVelocity().GetSafeNormal();
+		AMetalFX::SpawnImpact(World, Location, Normal, Color, 18.f * Scale);
 		MetalAudio::PlayAt(this, ImpactSound, Location, 0.5f, 0.1f);
 	}
 	Destroy();

@@ -3,10 +3,16 @@
 #include "MetalAudio.h"
 #include "MetalBotArchetype.h"
 #include "MetalBotCharacter.h"
+#include "MetalEnergyField.h"
+#include "MetalTypes.h"
+#include "MetalWeaponData.h"
 #include "EngineUtils.h"
+#include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "NavMesh/NavMeshPath.h"
 
 namespace
 {
@@ -53,6 +59,7 @@ void AMetalBotAIController::SetState(EMetalAIState NewState)
 		if (AMetalBotCharacter* Bot = GetBot())
 		{
 			Bot->StopFire();
+			Bot->StopSecondaryFire();
 			const float Speed = Bot->Archetype ? Bot->Archetype->WalkSpeed : 500.f;
 			Bot->GetCharacterMovement()->MaxWalkSpeed = NewState == EMetalAIState::Patrol ? Speed * Bot->PatrolSpeedFraction : Speed;
 		}
@@ -103,8 +110,19 @@ void AMetalBotAIController::EnterCombat(AMetalBotCharacter* Enemy, bool bAlertSq
 		AlertTime = GetWorld()->GetTimeSeconds();
 		MetalAudio::PlayAt(this, TEXT("alert"), Bot->GetEyesLocation(), 0.8f, 0.f);
 	}
+	if (State != EMetalAIState::Combat && State != EMetalAIState::Retreat && Enemy && bAlertSquad)
+	{
+		// Only the robot that spotted the enemy calls out; the squad it alerts doesn't all shout at once.
+		Bot->Speak(EMetalBark::Alert);
+		NextBarkTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
+	}
 	Suspicion = 0.f;
 	Target = Enemy;
+	// Decide straight away whether an energy field is in the way, so the first burst isn't wasted on it
+	// before the next Sense; the path check follows in Sense.
+	bFieldBlocksShot = Enemy && HasLineOfSight(Enemy) && IsShotBlockedByField(Enemy);
+	bTargetReachable = false;
+	bReachKnown = false;
 	LastSeenTime = GetWorld()->GetTimeSeconds();
 	SetState(EMetalAIState::Combat);
 	SetFocus(Enemy);
@@ -131,8 +149,26 @@ bool AMetalBotAIController::HasLineOfSight(const AMetalBotCharacter* Other) cons
 	const AMetalBotCharacter* Bot = GetBot();
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalAISight), false, Bot);
 	Params.AddIgnoredActor(Other);
+	AMetalEnergyField::IgnoreAll(GetWorld(), Params);
 	FHitResult Hit;
 	return !GetWorld()->LineTraceSingleByChannel(Hit, Bot->GetEyesLocation(), Other->GetActorLocation(), ECC_Visibility, Params);
+}
+
+bool AMetalBotAIController::IsShotBlockedByField(const AMetalBotCharacter* Other) const
+{
+	const AMetalBotCharacter* Bot = GetBot();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(MetalAIFieldCheck), false, Bot);
+	Params.AddIgnoredActor(Other);
+	FHitResult Hit;
+	return GetWorld()->LineTraceSingleByChannel(Hit, Bot->GetEyesLocation(), Other->GetActorLocation(), ECC_Visibility, Params)
+		&& Hit.GetActor() && Hit.GetActor()->IsA<AMetalEnergyField>();
+}
+
+bool AMetalBotAIController::CanReach(const AMetalBotCharacter* Other) const
+{
+	const AMetalBotCharacter* Bot = GetBot();
+	const UNavigationPath* Path = UNavigationSystemV1::FindPathToActorSynchronously(GetWorld(), Bot->GetNavAgentLocation(), const_cast<AMetalBotCharacter*>(Other), 0.f, const_cast<AMetalBotCharacter*>(Bot));
+	return Path && Path->IsValid() && !Path->IsPartial();
 }
 
 void AMetalBotAIController::Sense()
@@ -151,15 +187,34 @@ void AMetalBotAIController::Sense()
 			Target.Reset();
 			ClearFocus(EAIFocusPriority::Gameplay);
 			bTargetVisible = false;
+			bFieldBlocksShot = false;
+			bReachKnown = false;
 			SetState(EMetalAIState::Investigate);
 		}
 		else
 		{
 			bTargetVisible = HasLineOfSight(Current);
+			bFieldBlocksShot = bTargetVisible && IsShotBlockedByField(Current);
 			if (bTargetVisible)
 			{
 				LastSeenTime = GetWorld()->GetTimeSeconds();
 				LastKnownLocation = Current->GetActorLocation();
+			}
+			if (!bFieldBlocksShot)
+			{
+				bReachKnown = false;
+			}
+			else if (!bReachKnown || GetWorld()->GetTimeSeconds() >= NextReachCheckTime)
+			{
+				NextReachCheckTime = GetWorld()->GetTimeSeconds() + 1.f;
+				const bool bWasReachable = bTargetReachable;
+				bTargetReachable = CanReach(Current);
+				if (!bReachKnown || bWasReachable != bTargetReachable)
+				{
+					UE_LOG(LogMetal, Log, TEXT("[AI] %s sees %s through an energy field: holding fire, %s"), *GetBot()->GetActorNameOrLabel(),
+						*Current->GetActorNameOrLabel(), bTargetReachable ? TEXT("going round") : TEXT("no path, holding position"));
+				}
+				bReachKnown = true;
 			}
 		}
 	}
@@ -171,6 +226,7 @@ void AMetalBotAIController::Sense()
 	AMetalBotCharacter* Best = nullptr;
 	float BestDistance = Bot->Archetype->SightRange;
 	float BestRealDistance = 0.f;
+	bool bBestInCone = false;
 	for (TActorIterator<AMetalBotCharacter> It(GetWorld()); It; ++It)
 	{
 		AMetalBotCharacter* Other = *It;
@@ -190,13 +246,29 @@ void AMetalBotAIController::Sense()
 			Best = Other;
 			BestDistance = Distance;
 			BestRealDistance = RealDistance;
+			bBestInCone = bInCone;
 		}
 	}
 
-	// The player isn't spotted at a glance: suspicion builds while they stay in view (see BuildSuspicion).
+	// The player isn't spotted at a glance: suspicion builds while they stay in view (see BuildSuspicion). That
+	// includes the player's own body left crouched as a console while they hack (only the player can crouch).
 	// Other robots - including the player's allies - are fought on sight.
-	const bool bSuspect = Best && Best->IsPlayerControlled() && State != EMetalAIState::Combat;
+	const bool bDisguisedBody = Best && Best->IsDormant() && Best->IsSneaking();
+	const bool bSuspect = Best && (Best->IsPlayerControlled() || bDisguisedBody) && State != EMetalAIState::Combat;
+	// Ducking into the console disguise right in front of a robot fools nobody: if it watched the player standing
+	// on its last look and now sees them crouched, it attacks at once. The automatic crouch of a hack is exempt.
+	const bool bDuckedInView = bSuspect && bBestInCone && Best->IsSneaking() && !Best->IsHackCrouching()
+		&& LastSeenSuspect.Get() == Best && bLastSeenStanding;
+	LastSeenSuspect = bSuspect ? Best : nullptr;
+	bLastSeenStanding = bSuspect && !Best->IsSneaking();
 	bSuspectInView = bSuspect;
+	if (bDuckedInView)
+	{
+		UE_LOG(LogMetal, Log, TEXT("[AI] %s saw %s crouch in front of it: attacking"), *Bot->GetActorNameOrLabel(), *Best->GetActorNameOrLabel());
+		LastKnownLocation = Best->GetActorLocation();
+		EnterCombat(Best, true);
+		return;
+	}
 	if (bSuspect)
 	{
 		BuildSuspicion(Best, BestRealDistance);
@@ -225,12 +297,21 @@ void AMetalBotAIController::BuildSuspicion(AMetalBotCharacter* Suspect, float Di
 	AMetalBotCharacter* Bot = GetBot();
 	const float Now = GetWorld()->GetTimeSeconds();
 	// Seconds of continuous sight before attacking: under half a second up close, ~3.5 s at the edge of
-	// sight. Sneaking stretches that, sprinting and shooting shorten it, and a robot of our own side
-	// (hijacked by the player) passes at a glance unless it does something stupid.
+	// sight. Sprinting and shooting shorten it. A robot of our own side (hijacked by the player) passes at a
+	// glance unless it does something stupid, and so does a player crouched into a console: both stretch it
+	// by the same DisguiseFactor. A console that slides around is less convincing and is spotted faster.
+	constexpr float DisguiseFactor = 4.f;
+	constexpr float SlidingDisguiseFactor = 2.f;
 	float Seconds = FMath::GetMappedRangeValueClamped(FVector2D(300.f, Bot->Archetype->SightRange), FVector2D(0.4f, 3.5f), Distance);
+	const bool bOurOwnHijacked = Suspect->IsHijacked() && Suspect->GetBaseTeam() == Bot->GetTeam();
 	if (Suspect->IsSneaking())
 	{
-		Seconds *= 2.5f;
+		const bool bSliding = Suspect->GetVelocity().Size2D() > 40.f;
+		Seconds *= bSliding ? SlidingDisguiseFactor : DisguiseFactor;
+	}
+	else if (bOurOwnHijacked)
+	{
+		Seconds *= DisguiseFactor;
 	}
 	if (Suspect->IsSprinting())
 	{
@@ -239,10 +320,6 @@ void AMetalBotAIController::BuildSuspicion(AMetalBotCharacter* Suspect, float Di
 	if (Now - Suspect->GetLastFireTime() < 1.5f)
 	{
 		Seconds *= 0.25f;
-	}
-	if (Suspect->IsHijacked() && Suspect->GetBaseTeam() == Bot->GetTeam())
-	{
-		Seconds *= 4.f;
 	}
 	const float Before = Suspicion;
 	Suspicion = FMath::Min(1.f, Suspicion + SenseInterval / FMath::Max(Seconds, 0.05f));
@@ -309,15 +386,60 @@ void AMetalBotAIController::ReportNoise(AMetalBotCharacter* Instigator, const FV
 	}
 }
 
-bool AMetalBotAIController::MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe)
+FPathFollowingRequestResult AMetalBotAIController::MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath)
+{
+	// Walkers only fly while a gravlift carries them (flyers have their own controller). The lift paused the
+	// move that led into it and resumes it at the top; a new request now would replan from mid-air.
+	const AMetalBotCharacter* Bot = GetBot();
+	if (Bot && Bot->GetCharacterMovement()->MovementMode == MOVE_Flying)
+	{
+		FPathFollowingRequestResult Result;
+		Result.Code = EPathFollowingRequestResult::Failed;
+		return Result;
+	}
+	return Super::MoveTo(MoveRequest, OutPath);
+}
+
+bool AMetalBotAIController::MoveToRandomPointNear(const FVector& Center, float Radius, bool bStrafe, bool bAllowClimb)
 {
 	UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	FNavLocation Point;
-	if (Nav && Nav->GetRandomReachablePointInRadius(Center, Radius, Point))
+	const AMetalBotCharacter* Bot = GetBot();
+	if (Nav == nullptr || Bot == nullptr)
 	{
+		return false;
+	}
+	// Strafing is a sidestep, not a trip: prefer points the robot can walk to over ones it could only reach by a
+	// jump link or a lift (the other side of a barricade, the level above), which would have it hopping back and
+	// forth mid-fight. The last tries look around the robot itself. If nothing is walkable and the target is
+	// above (it's down in a pit), take a jump: it climbs out.
+	FVector Fallback = FVector::ZeroVector;
+	bool bHasFallback = false;
+	// (With a climb allowed, climbing beats sidestepping inside the pit, so skip the tries near itself.)
+	for (int32 Try = 0; Try < (bStrafe ? (bAllowClimb ? 4 : 6) : 1); ++Try)
+	{
+		FNavLocation Point;
+		const bool bNearSelf = Try >= 4;
+		if (!Nav->GetRandomReachablePointInRadius(bNearSelf ? Bot->GetNavAgentLocation() : Center, bNearSelf ? 400.f : Radius, Point))
+		{
+			break;
+		}
+		if (bStrafe)
+		{
+			UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(GetWorld(), Bot->GetNavAgentLocation(), Point.Location, const_cast<AMetalBotCharacter*>(Bot));
+			if (Path == nullptr || !Path->IsValid() || Path->IsPartial())
+			{
+				continue;
+			}
+			if (Path->GetPath()->GetPathPoints().ContainsByPredicate([](const FNavPathPoint& P) { return FNavMeshNodeFlags(P.Flags).IsNavLink(); }))
+			{
+				Fallback = Point.Location;
+				bHasFallback = bAllowClimb;
+				continue;
+			}
+		}
 		return MoveToLocation(Point.Location, 50.f, true, true, false, bStrafe) != EPathFollowingRequestResult::Failed;
 	}
-	return false;
+	return bHasFallback && MoveToLocation(Fallback, 50.f, true, true, false, bStrafe) != EPathFollowingRequestResult::Failed;
 }
 
 void AMetalBotAIController::Tick(float DeltaSeconds)
@@ -329,14 +451,45 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 		return;
 	}
 	// EMP-stunned or switched-off robots stand still and hold fire, keeping their state for when they wake.
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (NextBarkTime <= 0.f)
+	{
+		// Stagger the first lines, so a squad that spawned together doesn't speak in chorus.
+		NextBarkTime = Now + FMath::FRandRange(2.f, 14.f);
+	}
 	if (Bot->IsStunned() || Bot->IsDormant())
 	{
 		StopMovement();
 		Bot->StopFire();
+		Bot->StopSecondaryFire();
+		// A long stun: keep sounding dazed.
+		if (Bot->IsStunned() && Now >= NextBarkTime)
+		{
+			Bot->Speak(EMetalBark::Confused);
+			NextBarkTime = Now + FMath::FRandRange(2.5f, 4.f);
+		}
 		return;
 	}
 
-	const float Now = GetWorld()->GetTimeSeconds();
+	// Unprompted lines: muttering on patrol (not while something has its attention), orders in a fight
+	// while the enemy is in view.
+	if (Now >= NextBarkTime)
+	{
+		if (State == EMetalAIState::Patrol && Suspicion <= 0.f)
+		{
+			Bot->Speak(EMetalBark::Chatter);
+			NextBarkTime = Now + FMath::FRandRange(7.f, 16.f);
+		}
+		else if (State == EMetalAIState::Combat && bTargetVisible)
+		{
+			Bot->Speak(EMetalBark::Orders);
+			NextBarkTime = Now + FMath::FRandRange(4.f, 9.f);
+		}
+		else
+		{
+			NextBarkTime = Now + 1.f;
+		}
+	}
 	// Look and listen a few times a second rather than every frame; the state ticks below act on the result.
 	if (Now >= NextSenseTime)
 	{
@@ -352,6 +505,75 @@ void AMetalBotAIController::Tick(float DeltaSeconds)
 	case EMetalAIState::Retreat:     TickRetreat(Now); break;
 	default: break;
 	}
+	TickNavLinkJump();
+}
+
+namespace
+{
+	/** Minimum launch speed for AI jumps across generated nav links, cm/s (~1.5 m high, the player's jump). */
+	constexpr float AILinkJumpZ = 700.f;
+	/** Clearance over a climb's top edge the launch aims for, cm, and the strongest launch allowed (~2.6 m). */
+	constexpr float AILinkClimbClearance = 50.f;
+	constexpr float AILinkMaxJumpZ = 900.f;
+}
+
+void AMetalBotAIController::TickNavLinkJump()
+{
+	AMetalBotCharacter* Bot = GetBot();
+	const UPathFollowingComponent* Follow = GetPathFollowingComponent();
+	UCharacterMovementComponent* Move = Bot->GetCharacterMovement();
+	if (Follow == nullptr || Follow->GetStatus() != EPathFollowingStatus::Moving || !Follow->GetPath().IsValid())
+	{
+		JumpLinkPath = nullptr;
+		return;
+	}
+	const FNavigationPath* Path = Follow->GetPath().Get();
+	const int32 Index = static_cast<int32>(Follow->GetCurrentPathIndex());
+
+	// Already in the air over a link: use the mid-air jump once the first one peaks short of the landing.
+	if (Move->IsFalling())
+	{
+		if (Path == JumpLinkPath && Index == JumpLinkSegment && bJumpLinkRises && Move->Velocity.Z <= 0.f && Bot->JumpCurrentCount < Bot->JumpMaxCount
+			&& Bot->GetActorLocation().Z - Bot->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() < JumpLinkEndZ + 10.f)
+		{
+			Bot->Jump();
+		}
+		return;
+	}
+	if (!Move->IsMovingOnGround() || (Path == JumpLinkPath && Index == JumpLinkSegment))
+	{
+		return;
+	}
+	const TArray<FNavPathPoint>& Points = Path->GetPathPoints();
+	if (!Points.IsValidIndex(Index + 1) || !FNavMeshNodeFlags(Points[Index].Flags).IsNavLink() || Points[Index].CustomNavLinkId != FNavLinkId::Invalid)
+	{
+		return;
+	}
+	// The segment starts once the robot reaches the link's start, so it is at the edge (or the obstacle) now.
+	// Launch it on an arc that comes down on the link's far end: a full jump for hops up and over obstacles, a
+	// small hop off ledges (walking off would fall short of the landing, sometimes into a lift beam).
+	JumpLinkPath = Path;
+	JumpLinkSegment = Index;
+	JumpLinkEndZ = Points[Index + 1].Location.Z;
+	const FVector Feet = Bot->GetActorLocation() - FVector(0.f, 0.f, Bot->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	const FVector To = Points[Index + 1].Location;
+	const float Rise = To.Z - Feet.Z;
+	bJumpLinkRises = Rise > 0.f;
+	const float Gravity = -Move->GetGravityZ();
+	// At least the player's jump (about 1.5 m), so the AI clears the waist-high cover the player is taught to hop,
+	// and enough to top a taller climb (out of the barricade ditch) with some clearance.
+	const float ClimbZ = Gravity > 0.f ? FMath::Sqrt(2.f * Gravity * (FMath::Max(Rise, 0.f) + AILinkClimbClearance)) : 0.f;
+	const float LaunchZ = Rise < -150.f ? 250.f : FMath::Clamp(ClimbZ, FMath::Max(Move->JumpZVelocity, AILinkJumpZ), AILinkMaxJumpZ);
+	const float Discriminant = LaunchZ * LaunchZ - 2.f * Gravity * Rise;
+	if (Gravity <= 0.f || Discriminant < 0.f)
+	{
+		// Higher than one jump reaches: jump, and the falling branch above adds the mid-air jump if it has one.
+		Bot->Jump();
+		return;
+	}
+	const float Airtime = (LaunchZ + FMath::Sqrt(Discriminant)) / Gravity;
+	const float Speed = FMath::Min(FVector::Dist2D(Feet, To) / Airtime, Move->GetMaxSpeed() * 1.5f);
+	Bot->LaunchCharacter((To - Feet).GetSafeNormal2D() * Speed + FVector(0.f, 0.f, LaunchZ), true, true);
 }
 
 void AMetalBotAIController::TickPatrol(float Now)
@@ -420,6 +642,7 @@ void AMetalBotAIController::TickCombat(float Now)
 		else
 		{
 			Bot->StopFire();
+			Bot->StopSecondaryFire();
 		}
 		return;
 	}
@@ -428,6 +651,7 @@ void AMetalBotAIController::TickCombat(float Now)
 	if (!bTargetVisible)
 	{
 		Bot->StopFire();
+		Bot->StopSecondaryFire();
 		if (Now - LastSeenTime > 2.5f && Now >= NextMoveTime)
 		{
 			MoveToLocation(LastKnownLocation, 150.f, true, true, true);
@@ -438,6 +662,28 @@ void AMetalBotAIController::TickCombat(float Now)
 			Target.Reset();
 			ClearFocus(EAIFocusPriority::Gameplay);
 			SetState(EMetalAIState::Investigate);
+		}
+		return;
+	}
+
+	// In sight but behind an energy field: shooting would only ripple it. Walk round to the target if the
+	// navmesh has a way (e.g. through an open gate), otherwise stand and watch until something changes.
+	if (bFieldBlocksShot)
+	{
+		Bot->StopFire();
+		Bot->StopSecondaryFire();
+		bBurstFiring = false;
+		if (Now >= NextMoveTime)
+		{
+			NextMoveTime = Now + 1.f;
+			if (bTargetReachable)
+			{
+				MoveToActor(Enemy, Archetype->PreferredRange * 0.5f, true, true, true);
+			}
+			else
+			{
+				StopMovement();
+			}
 		}
 		return;
 	}
@@ -457,6 +703,19 @@ void AMetalBotAIController::TickCombat(float Now)
 		Bot->StopFire();
 	}
 
+	// Built-in secondary weapon (Brute rockets): one shot whenever it's ready and the target is far enough away
+	// that the blast won't catch the shooter, with a random extra wait so volleys don't land like clockwork.
+	if (Bot->HasSecondaryWeapon() && Now >= NextSecondaryTime && Bot->IsSecondaryReady()
+		&& Distance > Archetype->SecondaryWeapon->ExplosionRadius * 1.3f + Bot->GetSimpleCollisionRadius())
+	{
+		Bot->StartSecondaryFire();
+		NextSecondaryTime = Now + FMath::FRandRange(0.5f, 2.f);
+	}
+	else
+	{
+		Bot->StopSecondaryFire();
+	}
+
 	// Reposition: strafe around the target at the preferred range.
 	if (Now >= NextMoveTime)
 	{
@@ -466,7 +725,7 @@ void AMetalBotAIController::TickCombat(float Now)
 		// Aim for a point at the preferred range, offset sideways by half that range so the robot circles
 		// the target instead of backing straight off; the clamp keeps it from drifting beyond the range.
 		const FVector Desired = Enemy->GetActorLocation() + (Away * Archetype->PreferredRange + Side * Archetype->PreferredRange * 0.5f).GetClampedToMaxSize(Archetype->PreferredRange);
-		MoveToRandomPointNear(Desired, 250.f, true);
+		MoveToRandomPointNear(Desired, 250.f, true, Enemy->GetActorLocation().Z > Bot->GetActorLocation().Z + 100.f);
 	}
 }
 
@@ -474,6 +733,7 @@ void AMetalBotAIController::TickRetreat(float Now)
 {
 	AMetalBotCharacter* Bot = GetBot();
 	Bot->StopFire();
+	Bot->StopSecondaryFire();
 	// On entering the state, run to a random spot about 9 m directly away from the enemy.
 	if (Now - StateStartTime < 0.1f)
 	{

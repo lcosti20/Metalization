@@ -72,6 +72,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float CapsuleHalfHeight = 68.f;
 
+	/**
+	 * Pitch of this robot type's voice (AMetalBotCharacter::Speak): 1 plays the voice sounds as recorded,
+	 * 0.5 an octave lower. Big robots get deep voices, small ones high.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body", meta=(ClampMin="0.3", ClampMax="2.0"))
+	float VoicePitch = 1.f;
+
 	/** Hit points at spawn and after a full repair. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Body")
 	float MaxHealth = 100.f;
@@ -141,6 +148,18 @@ public:
 	/** Built-in guns (Brute miniguns) fire from these bones instead of the weapon bone. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	TArray<FName> MuzzleBones;
+
+	/**
+	 * Built-in second weapon (the Brute's shoulder rocket launcher), fired alongside the main gun. Infinite ammo;
+	 * its level 0 FireInterval is the cooldown between shots. A player driving the robot fires it with the aim
+	 * button (right mouse / left trigger) instead of aiming. Null = no secondary attack.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TObjectPtr<UMetalWeaponData> SecondaryWeapon;
+
+	/** Bone the secondary weapon fires from (shots leave SecondaryWeapon->MuzzleOffset in front of it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	FName SecondaryMuzzleBone = NAME_None;
 
 	/** AI vision distance, cm. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")

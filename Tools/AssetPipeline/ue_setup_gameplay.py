@@ -11,11 +11,13 @@ Run after ue_import_assets.py (see run_pipeline.ps1). Creates:
 
 The maps are regenerated from scratch every run - make manual layout changes on a copy.
     /Game/Metalization/Maps/MZ_ProductionAlpha  the Production Alpha mission, + MZ_Title (ue_setup_alpha.py)
+    /Game/Metalization/Maps/MZ_DispenserTest     robot dispenser test map (ue_setup_dispenser.py)
     /Game/Metalization/Data/DA_Sounds           sound library (UMetalSoundLibrary) over /Game/Metalization/Audio
+    /Game/Metalization/FX/NS_*                  Niagara combat effects + their M_FX_* materials (ue_setup_fx.py)
 
 Maps are only rebuilt when their inputs changed (their level script, plus the model sizes/sockets the
 Outpost and Space maps place things by) or the map is missing; the hashes are kept under "levels" in
-import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space to
+import_state.json. Set MZ_LEVELS to a comma-separated subset of alpha,title,outpost,arena,flight,space,dispenser to
 force those, or MZ_FULL=1 to rebuild them all.
 """
 import hashlib
@@ -60,6 +62,12 @@ def setp(obj, **props):
     for k, v in props.items():
         obj.set_editor_property(k, v)
     return obj
+
+
+def rgb_color(rgb):
+    """0-1 RGB to an 8-bit unreal.Color. Always name the channels: unreal.Color's positional order is the
+    struct's memory order, B, G, R, A, so unreal.Color(r, g, b, a) swaps red and blue."""
+    return unreal.Color(r=int(rgb[0] * 255), g=int(rgb[1] * 255), b=int(rgb[2] * 255), a=255)
 
 
 def color(r, g, b):
@@ -119,6 +127,12 @@ def make_weapons():
         display_name="Twin Miniguns", fire_mode=unreal.MetalFireMode.HITSCAN, automatic=True, infinite_ammo=True,
         spread_degrees=3.5, range=6000.0, muzzle_offset=0.0, tracer_color=color(1.0, 0.9, 0.2),
         levels=[level({}, 3.5, 0.08)])
+    # The Brute's shoulder rocket launcher: its secondary attack (archetype secondary_weapon). Fires on its own
+    # cooldown - far slower than the pickup Rocket Launcher (0.9 s) - with a smaller, weaker blast.
+    w["BruteRockets"] = setp(data_asset("WD_BruteRockets", unreal.MetalWeaponData),
+        display_name="Shoulder Rockets", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=False, infinite_ammo=True,
+        spread_degrees=0.8, projectile_speed=2400.0, explosion_radius=320.0, muzzle_offset=70.0, noise_radius=3500.0,
+        tracer_color=color(1.0, 0.35, 0.05), levels=[level({}, 60.0, 3.5)])
     # The Stalker's four arm guns fire in turn (MuzzleBones); slugs leave from the gun tips.
     w["StalkerCannons"] = setp(data_asset("WD_StalkerCannons", unreal.MetalWeaponData),
         display_name="Arm Cannons", fire_mode=unreal.MetalFireMode.PROJECTILE, automatic=True, infinite_ammo=True,
@@ -149,7 +163,7 @@ def make_weapons():
         spread_degrees=0.4, range=9000.0, muzzle_offset=80.0, tracer_color=color(1.0, 0.15, 0.1), laser_sight=True,
         levels=[level({"shooter": held("sniper", "shooter")}, 28.0, 2.6)])
     sounds = {"Laser": "laser_fire", "Repeater": "repeater_fire", "Shotgun": "shotgun_fire", "RocketLauncher": "rocket_fire",
-              "EnemyLaser": "enemy_laser_fire", "ArmBlasters": "blaster_fire", "TwinMiniguns": "minigun_fire",
+              "BruteRockets": "rocket_fire", "EnemyLaser": "enemy_laser_fire", "ArmBlasters": "blaster_fire", "TwinMiniguns": "minigun_fire",
               "StalkerCannons": "blaster_fire", "TurretFlak": "blaster_fire", "Claw": "robot_hit", "EMPGrenade": "",
               "Sniper": "sniper_fire", "EnemySniper": "sniper_fire"}
     for key, sound in sounds.items():
@@ -163,9 +177,31 @@ def make_weapons():
 # --------------------------------------------------------------------------------------------
 # Sound library
 # --------------------------------------------------------------------------------------------
+# Sounds on the Music sound class (the menu's Music / Background slider). The robot voices (voice_*) go on
+# Voices (the Beep-boops slider); everything else is Effects.
+MUSIC_SOUNDS = {"music_background_loop", "ambience_loop", "battle_loop"}
+
+
+def volume_group(snake):
+    """@return Which sound class (volume slider) a sound belongs on: "music", "voices" or "effects"."""
+    if snake in MUSIC_SOUNDS:
+        return "music"
+    return "voices" if snake.startswith("voice_") else "effects"
+
+
+def sound_class(name):
+    """An empty sound class asset in Audio; MetalAudio sets its volume from the menu's sound settings."""
+    path = f"{ROOT}/Audio/{name}"
+    return load(path) or asset_tools.create_asset(name, f"{ROOT}/Audio", unreal.SoundClass, unreal.SoundClassFactory())
+
+
 def make_sound_library():
-    """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels."""
+    """DA_Sounds: every imported SW_* wave by its generate_sfx.py name, plus mix levels. Also puts each wave on
+    SC_Music, SC_Voices or SC_Effects, so the volume sliders in the menus can scale them."""
     lib = data_asset("DA_Sounds", unreal.MetalSoundLibrary)
+    classes = {"music": sound_class("SC_Music"), "effects": sound_class("SC_Effects"), "voices": sound_class("SC_Voices")}
+    for c in classes.values():
+        eal.save_loaded_asset(c)
     sounds = {}
     for path in eal.list_assets(f"{ROOT}/Audio", recursive=False, include_folder=False):
         asset = eal.load_asset(path)
@@ -173,7 +209,11 @@ def make_sound_library():
             name = asset.get_name()[3:]  # SW_LaserFire -> LaserFire
             snake = "".join("_" + c.lower() if c.isupper() else c for c in name).lstrip("_")
             sounds[unreal.Name(snake)] = asset
-    volumes = {"footstep": 0.6, "footstep_sprint": 0.7, "ambience_loop": 0.5, "battle_loop": 0.6, "swap_servo": 0.6,
+            wanted = classes[volume_group(snake)]
+            if asset.get_editor_property("sound_class_object") != wanted:
+                asset.set_editor_property("sound_class_object", wanted)
+                eal.save_loaded_asset(asset)
+    volumes = {"footstep": 0.6, "footstep_sprint": 0.7, "ambience_loop": 0.5, "battle_loop": 0.6, "music_background_loop": 0.8, "swap_servo": 0.6,
                "minigun_fire": 0.5, "enemy_laser_fire": 0.7, "ui_move": 0.6, "suspicion": 0.8}
     lib.set_editor_property("sounds", sounds)
     lib.set_editor_property("volumes", {unreal.Name(k): v for k, v in volumes.items()})
@@ -215,7 +255,9 @@ def make_archetypes(manifest, w):
                  archetype_id=cid, display_name=ch["display_name"], mesh=mesh(cid), parts=[p for p in parts if p],
                  team=unreal.MetalTeam.HEROES if ch["faction"] == "Heroes" else unreal.MetalTeam.VILLAINS,
                  capsule_radius=34.0, capsule_half_height=max(30.0, height * 0.5), hackable=False,
-                 max_health=100.0, walk_speed=350.0)
+                 max_health=100.0, walk_speed=350.0,
+                 # Voice pitch by size: 1.0 at 1.2 m tall, deeper for taller robots, higher for smaller ones.
+                 voice_pitch=min(1.4, max(0.5, round(math.sqrt(120.0 / max(30.0, height)), 2))))
         archetypes[cid] = a
 
     # Blue (Heroes) and Red (Villains) paint for the robots that fight on both sides: allies placed on the
@@ -252,7 +294,7 @@ def make_archetypes(manifest, w):
     # It shares the Shooter's id so it can hold weapons made for the Shooter skeleton.
     marksman = data_asset("DA_Bot_Marksman", unreal.MetalBotArchetype)
     for prop in ("archetype_id", "mesh", "parts", "unarmed_part", "team", "team_colors", "capsule_radius", "capsule_half_height", "rig",
-                 "melee_weapon", "hackable", "possession_duration", "camera_distance", "camera_offset"):
+                 "melee_weapon", "hackable", "possession_duration", "camera_distance", "camera_offset", "voice_pitch"):
         marksman.set_editor_property(prop, archetypes["shooter"].get_editor_property(prop))
     setp(marksman, display_name="Marksman", max_health=55.0, walk_speed=330.0,
          hit_zones=[zone("Head", "bip_head", 20.0, 2.0),
@@ -279,6 +321,7 @@ def make_archetypes(manifest, w):
                  knee_bend_degrees=28.0, bob_height=6.0, aim_with_both_arms=True),
          hit_zones=[zone("Head", "bip_head", 35.0, 1.6)],
          starting_weapons=[w["TwinMiniguns"]], melee_weapon=w["Claw"], muzzle_bones=["minigun_R", "minigun_L"], team_colors=faction_colors,
+         secondary_weapon=w["BruteRockets"], secondary_muzzle_bone="rocketlauncher",
          sight_range=4500.0, preferred_range=1400.0, aim_error_degrees=5.5, burst_duration=1.6, burst_pause=2.0,
          squad_alert_radius=3000.0, camera_distance=620.0, camera_offset=unreal.Vector(0.0, 120.0, 160.0))
 
@@ -348,6 +391,116 @@ def box(label, center, size, material="MI_Env_Floor", folder="Geometry", mesh=No
     return actor
 
 
+def energy_field(label, center, size, folder="Gate", rgb=(1.0, 0.3, 0.1)):
+    """See-through AMetalEnergyField slab (size in cm): blocks robots and shots, ripples where it is hit.
+    ue_setup_alpha.py has a copy (it can't import this script, which runs main() on import)."""
+    actor = spawn(unreal.MetalEnergyField, center, 0.0, label, folder)
+    actor.set_actor_scale3d(unreal.Vector(size[0] / 100.0, size[1] / 100.0, size[2] / 100.0))
+    actor.get_component_by_class(unreal.StaticMeshComponent).set_material(0, load(ENERGY_FIELD_MATERIAL))
+    actor.set_editor_property("field_color", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+    return actor
+
+
+ENERGY_FIELD_MATERIAL = ROOT + "/Materials/M_EnergyField"
+
+# Ring wave per shot: four ripple slots (HitN.xyz = world centre, HitN.a = age in s, -1 = unused), written
+# each frame by AMetalEnergyField. RippleLife must match AMetalEnergyField::RippleLife.
+RIPPLE_HLSL = """
+float g = 0;
+float4 h[4] = { float4(H0.xyz, A0), float4(H1.xyz, A1), float4(H2.xyz, A2), float4(H3.xyz, A3) };
+for (int i = 0; i < 4; i++)
+{
+    float age = h[i].w;
+    if (age >= 0 && age < Life)
+    {
+        float d = distance(Pos, h[i].xyz);
+        float fade = 1 - age / Life;
+        float ring = saturate(1 - abs(d - age * Speed) / Width);
+        g += ring * ring * fade * fade;
+        // Bright flash at the impact point for the first fifth of a second.
+        g += saturate(1 - d / (Width * 2)) * saturate(1 - age * 5) * 1.5;
+    }
+}
+return g;
+"""
+
+# Slow bands climbing the field plus fine flicker, so it reads as energy even when idle.
+SCAN_HLSL = """
+float bands = 0.5 + 0.5 * sin(Pos.z * 0.08 - T * 3.0);
+float fine = 0.5 + 0.5 * sin(Pos.z * 0.7 + T * 11.0);
+return 0.45 + 0.4 * bands * bands + 0.15 * fine;
+"""
+
+
+def make_energy_field_material():
+    """M_EnergyField: unlit, translucent, two-sided; Color, Opacity, Intensity, ripple Hit0..Hit3."""
+    mel = unreal.MaterialEditingLibrary
+    name, folder = "M_EnergyField", ROOT + "/Materials"
+    mat = load(f"{folder}/{name}")
+    if mat is None:
+        mat = asset_tools.create_asset(name, folder, unreal.Material, unreal.MaterialFactoryNew())
+    else:
+        mel.delete_all_material_expressions(mat)
+    setp(mat, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, blend_mode=unreal.BlendMode.BLEND_TRANSLUCENT,
+         two_sided=True, used_with_static_lighting=False)
+
+    def node(cls, x, y, **props):
+        return setp(mel.create_material_expression(mat, cls, x, y), **props)
+
+    def custom(code, inputs, x, y):
+        return node(unreal.MaterialExpressionCustom, x, y, code=code, output_type=unreal.CustomMaterialOutputType.CMOT_FLOAT1,
+                    inputs=[setp(unreal.CustomInput(), input_name=n) for n in inputs])
+
+    def scalar(pname, value, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=pname, default_value=value)
+
+    def mul(a, b, x, y, a_out="", b_out=""):
+        out = node(unreal.MaterialExpressionMultiply, x, y)
+        mel.connect_material_expressions(a, a_out, out, "A")
+        mel.connect_material_expressions(b, b_out, out, "B")
+        return out
+
+    def add(a, b, x, y):
+        out = node(unreal.MaterialExpressionAdd, x, y)
+        mel.connect_material_expressions(a, "", out, "A")
+        mel.connect_material_expressions(b, "", out, "B")
+        return out
+
+    pos = node(unreal.MaterialExpressionWorldPosition, -1400, 0)
+    time = node(unreal.MaterialExpressionTime, -1400, -200)
+    scan = custom(SCAN_HLSL, ["Pos", "T"], -1000, -200)
+    mel.connect_material_expressions(pos, "", scan, "Pos")
+    mel.connect_material_expressions(time, "", scan, "T")
+
+    ripple = custom(RIPPLE_HLSL, ["Pos", "Life", "Speed", "Width", "H0", "A0", "H1", "A1", "H2", "A2", "H3", "A3"], -1000, 200)
+    mel.connect_material_expressions(pos, "", ripple, "Pos")
+    for i, (pname, value) in enumerate((("RippleLife", 0.9), ("RippleSpeed", 650.0), ("RippleWidth", 30.0))):
+        mel.connect_material_expressions(scalar(pname, value, -1400, 150 + 80 * i), "", ripple, pname[6:])
+    for i in range(4):
+        hit = node(unreal.MaterialExpressionVectorParameter, -1400, 420 + 160 * i, parameter_name=f"Hit{i}",
+                   default_value=unreal.LinearColor(0.0, 0.0, 0.0, -1.0))
+        mel.connect_material_expressions(hit, "", ripple, f"H{i}")
+        mel.connect_material_expressions(hit, "A", ripple, f"A{i}")
+
+    color = node(unreal.MaterialExpressionVectorParameter, -700, -400, parameter_name="Color", default_value=unreal.LinearColor(1.0, 0.3, 0.1, 1.0))
+    intensity = scalar("Intensity", 3.0, -700, -250)
+    ripple_boost = scalar("RippleBoost", 4.0, -700, 300)
+    # Emissive = Color * Intensity * (scan + ripple * RippleBoost)
+    glow = add(scan, mul(ripple, ripple_boost, -500, 250), -350, 0)
+    emissive = mul(mul(color, intensity, -500, -350), glow, -150, -150)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    # Opacity = saturate(Opacity * scan + ripple * 0.6): mostly see-through, the rings thicken it.
+    base_opacity = scalar("Opacity", 0.2, -700, 100)
+    opacity = add(mul(base_opacity, scan, -500, 50), mul(ripple, scalar("RippleOpacity", 0.6, -700, 450), -500, 420), -350, 300)
+    clamp = node(unreal.MaterialExpressionSaturate, -150, 300)
+    mel.connect_material_expressions(opacity, "", clamp, "")
+    mel.connect_material_property(clamp, "", unreal.MaterialProperty.MP_OPACITY)
+    mel.recompile_material(mat)
+    eal.save_loaded_asset(mat)
+    log("material: " + mat.get_path_name())
+    return mat
+
+
 def floor(label, x0, x1, y0, y1, top=0.0, material="MI_Env_Floor", folder="Geometry"):
     return box(label, ((x0 + x1) / 2, (y0 + y1) / 2, top - 25), (x1 - x0, y1 - y0, 50), material, folder)
 
@@ -368,7 +521,7 @@ def light(label, loc, rgb, intensity=8000.0, radius=1600.0):
     actor = spawn(unreal.PointLight, loc, label=label, folder="Lighting")
     comp = actor.point_light_component
     comp.set_editor_property("intensity", intensity)
-    comp.set_editor_property("light_color", unreal.Color(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), 255))
+    comp.set_editor_property("light_color", rgb_color(rgb))
     comp.set_editor_property("attenuation_radius", radius)
     comp.set_editor_property("cast_shadows", False)
     return actor
@@ -436,11 +589,13 @@ def build_level(archetypes, w, manifest):
     HANGAR_X0 = -3000
 
     # --- Sky, sun and haze: late-afternoon industrial smog ---------------------------------
+    # Retuned in Sprint 5 once light colours stopped coming out with red and blue swapped (rgb_color): the
+    # warm smog, sun and brown materials stacked into solid orange, so the smog is thinner and greyer.
     sun = spawn(unreal.DirectionalLight, (0, 0, 2000), label="Sun", folder="Lighting")
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-55.0, yaw=-135.0), False)
     sun_comp = sun.get_component_by_class(unreal.DirectionalLightComponent)
     sun_comp.set_editor_property("intensity", 28.0)
-    sun_comp.set_editor_property("light_color", unreal.Color(255, 200, 150, 255))
+    sun_comp.set_editor_property("light_color", unreal.Color(r=255, g=230, b=205, a=255))
     sun_comp.set_editor_property("atmosphere_sun_light", True)
     atmosphere = spawn(unreal.SkyAtmosphere, (0, 0, 0), label="SkyAtmosphere", folder="Lighting")
     # Slightly desaturated, dusty sky for the outpost's industrial smog.
@@ -449,18 +604,20 @@ def build_level(archetypes, w, manifest):
     sky = spawn(unreal.SkyLight, (0, 0, 500), label="SkyLight", folder="Lighting")
     sky_comp = sky.get_component_by_class(unreal.SkyLightComponent)
     sky_comp.set_editor_property("real_time_capture", True)
-    sky_comp.set_editor_property("intensity", 0.3)
-    sky_comp.set_editor_property("light_color", unreal.Color(255, 205, 160, 255))
+    sky_comp.set_editor_property("intensity", 0.9)
+    sky_comp.set_editor_property("light_color", unreal.Color(r=255, g=205, b=160, a=255))
     sky_comp.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
     fog = spawn(unreal.ExponentialHeightFog, (0, 0, 0), label="Smog", folder="Lighting")
     fog_comp = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
-    fog_comp.set_editor_property("fog_density", 0.012)
-    fog_comp.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(0.45, 0.28, 0.14, 1.0))
+    fog_comp.set_editor_property("fog_density", 0.005)
+    fog_comp.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(0.3, 0.26, 0.22, 1.0))
     ppv = spawn(unreal.PostProcessVolume, (0, 0, 0), label="PostProcess", folder="Lighting")
     ppv.set_editor_property("unbound", True)
     settings = ppv.get_editor_property("settings")
     settings.set_editor_property("override_auto_exposure_bias", True)
-    settings.set_editor_property("auto_exposure_bias", 0.2)
+    settings.set_editor_property("auto_exposure_bias", -0.3)
+    settings.set_editor_property("override_color_saturation", True)
+    settings.set_editor_property("color_saturation", unreal.Vector4(0.9, 0.9, 0.9, 1.0))
     settings.set_editor_property("override_vignette_intensity", True)
     settings.set_editor_property("vignette_intensity", 0.5)
     ppv.set_editor_property("settings", settings)
@@ -513,14 +670,14 @@ def build_level(archetypes, w, manifest):
         x -= depth / 2 + 500
     wall("Boneyard_Divider_N", HANGAR_X0 - 50, HANGAR_X0 + 50, 600, Y, 700)
     wall("Boneyard_Divider_S", HANGAR_X0 - 50, HANGAR_X0 + 50, -Y, -600, 700)
-    light("BoneyardLight_A", (HANGAR_X0 - 2500, 0, 1400), (0.6, 0.7, 1.0), 30000.0, 4000.0)
-    light("BoneyardLight_B", (X0 + 1500, 0, 1400), (1.0, 0.6, 0.3), 30000.0, 4000.0)
+    light("BoneyardLight_A", (HANGAR_X0 - 2500, 0, 1400), (0.6, 0.7, 1.0), 9000.0, 4000.0)
+    light("BoneyardLight_B", (X0 + 1500, 0, 1400), (1.0, 0.65, 0.4), 9000.0, 4000.0)
     guide = bot("Guide", archetypes["guide"], (300, -500, 0), 150.0, patrol=0.0, passive=True, team=unreal.MetalTeam.NEUTRAL)
     for i, (x, y) in enumerate([(700, 400), (900, 600), (-900, 300)]):
         crate(f"HangarCrate_{i}", x, y)
     pickup("Pickup_Health_Hangar", unreal.MetalPickupType.HEALTH, (1000, -300, 0), 50.0)
-    light("HangarLight_A", (-1500, 0, 550), (1.0, 0.75, 0.45))
-    light("HangarLight_B", (0, 0, 550), (1.0, 0.75, 0.45))
+    light("HangarLight_A", (-1500, 0, 550), (1.0, 0.85, 0.65), 3000.0)
+    light("HangarLight_B", (0, 0, 550), (1.0, 0.85, 0.65), 3000.0)
 
     # --- B: Courtyard firefight ---------------------------------------------------------------
     wall("Courtyard_Gateway_N", 1450, 1550, 700, Y, 500)
@@ -539,7 +696,7 @@ def build_level(archetypes, w, manifest):
     pickup("Pickup_Ammo_Courtyard", unreal.MetalPickupType.AMMO, (2200, 1250, 0), 0.5)
     pickup("Pickup_Health_Courtyard", unreal.MetalPickupType.HEALTH, (5000, -1250, 0), 60.0)
     pickup("Pickup_Grenades_Catwalk", unreal.MetalPickupType.GRENADES, (5000, 1200, 250), 2.0)
-    light("CourtyardLight", (3500, 0, 700), (1.0, 0.55, 0.25), 15000.0, 2500.0)
+    light("CourtyardLight", (3500, 0, 700), (1.0, 0.65, 0.4), 4500.0, 2500.0)
     zone_actor("Checkpoint_ScrapHeap", (5350, 0, 150), (150, 1400, 150), checkpoint=True)
 
     # --- C: Scrap heap traversal ---------------------------------------------------------------
@@ -552,7 +709,7 @@ def build_level(archetypes, w, manifest):
     pickup("Pickup_Shotgun", unreal.MetalPickupType.WEAPON, (6250, 1150, 250), 1.0, w["Shotgun"])
     pickup("Pickup_LaserUpgrade", unreal.MetalPickupType.WEAPON, (7200, 0, 300), 1.0, w["Laser"])
     top_zone = zone_actor("Zone_ScrapWallTop", (7200, 0, 450), (300, 1400, 150), rgb=(1.0, 0.6, 0.1))
-    light("ScrapLight", (6500, 0, 650), (0.5, 0.7, 1.0), 9000.0, 2000.0)
+    light("ScrapLight", (6500, 0, 650), (0.5, 0.7, 1.0), 3000.0, 2000.0)
 
     # --- D: Gate yard - possession puzzle ---------------------------------------------------
     for i, (x, y) in enumerate([(8200, -600), (8500, 700), (8900, -100)]):
@@ -565,8 +722,9 @@ def build_level(archetypes, w, manifest):
     for side, (y0, y1) in (("N", (300, 1000)), ("S", (-1000, -300))):
         # Kept low so the tether's sight line clears it to the short Shooter guards behind.
         wall(f"FenceBase_{side}", gx - 50, gx + 50, y0, y1, 40, "MI_Env_Dark")
-        # Energy fence: blocks robots but not sight lines, lasers or the Hack Tether.
-        box(f"EnergyFence_{side}", (gx, (y0 + y1) / 2, 40 + 230), (20, y1 - y0, 460), "MI_Env_Glow", "Gate", collision="InvisibleWall")
+        # Energy fence: see-through for sight lines and the Hack Tether, but stops robots and shots.
+        energy_field(f"EnergyFence_{side}", (gx, (y0 + y1) / 2, 40 + 230), (20, y1 - y0, 460), "Gate")
+        # Thicker invisible wall so robots stay clear of the field (sight and shots pass it).
         box(f"EnergyFenceBlock_{side}", (gx, (y0 + y1) / 2, 40 + 230), (100, y1 - y0, 460), "MI_Env_Glow", "Gate", collision="InvisibleWall").set_actor_hidden_in_game(True)
     gate = spawn(unreal.MetalGate, (gx, 0, 0), 0.0, "MainGate", "Gate")
     gate.get_component_by_class(unreal.StaticMeshComponent).set_material(0, mat("MI_Env_Hazard"))
@@ -578,7 +736,7 @@ def build_level(archetypes, w, manifest):
             comp.set_material(0, mat("MI_Env_Dark"))
     guards = [bot("Shooter_GateGuard_1", archetypes["shooter"], (10050, -700, 0), 180.0, ("GateGuard",), 150.0),
               bot("Shooter_GateGuard_2", archetypes["shooter"], (10150, 650, 0), 180.0, ("GateGuard",), 150.0)]
-    light("GateLight", (9300, 0, 600), (1.0, 0.3, 0.1), 12000.0, 1800.0)
+    light("GateLight", (9300, 0, 600), (1.0, 0.4, 0.2), 4000.0, 1800.0)
     # Radio call the first time the player drops into the yard.
     zone_actor("Dialogue_GateYard", (7900, 0, 150), (150, 1400, 150), marker=False, dialogue=[
         line("Guide", "Heads up - two more shooters dug in by the gate. Clear 'em out before you go poking at that fence."),
@@ -597,8 +755,8 @@ def build_level(archetypes, w, manifest):
     brute = bot("Brute_Boss", archetypes["brute"], (13300, 0, 0), 180.0, ("Boss",), 400.0)
     arena = [bot("Soldier_Arena_1", archetypes["soldier"], (12500, -900, 0), 180.0, ("Arena",), 400.0),
              bot("Soldier_Arena_2", archetypes["soldier"], (12500, 900, 0), 180.0, ("Arena",), 400.0)]
-    light("ArenaLight_A", (12000, 0, 800), (1.0, 0.4, 0.15), 20000.0, 3000.0)
-    light("ArenaLight_B", (14000, 0, 800), (0.3, 0.6, 1.0), 15000.0, 3000.0)
+    light("ArenaLight_A", (12000, 0, 800), (1.0, 0.5, 0.3), 6000.0, 3000.0)
+    light("ArenaLight_B", (14000, 0, 800), (0.3, 0.6, 1.0), 5000.0, 3000.0)
 
     # --- F: Extraction ----------------------------------------------------------------------
     extraction = zone_actor("Zone_Extraction", (15000, 0, 150), (350, 350, 150), rgb=(0.2, 1.0, 0.3))
@@ -666,6 +824,7 @@ LEVELS = {
     "arena": (["ue_setup_arena.py"], [], ["MZ_Arena"]),
     "flight": (["ue_setup_flight.py"], [], ["MZ_FlightTest"]),
     "space": (["ue_setup_space.py"], ["ships"], ["MZ_SpaceBattle", "MZ_CapitalShip_Interior"]),
+    "dispenser": (["ue_setup_dispenser.py", "ue_setup_alpha.py"], [], ["MZ_DispenserTest"]),
 }
 
 
@@ -706,6 +865,10 @@ def main():
     weapons = make_weapons()
     archetypes = make_archetypes(manifest, weapons)
     make_sound_library()
+    make_energy_field_material()
+    sys.path.insert(0, TOOLS_DIR)
+    import ue_setup_fx
+    ue_setup_fx.build()
     restore_template_game_mode()
     state = {}
     if os.path.exists(STATE_FILE):
@@ -732,6 +895,9 @@ def main():
     if "space" in levels:
         import ue_setup_space
         ue_setup_space.build_space_maps(archetypes)
+    if "dispenser" in levels:
+        import ue_setup_dispenser
+        ue_setup_dispenser.build_dispenser_test(archetypes)
     # Record what the rebuilt maps were made from (the import stage owns the "imports" section). Adopting
     # records every map as up to date without rebuilding it.
     for name in (list(LEVELS) if os.environ.get("MZ_ADOPT") == "1" else levels):
