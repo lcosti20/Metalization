@@ -6,8 +6,29 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/Metalization/Scenes/MZ_Title.unity
+    guid: 940ae03b002f4f443a824e00ccf55cd2
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_ProductionAlpha.unity
+    guid: df1c50b8dc4aa1041b5848155461da6a
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_Outpost_Demo.unity
+    guid: 25804377da255f94a8c8d0e2d6954ddb
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_Arena.unity
+    guid: e8e30ff26824ecd48a46df6ff332a16d
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_FlightTest.unity
+    guid: 283f7fe6c858690479d18bb67736f965
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_SpaceBattle.unity
+    guid: f43c9eba4bfa6af4c950840323455519
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_CapitalShip_Interior.unity
+    guid: d2e33ca25d258c347b08db852b7e6d97
+  - enabled: 1
+    path: Assets/Metalization/Scenes/MZ_DispenserTest.unity
+    guid: aae383f9b84dfaf41b4e137697ed361f
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
