@@ -1,5 +1,7 @@
 # Metalization: plan & demo guide
 
+> **Unity port.** Written for the Unreal Engine version (see [UnityPort.md](UnityPort.md)). The asset pipeline it describes is now `Tools/AssetPipeline/run_pipeline.ps1` + **Metalization > Build All Assets** (see the README); map paths `/Game/Metalization/Maps/X` are now `Assets/Metalization/Scenes/X.unity`.
+
 This document covers three things: what Metalization is, what was wrong with the first attempt, and how to run, play, and extend the current demo in Unreal Engine 5.8.
 
 ---

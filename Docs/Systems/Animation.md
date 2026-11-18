@@ -1,21 +1,23 @@
 # Procedural animation
 
-Files: `MetalBotAnimInstance.h/.cpp`, `FMetalBotRig` in `MetalTypes.h`
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
+Files: `MetalBotAnimInstance.h/.cpp`, `MetalBotRig` in `MetalTypes.h`
 
 ## Why it's procedural
 
-The graybox robots are exported as bind poses only, with no animation clips, and their skeletons differ too much to retarget humanoid animation: the Player has no spine, Shooters have reverse-jointed legs, the Brute's guns are its forearms, Stalkers have four gun arms. Instead, one native anim instance builds every pose from the bind pose plus a handful of rotations driven by gameplay state. Each archetype describes its own rig in `FMetalBotRig`: bone names, a combat-ready stance, gait numbers and aim settings.
+The graybox robots are exported as bind poses only, with no animation clips, and their skeletons differ too much to retarget humanoid animation: the Player has no spine, Shooters have reverse-jointed legs, the Brute's guns are its forearms, Stalkers have four gun arms. Instead, one native anim instance builds every pose from the bind pose plus a handful of rotations driven by gameplay state. Each archetype describes its own rig in `MetalBotRig`: bone names, a combat-ready stance, gait numbers and aim settings.
 
 When real animation exists for a robot, give its mesh an Anim Blueprint instead and this class simply isn't used for it.
 
 ## Structure
 
-`AMetalBotCharacter` assigns `UMetalBotAnimInstance` to every robot mesh. Unreal evaluates animation on worker threads, so the work is split in two:
+`MetalBot` assigns `MetalBotAnimator` to every robot mesh. Unreal evaluates animation on worker threads, so the work is split in two:
 
 | Part | Thread | Job |
 |---|---|---|
-| `UMetalBotAnimInstance::NativeUpdateAnimation` | Game | Reads the robot (velocity, aim pitch, stance, stun, boost...), eases each value into a 0-1 blend weight, advances the gait phase, and copies everything into a `FMetalBotAnimState` snapshot on the proxy |
-| `FMetalBotAnimProxy::Evaluate` | Worker | Reads only the snapshot and writes the pose |
+| `MetalBotAnimator::NativeUpdateAnimation` | Game | Reads the robot (velocity, aim pitch, stance, stun, boost...), eases each value into a 0-1 blend weight, advances the gait phase, and copies everything into a `MetalBotAnimator.State` snapshot on the proxy |
+| `MetalBotAnimator::Evaluate` | Worker | Reads only the snapshot and writes the pose |
 
 One-shot reactions are triggered from gameplay code and decay on their own: `PlayRecoil` (each shot), `PlayHitReact` (each hit), `PlayLand` (touchdown).
 
@@ -63,7 +65,7 @@ Fill in the archetype's `Rig`:
 - **Sprint.** `SprintAlpha` (from the character) adds lean, lengthens the stride used to advance the gait (so
   the feet don't slide) and swings the legs and arms further.
 - **Crouch.** `CrouchAlpha` bends the thighs 55° and the knees 100°, hunches the pelvis forward and drops it
-  by `FMetalBotRig::CrouchDrop`. The character raises the mesh by the capsule's shrink, so the result stays
+  by `MetalBotRig::CrouchDrop`. The character raises the mesh by the capsule's shrink, so the result stays
   grounded.
 - **Weapon swap.** `NativeUpdateAnimation` turns `GetSwapProgress()` into three curves:
   - `SwapReach`: the off hand swings forward and across to the gun arm, which lifts towards it;

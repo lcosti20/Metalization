@@ -1,5 +1,7 @@
 # Audio
 
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
 Every sound in the game is original and synthesized, so the project has no third-party audio files.
 
 ## Where sounds come from
@@ -19,7 +21,7 @@ Every sound in the game is original and synthesized, so the project has no third
 - **Import.** `ue_import_assets.py` (`import_audio`) imports them as `/Game/Metalization/Audio/SW_<Name>` and
   marks the `_loop` ones as looping.
 - **Library.** `ue_setup_gameplay.py` (`make_sound_library`) lists them in `DA_Sounds`, a
-  `UMetalSoundLibrary` (name → `USoundBase`), with optional per-sound volume trims. It also puts every wave on
+  `MetalSoundLibrary` (name → `USoundBase`), with optional per-sound volume trims. It also puts every wave on
   one of three sound classes, `SC_Music` (`MUSIC_SOUNDS`: music and background loops), `SC_Voices` (the
   `voice_*` robot voices) or `SC_Effects` (everything else).
 
@@ -35,18 +37,18 @@ Gameplay code never references a sound asset. It plays a name through `MetalAudi
 
 | Function | Use |
 |---|---|
-| `MetalAudio::PlayAt(Context, Name, Location, Volume, PitchJitter)` | Positional one-shot, with the shared distance falloff (full volume within 4 m, silent past ~45 m) and a little random pitch |
-| `MetalAudio::Play2D(Context, Name, Volume)` | UI, radio, stingers |
-| `MetalAudio::PlayLoop(Component, Name, Volume)` | Attached looping sound (lift hum) |
-| `MetalAudio::PlayAttached(Component, Name, Volume, Pitch)` | One-shot that follows a component and can be stopped (robot voices) |
-| `MetalAudio::PickVariant(Base)` | Random numbered variant of a sound (`voice_pain` → `voice_pain4`) |
-| `MetalAudio::CreateLoop2D(Context, Name, Volume)` | Non-positional loop, created stopped; the caller fades it in and out from any point (radio whistle) |
+| `MetalAudio.PlayAt(Context, Name, Location, Volume, PitchJitter)` | Positional one-shot, with the shared distance falloff (full volume within 4 m, silent past ~45 m) and a little random pitch |
+| `MetalAudio.Play2D(Context, Name, Volume)` | UI, radio, stingers |
+| `MetalAudio.PlayLoop(Component, Name, Volume)` | Attached looping sound (lift hum) |
+| `MetalAudio.PlayAttached(Component, Name, Volume, Pitch)` | One-shot that follows a component and can be stopped (robot voices) |
+| `MetalAudio.PickVariant(Base)` | Random numbered variant of a sound (`voice_pain` → `voice_pain4`) |
+| `MetalAudio.CreateLoop2D(Context, Name, Volume)` | Non-positional loop, created stopped; the caller fades it in and out from any point (radio whistle) |
 
 - **Library loading.** The library is loaded by path on first use and rooted, and so is the shared
   attenuation object.
 - **Missing sounds.** An unknown name, or no library at all, is silent, so the game runs before the pipeline
   has been run.
-- **Weapons.** Each weapon names its own `FireSound`, `ReloadSound` and `ImpactSound` (`UMetalWeaponData`).
+- **Weapons.** Each weapon names its own `FireSound`, `ReloadSound` and `ImpactSound` (`MetalWeaponData`).
 
 ## Hooks
 
@@ -71,7 +73,7 @@ Gameplay code never references a sound asset. It plays a name through `MetalAudi
 NPC robots "talk" in wordless beeps, whistles and warbles. `robot_voice` in `generate_sfx.py` composes each
 line from `chirp` syllables (a tone gliding through pitches, with optional wobble, growl and buzz) using the
 sound's random seed, so every numbered variant is a different phrase in the same mood. `VOICES` sets how many
-variants each mood gets; the game counts them (`MetalAudio::PickVariant`), so adding more needs no code change.
+variants each mood gets; the game counts them (`MetalAudio.PickVariant`), so adding more needs no code change.
 
 | Mood (`EMetalBark`) | Sounds | When | Sounds like |
 |---|---|---|---|
@@ -83,9 +85,9 @@ variants each mood gets; the game counts them (`MetalAudio::PickVariant`), so ad
 | Pain | `voice_pain1`-`6` | Takes damage (at most about once a second) | A rough yelp that shoots up and collapses |
 | Death | `voice_death1`-`5` | Destroyed | A shriek that wails downwards, then the voice box runs down |
 
-`AMetalBotCharacter::Speak` plays them, attached to the robot. A robot says one thing at a time: the table
+`MetalBot::Speak` plays them, attached to the robot. A robot says one thing at a time: the table
 runs from least to most urgent, and a line is only cut off by a more urgent one. The pitch is set per robot type by
-`UMetalBotArchetype::VoicePitch` (`voice_pitch` in `ue_setup_gameplay.py`): every character gets one from its
+`MetalBotArchetype::VoicePitch` (`voice_pitch` in `ue_setup_gameplay.py`): every character gets one from its
 model's height, `sqrt(1.2 m / height)` clamped to 0.5-1.4, so taller robots are deeper (Shooter 1.02, Soldier 0.89,
 Brute 0.66). Robots driven by the player are silent, and so are flyers (`bHasVoice`). Each
 line is logged as `[Voice] <robot> says <sound>`.
@@ -94,7 +96,7 @@ line is logged as `[Voice] <robot> says <sound>`.
 
 The menus' **Sound** panel has three sliders, **Music / Background**, **Sound Effects** and **Beep-boops** (the
 robot voices). They call
-`MetalAudio::SetVolume`, which saves the value in `GameUserSettings.ini` (`[/Script/Metalization.MetalAudio]`)
+`MetalAudio.SetVolume`, which saves the value in `GameUserSettings.ini` (`[/Script/Metalization.MetalAudio]`)
 and applies it straight away as sound-class overrides on a transient base sound mix, so sounds already playing
-follow. Both player controllers call `MetalAudio::ApplyVolumes` in `BeginPlay`. A new sound only needs adding
+follow. Both player controllers call `MetalAudio.ApplyVolumes` in `BeginPlay`. A new sound only needs adding
 to `MUSIC_SOUNDS` if it belongs on the music slider; any sound named `voice_*` lands on Beep-boops.

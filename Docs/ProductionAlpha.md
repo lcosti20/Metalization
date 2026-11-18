@@ -1,5 +1,7 @@
 # Production Alpha: Operation Redline
 
+> **Unity port.** Written for the Unreal Engine version (see [UnityPort.md](UnityPort.md)). The level is built by `Assets/Metalization/Scripts/Editor/MetalLevelsAlpha.cs`; positions here are the Unreal values in centimetres.
+
 The Sprint 4 deliverable: one complete ground mission that shows what the final game plays like. Blue (the
 Heroes) push through a valley held by Red (the Villains). Space and flight are left out on purpose. The
 mission teaches every on-foot mechanic in order, from the simplest to the most demanding, and finishes with

@@ -1,8 +1,10 @@
 # Player control and the Hack Tether
 
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
 Files: `MetalPlayerController.h/.cpp`, `MetalPlayerCharacter.h/.cpp`, `MetalHackPuzzle.h/.cpp`
 
-`AMetalPlayerController` turns input into robot commands, runs the Hack Tether, finds consoles to interact with, and opens the pause menu.
+`MetalPlayerController` turns input into robot commands, runs the Hack Tether, finds consoles to interact with, and opens the pause menu.
 
 ## Input
 
@@ -11,7 +13,7 @@ All input objects are created in code by `CreateInputObjects` (there are no inpu
 | Context | Used when | Notable bindings |
 |---|---|---|
 | `IMC_Metalization` | Walking | WASD/left stick move, mouse/right stick look, Space jump, LMB/RT fire, RMB/LT aim, R reload, G grenade, F tether, E interact, 1-6 weapons, wheel cycles, Esc/P/Start pause |
-| `IMC_MetalizationFlight` | Possessing an `AMetalStalker` | Same move/look/fire/aim/tether, Space/Ctrl climb and dive, Shift boost, Q/E dodge-roll |
+| `IMC_MetalizationFlight` | Possessing an `MetalStalker` | Same move/look/fire/aim/tether, Space/Ctrl climb and dive, Shift boost, Q/E dodge-roll |
 
 `UpdateMappingContext` swaps contexts on every possession and widens the camera's pitch limits for flyers. WASD is turned into a 2D axis with Enhanced Input modifiers (swizzle W/S onto Y, negate S and A); look negates Y so pushing up looks up.
 
@@ -50,7 +52,7 @@ sequenceDiagram
 
 **Finding a target.** `FindHackCandidate` runs every tick while the player is in their own body. It looks for robots that `CanBeHackedBy` the body, within `TetherRange`, inside a 7-degree cone around the view direction, with a clear line from the body's eyes, and picks the most centred one. The HUD shows a cyan crosshair and a "[F] HACK ..." or "[F] PILOT ..." prompt over it.
 
-**Who can be taken.** `AMetalBotCharacter::CanBeHackedBy` has two rules:
+**Who can be taken.** `MetalBot::CanBeHackedBy` has two rules:
 
 - **Enemies** need `bHackable`. This is a *hijack*: timed by the archetype's `PossessionDuration`, the robot joins the Heroes and glows. When the link ends (F, the timer, or the player's body dying) a robot that is still alive goes back to its own side: it gets a fresh AI controller and is stunned for `RebootTime` (2 s) while it "reboots". Disconnecting never destroys it; only losing its health does.
 - **Same-team robots** need `bAllyHackable` and must have no controller (an idle parked Stalker). This is a *link*: no time limit and no tether beam. When it ends the robot goes dormant and can be linked again.
@@ -59,11 +61,11 @@ sequenceDiagram
 
 **Ending** (`EndPossession`) happens when the player presses F again, the hijack timer runs out (checked in `Tick`), or the host dies (`OnBotDied`). Control returns to the body if it is still alive.
 
-**Player death.** If the player's body dies (even mid-hijack, since the body stays vulnerable), `OnBotDied` ends any link and calls `AMetalGameMode::PlayerDied`.
+**Player death.** If the player's body dies (even mid-hijack, since the body stays vulnerable), `OnBotDied` ends any link and calls `MetalGameMode::PlayerDied`.
 
 ## Hack puzzle
 
-Added after the Production Alpha playtest, where hacking was too easy. With `bRequireHackPuzzle` on (the default), pressing F at an *enemy* opens `UMetalHackPuzzle` instead of hijacking at once; ally links skip it.
+Added after the Production Alpha playtest, where hacking was too easy. With `bRequireHackPuzzle` on (the default), pressing F at an *enemy* opens `MetalHackPuzzle` instead of hijacking at once; ally links skip it.
 
 ```mermaid
 flowchart LR
@@ -79,21 +81,21 @@ flowchart LR
 - **Editing.** Wire pins either by dragging from one to the other, or by clicking one pin and then the other (a press and release within 6 units is a click: the wire stays held, following the pointer, until the next click). While a wire is held every pin it can join is ringed in its colour. Grabbing a wired input picks that wire up by its end; letting it go over nothing (empty click, right-click, Esc or gamepad B) snaps it back. Inputs and exec outputs take one wire (a new one replaces the old), data outputs can feed several. Alt+click (gamepad X) breaks a pin's links.
 - **Gamepad.** The left stick moves a virtual cursor (`NativeOnAnalogValueChanged`, `NativeTick`); A acts as the mouse button (tap a pin, steer, tap the target: no need to hold A while steering), Y compiles, B lets go of a held wire or else cancels.
 - **The world keeps running.** The body stands still and can be shot, and the target keeps fighting; that time is the cost of a hack. `Tick` cancels the puzzle if the target stops being hackable or gets beyond 1.25x `TetherRange`.
-- **Firewall.** `AMetalBotCharacter::RaiseFirewall` makes `CanBeHackedBy` false until it drops (`bIgnoreFirewall` skips that check). The hack glow stutters meanwhile, the HUD shows "FIREWALL <name> 3.2s" under the crosshair (`GetFirewalledCandidate`), and pressing F says how long is left.
+- **Firewall.** `MetalBot::RaiseFirewall` makes `CanBeHackedBy` false until it drops (`bIgnoreFirewall` skips that check). The hack glow stutters meanwhile, the HUD shows "FIREWALL <name> 3.2s" under the crosshair (`GetFirewalledCandidate`), and pressing F says how long is left.
 - **Press = prompt.** `TetherPressed` falls back to the last tick's `HackCandidate` when a fresh search finds nothing, so a robot walking out of the 7-degree cone in the same frame as the press is still taken.
 - **Testing.** The autopilot steps `SolveHack`, `FailHack` and `CancelHack` act on the open puzzle (`DevRewire`, `Compile`, `Cancel`); smoke scenario `hackfail` runs all three outcomes. The log lines start with `[Hack]`.
 
 ## Interaction
 
-Every tick the controller finds the nearest unused `AMetalControlConsole` within its `InteractRadius`. The HUD shows its prompt; pressing E calls `TryActivate` with the possessed robot and shows the result message. See [MissionsAndUI.md](MissionsAndUI.md).
+Every tick the controller finds the nearest unused `MetalControlConsole` within its `InteractRadius`. The HUD shows its prompt; pressing E calls `TryActivate` with the possessed robot and shows the result message. See [MissionsAndUI.md](MissionsAndUI.md).
 
 ## Pause
 
-`OpenPauseMenu` releases held buttons (their release events would be lost while the menu has input), creates `UMetalPauseMenu`, pauses the game and switches to UI-only input with the cursor shown. `ClosePauseMenu` reverses it. While the menu is open it handles its own back keys.
+`OpenPauseMenu` releases held buttons (their release events would be lost while the menu has input), creates `MetalPauseMenu`, pauses the game and switches to UI-only input with the cursor shown. `ClosePauseMenu` reverses it. While the menu is open it handles its own back keys.
 
 ## Sprint, sneak and the scope
 
-- **Sprint (Shift).** `AMetalPlayerController::SprintPressed` calls `AMetalBotCharacter::SetWantsSprint`.
+- **Sprint (Shift).** `MetalPlayerController::SprintPressed` calls `MetalBot::SetWantsSprint`.
   `TickLocomotion` only sprints while running forward on the ground and not aiming, firing (or within 0.4 s
   of a shot), swapping or stunned. It sets `MaxWalkSpeed` to the archetype's `SprintSpeed`. While a player
   drives a robot, `TickLocomotion` also puts back the robot's full walk speed (a hijacked robot that was
@@ -106,7 +108,7 @@ Every tick the controller finds the nearest unused `AMetalControlConsole` within
 - **Scope.** A weapon's `AimFOV`, `AimArmLengthScale` and `bScopeOverlay` drive `TickActionCamera`. With
   arm length 0 the camera moves to eye level. Once the scope is mostly up, the robot's meshes are hidden from
   its own camera (`SetOwnerNoSee`). `AimSensitivity` slows the look input
-  (`GetLookSensitivityScale`, applied in `AMetalPlayerController::Look`).
+  (`GetLookSensitivityScale`, applied in `MetalPlayerController::Look`).
 - **Hitscan aim.** A player's hitscan shots are traced along the camera's aim ray and only drawn from the
   muzzle, so a gun poking into a ledge can't block the shot.
 - **Grenade lob.** Player grenades lob onto the crosshair: `SuggestProjectileVelocity_CustomArc` within
@@ -128,5 +130,5 @@ instead of swapping at once. `TickWeaponSwap` then runs the beats:
 - **Being killed or tethering away** finishes the swap instantly.
 - **Placement.** `PlaceWeaponOnBone` attaches a held mesh, with no leader pose, so that its grip (the weapon
   bone in the bind pose) lands on a body bone. `RefreshRack` shows the two most recently stowed guns, using
-  `FMetalBotRig::RackOffset` and `BackBone`.
+  `MetalBotRig::RackOffset` and `BackBone`.
 - **Poses.** See [Animation.md](Animation.md).

@@ -1,12 +1,14 @@
 # AI
 
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
 Files: `MetalBotAIController.h/.cpp` (walking robots), `MetalFlyerAIController.h/.cpp` (Stalker pilots)
 
 Both controllers are plain C++ state machines. They drive robots only through the robot's public API (`SetAITarget`, `StartFire`/`StopFire`, movement), the same calls the player controller uses, so possession can swap a robot's controller at any time.
 
-## Walking robots: `AMetalBotAIController`
+## Walking robots: `MetalBotAI`
 
-`AMetalBotCharacter` uses this controller by default (`AIControllerClass`) and robots are auto-possessed when placed or spawned. Movement uses the navmesh.
+`MetalBot` uses this controller by default (`AIControllerClass`) and robots are auto-possessed when placed or spawned. Movement uses the navmesh.
 
 ### Sensing
 
@@ -46,9 +48,9 @@ stateDiagram-v2
 
 Aim error is not the controller's job: the robot adds its archetype's `AimErrorDegrees` to every AI shot.
 
-## Pilots: `AMetalFlyerAIController`
+## Pilots: `MetalFlyerAI`
 
-AI Stalkers in the space battles are launched by their ship's `AMetalHangar`, which spawns them already flying and assigns a role: odd slots are **Raiders**, even slots are **Fighters**. There is no navmesh in space; the pilot steers.
+AI Stalkers in the space battles are launched by their ship's `MetalHangar`, which spawns them already flying and assigns a role: odd slots are **Raiders**, even slots are **Fighters**. There is no navmesh in space; the pilot steers.
 
 ### Choosing a target
 

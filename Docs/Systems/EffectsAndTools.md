@@ -1,10 +1,12 @@
 # Effects and dev tools
 
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
 Files: `MetalFX.h/.cpp`, `MetalDevAutopilot.h/.cpp`, `Tools/AssetPipeline/smoke_test.ps1`, `Tools/AssetPipeline/ue_setup_fx.py`, `Source/MetalizationEditor/MetalFXAuthoring.h/.cpp`
 
-## Effects: `AMetalFX`
+## Effects: `MetalFX`
 
-Combat effects are Niagara systems in `/Game/Metalization/FX`. `AMetalFX` is a short-lived actor holding one `UNiagaraComponent` and an optional point light; every call site goes through its static helpers.
+Combat effects are Niagara systems in `/Game/Metalization/FX`. `MetalFX` is a short-lived actor holding one `UNiagaraComponent` and an optional point light; every call site goes through its static helpers.
 
 | Helper | System | Look | Used for |
 |---|---|---|---|
@@ -38,7 +40,7 @@ UnrealEditor-Cmd.exe Metalization.uproject -run=pythonscript -script=<project>/T
    - `M_FX_Smoke`: translucent puffs.
    - `M_FX_Fire`: translucent glowing puffs. Fireballs use this rather than an additive material because additive glow vanishes against bright floors.
    - `M_FX_BeamCore`: additive, brightest where the cylinder faces the camera.
-2. It then calls `UMetalFXAuthoring::BuildEffectSystems`. For each system, this:
+2. It then calls `MetalFX::BuildEffectSystems`. For each system, this:
    - clones the engine's `DirectionalBurstLightweight` template (a lightweight, or *stateless*, emitter),
    - duplicates its emitter once per layer,
    - sets each layer's module properties from text in the same format `ExportText` writes,
@@ -46,7 +48,7 @@ UnrealEditor-Cmd.exe Metalization.uproject -run=pythonscript -script=<project>/T
    - binds Initialize Particle's colour to `User.Color`,
    - and compiles and saves the system.
 
-Tune an effect by editing its block in `BuildEffectSystems`, rebuilding the editor target and running `ue_setup_fx.py` again. Hand edits made in the Niagara editor are overwritten on the next run. `UMetalFXAuthoring::DescribeNiagaraSystem(path)` dumps any system's layers, modules and renderers as text, which helps when picking property names and value formats.
+Tune an effect by editing its block in `BuildEffectSystems`, rebuilding the editor target and running `ue_setup_fx.py` again. Hand edits made in the Niagara editor are overwritten on the next run. `MetalFX::DescribeNiagaraSystem(path)` dumps any system's layers, modules and renderers as text, which helps when picking property names and value formats.
 
 Traps:
 
@@ -54,9 +56,9 @@ Traps:
 - `FNiagaraDistributionBase` isn't exported, so its struct is found by name (`/Script/Niagara.NiagaraDistributionBase`). Its `UpdateValuesFromDistribution` is called through the vtable.
 - A new mesh renderer already holds one empty mesh entry, so set `Meshes` to a single entry instead of appending to it.
 
-## Dev autopilot: `AMetalDevAutopilot`
+## Dev autopilot: `MetalDevAutopilot`
 
-A non-shipping helper for automated smoke tests and screenshots. `AMetalGameMode::BeginPlay` spawns it when any of these command-line options is present:
+A non-shipping helper for automated smoke tests and screenshots. `MetalGameMode::BeginPlay` spawns it when any of these command-line options is present:
 
 | Option | Effect |
 |---|---|
@@ -65,7 +67,7 @@ A non-shipping helper for automated smoke tests and screenshots. `AMetalGameMode
 | `-MetalCam=X,Y,Z,Pitch,Yaw[;...]` | View from fixed cameras instead of the player, one per screenshot |
 | `-MetalShots=2,5.5,9` | Take screenshots at these times |
 | `-MetalMenuLevel=<name>` | Level Select entry the `menu` scenario picks |
-| `-MetalObjective=N` | Start the mission at objective N (handled by `AMetalMission`) |
+| `-MetalObjective=N` | Start the mission at objective N (handled by `MetalMission`) |
 | `-MetalQuitAt=12` | Quit at this time |
 
 The clock starts once the player has a pawn and uses unpaused time, so scenarios keep running while the pause menu is open (the actor also ticks while paused).

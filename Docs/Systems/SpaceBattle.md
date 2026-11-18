@@ -1,5 +1,7 @@
 # Space battles
 
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
+
 Files: `MetalCapitalShip.h/.cpp`, `MetalHangar.h/.cpp`, `MetalPortal.h/.cpp`, `MetalSpaceBattleGameMode.h/.cpp`
 Map: `MZ_SpaceBattle` (battle) and `MZ_CapitalShip_Interior` (streamed inside each ship). Design history: [SpaceBattle_Plan.md](../SpaceBattle_Plan.md).
 
@@ -8,13 +10,13 @@ Two capital ships, one per team, fight in open space. Each ship has destructible
 ```mermaid
 flowchart LR
     subgraph Space["Battle map (open space)"]
-        ShipA["AMetalCapitalShip (Heroes)<br/>hull, subsystems, turrets"]
-        ShipB["AMetalCapitalShip (Villains)"]
-        OA["AMetalPortal (hull end)"]
+        ShipA["MetalCapitalShip (Heroes)<br/>hull, subsystems, turrets"]
+        ShipB["MetalCapitalShip (Villains)"]
+        OA["MetalPortal (hull end)"]
     end
     subgraph InteriorA["Streamed interior, 20 km up"]
-        HangarA["AMetalHangar<br/>pads, life support, AI pilots"]
-        IA["AMetalPortal (hangar end)"]
+        HangarA["MetalHangar<br/>pads, life support, AI pilots"]
+        IA["MetalPortal (hangar end)"]
         Starts["Player starts"]
     end
     ShipA -- "streams in" --> InteriorA
@@ -23,17 +25,17 @@ flowchart LR
     HangarA -- "RegisterSubsystem(life support)" --> ShipA
 ```
 
-## Capital ship: `AMetalCapitalShip`
+## Capital ship: `MetalCapitalShip`
 
 ### Assembly
 
-A ship class is a `UMetalCapitalShipData` asset (`DA_Ship_Capital`): hull, engines, shield generator, comms and turret meshes, health values, team paint, the interior map, the hangar robot archetype, the hangar mouth size and the portal material.
+A ship class is a `MetalCapitalShipData` asset (`DA_Ship_Capital`): hull, engines, shield generator, comms and turret meshes, health values, team paint, the interior map, the hangar robot archetype, the hangar mouth size and the portal material.
 
 The ship is assembled from sockets on the hull mesh:
 
 | Socket | Part |
 |---|---|
-| `engines`, `shieldgen_L`, `shieldgen_R`, `comms` | The four exterior subsystems (`UMetalShipSubsystemComponent`s, created in the constructor) |
+| `engines`, `shieldgen_L`, `shieldgen_R`, `comms` | The four exterior subsystems (`MetalShipSubsystem`s, created in the constructor) |
 | `turret_01`, `turret_02`, ... | One turret each: a base instance plus a gun instance on the base mesh's `gun` socket |
 | `hangar_portal` | The hull end of the hangar portal |
 
@@ -62,7 +64,7 @@ Hits flash the struck component's materials (`HitFlash` parameter), which is why
 
 - **Targeting** (every 0.3 s): each turret picks the nearest piloted enemy Stalker within `TurretRange` that is above the turret's horizon and visible from just above the gun.
 - **Aiming** (every frame): the lead point is converted into the turret mount's frame, so yaw and pitch are relative to how the turret is mounted (top, sides, belly). The gun turns towards it at `TurretTurnRate`, with pitch limited to just above the mount's horizon.
-- **Firing**: when the barrel is within 6 degrees of the lead point, the turret fires an `AMetalProjectile` with the weapon's spread plus `TurretAimError`.
+- **Firing**: when the barrel is within 6 degrees of the lead point, the turret fires an `MetalProjectile` with the weapon's spread plus `TurretAimError`.
 
 A gun's transform is `Aim * TurretGunOffset * Mount * HullToWorld` (Unreal composes left to right). Only the last instance update each frame marks the render state dirty.
 
@@ -70,26 +72,26 @@ A gun's transform is `Aim * TurretGunOffset * Mount * HullToWorld` (Unreal compo
 
 Both teams share one interior map. Each ship loads its own **level instance** of it (`ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr`) at `InteriorLocation`, which never moves even if the ship does. The interiors sit 20 km above the battle because Unreal's default KillZ is -10.5 km.
 
-When the level is shown, `HandleInteriorShown` finds the `AMetalHangar` in it, calls `InitForShip`, creates the portals, and broadcasts `OnAnyInteriorReady`. `GetSpawnPoints` (a BlueprintNativeEvent) returns the player starts in the interior.
+When the level is shown, `HandleInteriorShown` finds the `MetalHangar` in it, calls `InitForShip`, creates the portals, and broadcasts `OnAnyInteriorReady`. `GetSpawnPoints` (a BlueprintNativeEvent) returns the player starts in the interior.
 
 ### Extension points
 
 Subclass the ship (C++ or Blueprint) and override the BlueprintNativeEvents: `OnSubsystemDestroyed`, `OnShipDestroyed`, `OnInteriorReady`, `GetSpawnPoints`.
 
-## Hangar: `AMetalHangar`
+## Hangar: `MetalHangar`
 
 Placed in the interior map. Its shell mesh has `pad_1`, `pad_2`, ... sockets on the floor and a `hangar_portal` socket at the mouth.
 
 - **Pads.** One pad instance per socket, each with a parked Stalker (spawned with deferred construction so its archetype, team and parked state are set before `BeginPlay`).
-- **AI pilots.** The ship's `AIPilots` count of flying Stalkers, launched a couple of seconds in and staggered, hovering above the pads, each with an `AMetalFlyerAIController` (odd slots Raiders, even slots Fighters).
+- **AI pilots.** The ship's `AIPilots` count of flying Stalkers, launched a couple of seconds in and staggered, hovering above the pads, each with an `MetalFlyerAI` (odd slots Raiders, even slots Fighters).
 - **Replacements.** Twice a second, a dead pad robot or pilot schedules a replacement `RespawnDelay` seconds later. A robot that flew off its pad keeps the pad until it dies.
 - **Life support.** A glowing cylinder by the back wall. The hangar registers it with its ship; its `TakeDamage` forwards point damage on the core to the ship.
 
 Opened directly as the persistent level (for testing), the hangar initialises itself with its own settings.
 
-## Portals: `AMetalPortal`
+## Portals: `MetalPortal`
 
-A hangar mouth on the hull and the matching mouth of the interior hangar, kilometres apart, are joined by a linked pair of portal actors (`AMetalCapitalShip::CreatePortals`). The hull end is attached to the hull; the interior end is spawned into the interior level.
+A hangar mouth on the hull and the matching mouth of the interior hangar, kilometres apart, are joined by a linked pair of portal actors (`MetalCapitalShip::CreatePortals`). The hull end is attached to the hull; the interior end is spawned into the interior level.
 
 **Frames.** Each end's +X points out of its hangar. `RoomSide` says which side of the plane is that end's own world: +1 for the hull end (open space in front), -1 for the interior end (the hangar behind). `GetSideDistance` is positive on the own side. `MapToLinked` moves a transform from one end to the same place relative to the other, so 30 m inside the interior hangar maps to 30 m inside the hull recess.
 
@@ -102,7 +104,7 @@ A hangar mouth on the hull and the matching mouth of the interior hangar, kilome
 
 Portals tick in `TG_PostUpdateWork`, after the camera has moved, so the window matches the frame being rendered.
 
-## Battle rules: `AMetalSpaceBattleGameMode`
+## Battle rules: `MetalSpaceBattleGameMode`
 
 **Joining.** Players log in before the ships have begun play, so their interiors (and player starts) don't exist yet. `HandleStartingNewPlayer` queues players until every ship reports its interior ready, then starts them; after `InteriorLoadTimeout` it starts them anyway and logs an error. `ShouldSpawnAtStartSpot` returns false so the start spot cached at login isn't reused. `ChoosePlayerStart` shuffles the player starts in `PlayerTeam`'s ship and takes the first one nobody is standing on.
 
@@ -121,4 +123,4 @@ A team at zero tickets loses. `EndBattle` calls `CompleteMission` with "VICTORY"
 
 ## HUD in battle
 
-`AMetalHUD::DrawSpaceBattle` draws each team's tickets, hull bar (blue while shielded) and one pip per subsystem across the top. Out in space it marks the way back to the home hangar mouth and the enemy hangar mouth; within 2.5 km it marks the enemy's surviving subsystems. "In space" means within 10 km of the battle plane, since the interiors are 20 km up.
+`MetalHUD::DrawSpaceBattle` draws each team's tickets, hull bar (blue while shielded) and one pip per subsystem across the top. Out in space it marks the way back to the home hangar mouth and the enemy hangar mouth; within 2.5 km it marks the enemy's surviving subsystems. "In space" means within 10 km of the battle plane, since the interiors are 20 km up.

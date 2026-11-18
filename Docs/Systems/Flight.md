@@ -1,14 +1,16 @@
 # Flight
 
-Files: `MetalStalker.h/.cpp`, `FMetalFlightTuning` in `MetalTypes.h`
+> **Unity port.** This page was written for the Unreal Engine version; class names have been updated to the Unity ones (see [UnityPort.md](../UnityPort.md) for the full mapping). Distances quoted here are the Unreal values in centimetres (divide by 100 for Unity metres), and Unreal terms such as `BeginPlay`/`Tick`, components, `/Game/...` paths and `.h/.cpp` files correspond to `Start`/`Update`, `MonoBehaviour`s, `Assets/Metalization/...` and the `.cs` files listed in [Architecture.md](../Architecture.md).
 
-`AMetalStalker` is the flying robot of the space battles: a body with four gun arms in an X. It handles like a hover gunship rather than a plane. It can stop and hover, strafe on every axis, banks into turns, and levels out when the controls are released. It is still an `AMetalBotCharacter`, so it has the same weapons, hit zones, damage and possession as every other robot.
+Files: `MetalStalker.h/.cpp`, `MetalFlightTuning` in `MetalTypes.h`
+
+`MetalStalker` is the flying robot of the space battles: a body with four gun arms in an X. It handles like a hover gunship rather than a plane. It can stop and hover, strafe on every axis, banks into turns, and levels out when the controls are released. It is still an `MetalBot`, so it has the same weapons, hit zones, damage and possession as every other robot.
 
 ## Movement
 
-Flight is a regular `UCharacterMovementComponent` in `MOVE_Flying`, replaced with `UMetalFlightMovementComponent` through the `FObjectInitializer`. The archetype's `FMetalFlightTuning` sets max speed, acceleration, braking and grip.
+Flight is a regular `UCharacterMovementComponent` in `MOVE_Flying`, replaced with `MetalCharacterMovement (flying)` through the `FObjectInitializer`. The archetype's `MetalFlightTuning` sets max speed, acceleration, braking and grip.
 
-**Grip instead of fluid friction.** In flying mode Unreal calls `CalcVelocity` with `bFluid = true` and the physics volume's (very low) fluid friction, so the craft would drift on its momentum, and raising the friction would also add drag that caps the top speed. `UMetalFlightMovementComponent::CalcVelocity` passes `FlightGrip` as the friction and `bFluid = false` instead. Grip then controls how quickly the velocity swings round to the stick direction (tight corners, little drift), while letting go of the stick brakes at a steady `Braking` rate (`bUseSeparateBrakingFriction`, `BrakingDecelerationFlying`).
+**Grip instead of fluid friction.** In flying mode Unreal calls `CalcVelocity` with `bFluid = true` and the physics volume's (very low) fluid friction, so the craft would drift on its momentum, and raising the friction would also add drag that caps the top speed. `MetalCharacterMovement (flying)::CalcVelocity` passes `FlightGrip` as the friction and `bFluid = false` instead. Grip then controls how quickly the velocity swings round to the stick direction (tight corners, little drift), while letting go of the stick brakes at a steady `Braking` rate (`bUseSeparateBrakingFriction`, `BrakingDecelerationFlying`).
 
 **Staying in flying mode.** Every possession calls `Restart()`, which resets the movement mode to `DefaultLandMovementMode`. `PossessedBy` and `BeginPlay` therefore set `DefaultLandMovementMode = MOVE_Flying`.
 
@@ -44,7 +46,7 @@ Shots leave from the tip of each gun arm (`GetMuzzleLocation` pushes the gun bon
 | Parked | `bStartParked` and no controller at `BeginPlay` (hangar pads) | Rests on the floor, dormant, arms folded |
 | Linked by the player | Hack Tether on a friendly parked Stalker (`bAllyHackable`) | Lifts off the pad with an upward kick on possession; open-ended |
 | Released | Player disconnects | Dormant, but unlike walkers it doesn't stop dead: it coasts to a hover (`SetDormant` override), ready to be linked again |
-| AI piloted | `AMetalHangar::LaunchPilot` | Spawned flying with an `AMetalFlyerAIController`. See [AI.md](AI.md#pilots-ametalflyeraicontroller) |
+| AI piloted | `MetalHangar::LaunchPilot` | Spawned flying with an `MetalFlyerAI`. See [AI.md](AI.md#pilots-ametalflyeraicontroller) |
 
 A Stalker has no default AI controller (`AIControllerClass = nullptr`): parked ones sit idle until someone links in.
 
