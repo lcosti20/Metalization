@@ -430,8 +430,8 @@ namespace Metalization
         public float Health => health;
         public float MaxHealth => maxHealth;
         public bool IsStunned => Time.time < stunEndTime;
-        /// <summary>Powered down: body left behind during possession, or a robot that died.</summary>
-        public bool IsSlumped => dormant || dead;
+        /// <summary>Powered down: body left behind during possession, or a robot that died without a ragdoll.</summary>
+        public bool IsSlumped => dormant || (dead && ragdoll == null);
         /// <summary>Switched off (its controller drives another robot), or still being assembled.</summary>
         public bool IsDormant => dormant || assembling;
         public bool IsAssembling => assembling;
@@ -1404,9 +1404,12 @@ namespace Metalization
             dead = true;
             health = 0f;
             StopFire();
+            Vector3 deathVelocity = Velocity;
             Movement.StopMovementImmediately();
             Movement.DisableMovement();
             Capsule.enabled = false;
+            // Collapse into a ragdoll (nudged backwards, like Unreal's physics assets); without one the animator slumps it.
+            ragdoll = MetalBotRagdoll.Create(this, deathVelocity);
             // The last scream, and a moment later the killer gloats.
             Speak(MetalBark.Death);
             MetalBot victor = killer != null ? killer.Pawn : null;
@@ -1421,7 +1424,7 @@ namespace Metalization
         void Explode()
         {
             if (this == null || hiddenAfterDeath) return;
-            Vector3 center = MeshRoot != null ? MeshRoot.position + Vector3.up * (archetype != null ? archetype.capsuleHalfHeight : 0.7f) : transform.position;
+            Vector3 center = ragdoll != null ? ragdoll.Center : MeshRoot != null ? MeshRoot.position + Vector3.up * (archetype != null ? archetype.capsuleHalfHeight : 0.7f) : transform.position;
             MetalFX.SpawnExplosion(center, new Color(1f, 0.45f, 0.1f), 1.4f * meshScale, 0.5f);
             MetalAudio.PlayAt("robot_explode", center, Mathf.Clamp(meshScale, 0.8f, 2f));
             if (IsPlayerControlled)
@@ -1433,6 +1436,10 @@ namespace Metalization
             }
             Destroy(gameObject);
         }
+
+        MetalBotRagdoll ragdoll;
+        /// <summary>True once the dead robot has gone limp as a ragdoll.</summary>
+        public bool IsRagdoll => ragdoll != null;
 
         bool hiddenAfterDeath;
         public bool IsHiddenAfterDeath => hiddenAfterDeath;
@@ -1709,7 +1716,8 @@ namespace Metalization
                     flipTuck = Mathf.Sin(t * Mathf.PI);
                 }
             }
-            if (MeshRoot == null) return;
+            // A ragdoll's bodies hang off the model; moving it would teleport them.
+            if (MeshRoot == null || ragdoll != null) return;
             // Spin the whole body forward around the capsule centre (the model sits below it, so rotate the offset too).
             Quaternion flip = Quaternion.AngleAxis(angle, Vector3.right);
             Quaternion turn = meshTilt * flip;

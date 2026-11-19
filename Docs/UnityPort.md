@@ -57,7 +57,7 @@ fire). The `combat` smoke test passes on a Development player build (hijacks a c
 
 ## Known differences
 
-- No ragdolls: destroyed robots slump with a code-driven collapse instead of a physics ragdoll.
+- Death ragdolls are built at runtime (`MetalBotRagdoll`) instead of from physics assets: one box per main rig bone, fitted to the skinned vertices (character models are imported readable for this), joined with CharacterJoints and given Unreal's backwards nudge. Wreck colliders sit on Ignore Raycast so they don't block shots or the camera.
 - Navmesh jump links are not generated: the path follower treats a large height step between path corners as a jump.
   Grav lifts add explicit `NavMeshLink`s.
 - UI is IMGUI drawn in code (as the Unreal HUD/Slate code was); effects are built from particle systems and line renderers

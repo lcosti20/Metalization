@@ -80,7 +80,8 @@ namespace Metalization
         void OnTriggerEnter(Collider other)
         {
             MetalBot bot = other.GetComponentInParent<MetalBot>();
-            if (bot == null || !(bot.Controller is MetalPlayerController pc)) return;
+            // A dead player's wreck tumbling through doesn't count.
+            if (bot == null || !bot.IsAlive || !(bot.Controller is MetalPlayerController pc)) return;
             if (!dialoguePlayed && dialogue.Count > 0)
             {
                 dialoguePlayed = true;

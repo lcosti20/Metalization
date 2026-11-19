@@ -29,7 +29,8 @@ namespace Metalization.Editor
             importer.animationType = ModelImporterAnimationType.Generic;
             importer.avatarSetup = ModelImporterAvatarSetup.NoAvatar;
             importer.optimizeGameObjects = false;
-            importer.isReadable = assetPath.Contains("/Ships/");
+            // Characters: the death ragdoll fits its boxes to the skinned vertices.
+            importer.isReadable = assetPath.Contains("/Ships/") || assetPath.Contains("/Characters/");
             importer.addCollider = false;
             importer.importNormals = ModelImporterNormals.Import;
             // The graybox materials are built by MetalAssetPipeline from the manifest: map every FBX material slot

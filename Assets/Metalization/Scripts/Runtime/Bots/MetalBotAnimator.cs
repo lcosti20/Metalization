@@ -85,6 +85,9 @@ namespace Metalization
             else hidden.Remove(t);
         }
 
+        /// <summary>True if the bone itself was hidden (not just one of its parents).</summary>
+        public bool IsBoneHidden(Transform bone) => hidden.Contains(bone);
+
         static Quaternion SwingToward(Vector3 direction, float degrees)
         {
             Vector3 axis = Vector3.Cross(Vector3.down, direction);
