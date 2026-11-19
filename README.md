@@ -6,6 +6,8 @@ You fight as a Hero robot armed with the **Hack Tether**: aim it at an enemy rob
 
 [![Production Alpha Video](https://i.vimeocdn.com/video/2220664671-353d681842eb638bdfaddd33ed0599f9e1332090267b72ad46de947791a9c820-d?mw=900&mh=508&q=70)](https://vimeo.com/1242418953/9494e93d6d?share=copy&fl=sv&fe=ci)
 
+[Play on itch.io!](https://lcosti20.itch.io/metalization)
+
 ## Overview
 
 The current build is a playable prototype made of graybox models. Its pillars:
