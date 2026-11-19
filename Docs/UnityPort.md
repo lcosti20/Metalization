@@ -20,6 +20,7 @@ so the two versions can be compared and the remaining differences are known.
 | `InvisibleWall` collision profile | `MetalBlocker` layer: blocks robots and the navmesh, not shots or sight |
 | Maps (`.umap`) built by `ue_setup_*.py` | Scenes built by C# level builders (`Editor/MetalLevels*.cs`) through `MetalLevelWriter`, which takes the Unreal numbers |
 | Static meshes with sockets | Prefabs (`Prefabs/Ships/SM_*`) with a `Model` child and `SOCKET_*` children |
+| FBX import axes | Blender's FBX comes into Unity facing -Z; `MetalImportRules` turns every model's top-level nodes 180° about Y so characters face +Z (left at -X) and static models' Blender +X lands on +Z after `StaticModelRotation` |
 | Level streaming of the ship interior | `SceneManager.LoadSceneAsync(..., Additive)`, roots moved to the interior location |
 | Packaged build + `-game` command line | Player build (`MetalBuild`) + `-MetalLevel=<scene>` to skip the title screen |
 | Static multicast delegates | Static C# events (`MetalBot.AnyBotDied`, ...) |

@@ -16,8 +16,8 @@ namespace Metalization.Editor
         {
             if (!assetPath.StartsWith(ModelsFolder)) return;
             var importer = (ModelImporter)assetImporter;
-            // Blender exports metres with -Z forward / Y up: bake the axis conversion into the vertices so every
-            // node keeps an identity root rotation and models face +Z.
+            // Blender exports metres with -Z forward / Y up. Baking the axis conversion still leaves Blender's
+            // +Y (a character's back, a ship's left) on Unity's +Z, so OnPostprocessModel turns every model round.
             importer.bakeAxisConversion = true;
             importer.useFileScale = true;
             importer.globalScale = 1f;
@@ -44,9 +44,23 @@ namespace Metalization.Editor
             }
         }
 
+        // Bump whenever the postprocessing changes so Unity reimports the models.
+        public override uint GetVersion() => 2;
+
+        /// <summary>Half a turn about Y: imported Blender models face -Z, the game expects them to face +Z.</summary>
+        static readonly Quaternion FaceForward = Quaternion.Euler(0f, 180f, 0f);
+
         void OnPostprocessModel(GameObject root)
         {
-            if (!assetPath.StartsWith(ModelsFolder) || !assetPath.Contains("/Ships/")) return;
+            if (!assetPath.StartsWith(ModelsFolder)) return;
+            // Turn every top-level node (mesh, armature or collision hull) about the model origin. Bones below an
+            // armature keep their local transforms, and skinning follows the bones, so skinned meshes turn with them.
+            foreach (Transform child in root.transform)
+            {
+                child.localPosition = FaceForward * child.localPosition;
+                child.localRotation = FaceForward * child.localRotation;
+            }
+            if (!assetPath.Contains("/Ships/")) return;
             // Ship and hangar pieces carry UCX_ collision hulls: turn them into convex colliders and hide them. Pieces
             // without any get a mesh collider on the render mesh.
             bool anyHull = false;
